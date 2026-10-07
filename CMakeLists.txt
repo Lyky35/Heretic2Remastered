@@ -13,8 +13,9 @@ endif()
 
 set(CMAKE_C_FLAGS_RELEASE "-O2 -DNDEBUG" CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG" CACHE STRING "" FORCE)
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu17 -fcommon -Wno-unknown-pragmas -Wno-multichar -Wno-error=incompatible-pointer-types -Wno-incompatible-pointer-types -Wno-error=implicit-function-declaration -D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE -DWIN32 -D_WINDOWS -include ${CMAKE_SOURCE_DIR}/cmake/mingw_compat.h -I${CMAKE_SOURCE_DIR}/cmake/compat -I${CMAKE_BINARY_DIR}/case_aliases" CACHE STRING "" FORCE)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unknown-pragmas -Wno-multichar -Wno-error=incompatible-pointer-types -Wno-incompatible-pointer-types -D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE -DWIN32 -D_WINDOWS -I${CMAKE_SOURCE_DIR}/cmake/compat -I${CMAKE_BINARY_DIR}/case_aliases" CACHE STRING "" FORCE)
+# Note: set literally (no ${...} expansion) so repeated configures don't accumulate flags.
+set(CMAKE_C_FLAGS "-std=gnu17 -fcommon -Wno-unknown-pragmas -Wno-multichar -Wno-error=incompatible-pointer-types -Wno-incompatible-pointer-types -Wno-error=implicit-function-declaration -D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE -DWIN32 -D_WINDOWS -include ${CMAKE_SOURCE_DIR}/cmake/mingw_compat.h -I${CMAKE_SOURCE_DIR}/cmake/compat -I${CMAKE_BINARY_DIR}/case_aliases" CACHE STRING "" FORCE)
+set(CMAKE_CXX_FLAGS "-static-libgcc -static-libstdc++ -Wno-unknown-pragmas -Wno-multichar -Wno-error=incompatible-pointer-types -Wno-incompatible-pointer-types -D_CRT_SECURE_NO_WARNINGS -D_CRT_NONSTDC_NO_DEPRECATE -DWIN32 -D_WINDOWS -I${CMAKE_SOURCE_DIR}/cmake/compat -I${CMAKE_BINARY_DIR}/case_aliases" CACHE STRING "" FORCE)
 
 set(H2_OUT "${CMAKE_SOURCE_DIR}/build")
 set(H2_BASE "${CMAKE_SOURCE_DIR}/build/base")
@@ -64,7 +65,7 @@ function(h2_vcxproj_sources vcxproj out_var)
 endfunction()
 
 function(h2_add_target name)
-	cmake_parse_arguments(A "" "VCPROJ;OUTNAME;OUTDIR" "DEFS;INCS;LIBS;SOURCES;EXCLUDE" ${ARGN})
+	cmake_parse_arguments(A "" "VCPROJ;OUTNAME;OUTDIR" "DEFS;INCS;LIBS;SOURCES;EXCLUDE;EXTRA_LINK" ${ARGN})
 	if(A_VCPROJ)
 		h2_vcxproj_sources("${CMAKE_SOURCE_DIR}/${A_VCPROJ}" srcs)
 		if(A_EXCLUDE)
@@ -82,7 +83,7 @@ function(h2_add_target name)
 		LIBRARY_OUTPUT_DIRECTORY "${A_OUTDIR}")
 	target_compile_definitions(${name} PRIVATE ${A_DEFS} NDEBUG WIN32 _WINDOWS)
 	target_include_directories(${name} PRIVATE ${A_INCS})
-	target_link_libraries(${name} PRIVATE ${A_LIBS})
+	target_link_libraries(${name} PRIVATE ${A_LIBS} ${A_EXTRA_LINK})
 endfunction()
 
 # --- H2Common (utility DLL) -------------------------------------------------
@@ -117,7 +118,12 @@ h2_add_target(gamex64
 	OUTNAME "gamex64" OUTDIR "${H2_BASE}"
 	DEFS  GAME_DLL
 	INCS  "${CMAKE_SOURCE_DIR}/src/Player" "${CMAKE_SOURCE_DIR}/src/qcommon" "${CMAKE_SOURCE_DIR}/src/game"
-	LIBS  H2Common quake2)
+	LIBS  H2Common quake2
+	# The driver appends a dynamic -lpthread after static libstdc++, which would
+	# re-introduce a libwinpthread-1.dll dependency. Pull winpthread in statically
+	# with --whole-archive so stdc++'s later references resolve to objects that
+	# are already in the link (archives are order-sensitive, object files are not).
+	EXTRA_LINK "-Wl,-Bstatic" "-Wl,--whole-archive" "-lwinpthread" "-Wl,--no-whole-archive" "-Wl,-Bdynamic")
 
 # --- Client effects DLL -----------------------------------------------------
 h2_add_target(ClientEffects
