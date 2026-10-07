@@ -5,6 +5,9 @@
 //
 
 #pragma once
+struct msurface_s;
+struct paletteRGB_s;
+
 
 #include <glad-GL1.3/glad.h> // Must be included before SDL.
 #ifdef _DEBUG

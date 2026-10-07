@@ -5,6 +5,9 @@
 //
 
 #pragma once
+struct gclient_s;
+struct trace_s;
+
 
 #include "g_ClassStatics.h"
 #include "g_Message.h"

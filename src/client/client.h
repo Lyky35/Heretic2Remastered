@@ -5,6 +5,16 @@
 //
 
 #pragma once
+struct LERPedReferences_s;
+struct ResourceManager_s;
+struct Surface_s;
+struct client_entity_s;
+struct cmodel_s;
+struct entity_s;
+struct image_s;
+struct model_s;
+struct sfx_s;
+
 
 #include <math.h>
 #include <string.h>

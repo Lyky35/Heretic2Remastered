@@ -5,6 +5,8 @@
 //
 
 #pragma once
+struct G_Message_s;
+
 
 #include "FX.h"
 #include "q_shared.h"

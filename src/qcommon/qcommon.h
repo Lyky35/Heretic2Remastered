@@ -5,6 +5,9 @@
 //
 
 #pragma once
+struct entity_state_s;
+struct usercmd_s;
+
 
 #include <setjmp.h>
 #include "q_shared.h"

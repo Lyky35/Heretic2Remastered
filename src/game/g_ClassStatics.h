@@ -6,10 +6,6 @@
 
 #pragma once
 
-#include "g_Message.h"
-#include "g_local.h"
-
-// If you add or remove classID's here, you MUST adjust the tables in m_stats.c accordingly, as well as the StaticsInit and Precache stuff.
 // Search for "NUM_CLASSIDS" if you're not certain what's effected by this...
 typedef enum ClassID_e
 {
@@ -75,6 +71,11 @@ typedef enum ClassID_e
 
 	NUM_CLASSIDS
 } ClassID_t;
+
+#include "g_Message.h"
+#include "g_local.h"
+
+// If you add or remove classID's here, you MUST adjust the tables in m_stats.c accordingly, as well as the StaticsInit and Precache stuff.
 
 #define NUM_ATTACK_RANGES	(NUM_CLASSIDS * 4)
 

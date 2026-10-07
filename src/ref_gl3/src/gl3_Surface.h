@@ -21,3 +21,5 @@ extern void R_SetReflectionPass(qboolean active);
 extern msurface_t* R_GetAlphaSurfaces(void);
 extern void R_SetAlphaSurfaces(msurface_t* surf);
 extern qboolean R_GetLastWaterPlaneZ(float* out_z);
+extern void R_ClearWaterFrame(void);
+extern void R_SetReflectValid(qboolean valid);

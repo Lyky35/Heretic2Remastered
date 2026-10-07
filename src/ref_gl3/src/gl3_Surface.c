@@ -13,8 +13,10 @@
 #include "gl3_Misc.h"
 #include "gl3_Shaders.h"
 #include "gl3_Sky.h"
+#include "gl3_Sprite.h"
 #include "gl3_Warp.h"
 #include "Vector.h"
+#include <math.h>
 
 //mxd. Reconstructed data type. Original name unknown.
 typedef struct
@@ -37,19 +39,49 @@ static vec3_t modelorg; // Relative to viewpoint.
 static msurface_t* r_alpha_surfaces;
 
 // Reflection pass state.
-static qboolean r_reflection_pass = false;  // True while rendering the reflection FBO.
-static float    s_water_plane_z   = 0.0f;   // Z of the last detected horizontal water plane (previous frame).
-static qboolean s_has_water_plane = false;  // True when s_water_plane_z is valid.
+static qboolean r_reflection_pass  = false;  // True while rendering the reflection FBO.
+static float    s_water_plane_z    = 0.0f;   // Z of the horizontal water plane nearest the camera.
+static qboolean s_has_water_plane  = false;  // True when s_water_plane_z is valid.
+static qboolean s_water_drawn      = false;  // True when any water surface was drawn since the last frame start.
+static qboolean s_reflect_valid    = false;  // True when the reflection texture was rendered for the current frame.
 
 void R_SetReflectionPass(const qboolean on) { r_reflection_pass = on; }
 msurface_t* R_GetAlphaSurfaces(void)                        { return r_alpha_surfaces; }
 void        R_SetAlphaSurfaces(msurface_t* s)               { r_alpha_surfaces = s; }
 qboolean    R_GetLastWaterPlaneZ(float* out_z)
 {
-	if (!s_has_water_plane)
+	if (!s_has_water_plane || !s_water_drawn)
 		return false;
 	*out_z = s_water_plane_z;
 	return true;
+}
+
+void R_ClearWaterFrame(void)      { s_water_drawn   = false; }
+void R_SetReflectValid(qboolean v) { s_reflect_valid = v; }
+
+// Track a warp (water) surface so every water body gets planar reflections.
+// Called for each SURF_DRAWTURB surface drawn in the main pass; picks the
+// horizontal plane closest to the camera for the reflection pass.
+static void R_TrackWaterPlane(const msurface_t* s)
+{
+	if (r_reflection_pass)
+		return;
+
+	s_water_drawn = true;
+
+	const float nz = s->plane->normal[2];
+	if (nz > 0.7f || nz < -0.7f)
+	{
+		const glpoly_t* p = s->polys;
+		if (p == NULL)
+			return;
+
+		const float z = p->verts[0][2];
+		if (!s_has_water_plane || fabsf(z - r_newrefdef.vieworg[2]) < fabsf(s_water_plane_z - r_newrefdef.vieworg[2]))
+			s_water_plane_z = z;
+
+		s_has_water_plane = true;
+	}
 }
 
 #pragma region ========================== ALPHA SURFACES RENDERING ==========================
@@ -126,7 +158,8 @@ static void R_DrawAlphaSurface(const msurface_t* fa)
 	if (fa->flags & SURF_DRAWTURB)
 	{
 		GL3_Set3DColor(ii, ii, ii, alpha);
-		const qboolean use_reflect = gl3state.fboTexReflect != 0 && (int)r_reflections->value && s_has_water_plane;
+		R_TrackWaterPlane(fa);
+		const qboolean use_reflect = !r_reflection_pass && gl3state.fboTexReflect != 0 && (int)r_reflections->value && s_reflect_valid;
 		R_EmitWaterPolys(fa, fa->flags & SURF_UNDULATE, use_reflect);
 		GL3_Set3DColor(1.0f, 1.0f, 1.0f, 1.0f);
 	}
@@ -376,7 +409,8 @@ static void R_RenderBrushPoly(const entity_t* ent, msurface_t* fa)
 		// Warp texture, no lightmaps.
 		const float ii = gl_state.inverse_intensity;
 		GL3_Set3DColor(ii, ii, ii, 1.0f);
-		const qboolean use_reflect = !r_reflection_pass && gl3state.fboTexReflect != 0 && (int)r_reflections->value && s_has_water_plane;
+		R_TrackWaterPlane(fa);
+		const qboolean use_reflect = !r_reflection_pass && gl3state.fboTexReflect != 0 && (int)r_reflections->value && s_reflect_valid;
 		R_EmitWaterPolys(fa, fa->flags & SURF_UNDULATE, use_reflect);
 		GL3_Set3DColor(1.0f, 1.0f, 1.0f, 1.0f);
 
@@ -485,10 +519,6 @@ static void R_DrawTextureChains(const entity_t* ent)
 
 	// Render warping (water) surfaces (no lightmaps).
 	{
-		// Reset water plane detection once per main (non-reflection) frame.
-		if (!r_reflection_pass)
-			s_has_water_plane = false;
-
 		image_t* image = &gltextures[0];
 		for (int i = 0; i < numgltextures; i++, image++)
 		{
@@ -499,24 +529,10 @@ static void R_DrawTextureChains(const entity_t* ent)
 			{
 				if (s->flags & SURF_DRAWTURB)
 				{
+					// Water plane detection happens in R_TrackWaterPlane() via
+					// R_RenderBrushPoly(), covering world, alpha and brush surfaces.
 					if (!r_reflection_pass)
-					{
-						// Detect first horizontal water plane for the reflection pass next frame.
-						if (!s_has_water_plane)
-						{
-							const float nz = s->plane->normal[2];
-							if (nz > 0.7f || nz < -0.7f)
-							{
-								const glpoly_t* p = s->polys;
-								if (p != NULL)
-								{
-									s_water_plane_z   = p->verts[0][2];
-									s_has_water_plane = true;
-								}
-							}
-						}
 						R_RenderBrushPoly(ent, s);
-					}
 					// Skip water rendering during reflection pass to prevent recursion.
 				}
 			}

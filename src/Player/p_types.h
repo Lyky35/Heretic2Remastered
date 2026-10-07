@@ -5,6 +5,8 @@
 //
 
 #pragma once
+struct edict_s;
+
 
 #include "q_shared.h"
 #include "q_clientserver.h"

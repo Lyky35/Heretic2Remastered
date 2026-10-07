@@ -5,6 +5,8 @@
 //
 
 #pragma once
+struct edict_s;
+
 
 #include "g_Message.h"
 

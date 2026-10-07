@@ -5,6 +5,8 @@
 //
 
 #pragma once
+struct Surface_s;
+
 
 #include "gl1_Local.h"
 

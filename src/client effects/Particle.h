@@ -5,6 +5,8 @@
 //
 
 #pragma once
+struct client_entity_s;
+
 
 #include "q_Typedef.h"
 #include "ParticleFlags.h" //mxd

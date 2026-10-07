@@ -5,6 +5,12 @@
 //
 
 #pragma once
+struct ArrayedListNode_s;
+struct CL_SkeletalJoint_s;
+struct LERPedReferences_s;
+struct image_s;
+struct model_s;
+
 
 #include "qcommon.h"
 
@@ -184,6 +190,7 @@ typedef enum DrawStretchPicScaleMode_e
 } DrawStretchPicScaleMode_t;
 
 // Functions exported by the refresh module.
+struct Surface_s; //mxd. Forward declaration so the prototype below is not scoped to the parameter list.
 typedef struct refexport_s
 {
 	// If api_version is different, the dll cannot be used.

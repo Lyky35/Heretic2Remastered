@@ -704,12 +704,12 @@ static void R_DrawEntitiesOnList(void)
 	}
 }
 
-static void R_RenderReflection(const float water_z)
+static qboolean R_RenderReflection(const float water_z)
 {
 	if (!(int)r_reflections->value || gl3state.fboReflect == 0)
-		return;
+		return false;
 	if (r_worldmodel == NULL || (r_newrefdef.rdflags & RDF_NOWORLDMODEL))
-		return;
+		return false;
 
 	// Save main-frame state.
 	const refdef_t saved_refdef = r_newrefdef;
@@ -776,6 +776,8 @@ static void R_RenderReflection(const float water_z)
 	// Re-mark leaves and restore 3D matrices/viewport for main camera.
 	R_MarkLeaves();
 	R_SetupGL3D();
+
+	return true;
 }
 
 static const GLfloat particle_st_coords[NUM_PARTICLE_TYPES][4] =
@@ -1092,9 +1094,12 @@ static void R_RenderView(const refdef_t* fd)
 	R_MarkLeaves();
 
 	{
+		// Render the reflection texture for this frame (plane detected in a
+		// previous frame), then re-arm water tracking for the current frame.
 		float water_z;
-		if (R_GetLastWaterPlaneZ(&water_z))
-			R_RenderReflection(water_z);
+		const qboolean ran = R_GetLastWaterPlaneZ(&water_z) && R_RenderReflection(water_z);
+		R_SetReflectValid(ran);
+		R_ClearWaterFrame();
 	}
 
 	R_ResetBmodelTransforms();

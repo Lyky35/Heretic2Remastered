@@ -5,6 +5,8 @@
 //
 
 #pragma once
+struct client_particle_s;
+
 
 #include "Client Entities.h"
 

@@ -55,7 +55,10 @@ static qboolean SMK_Open(const char* name)
 	spi.total_frames = (int)frame_count;
 	spi.fps = floorf(1000000.0f / (float)usf);
 
-	smk_info_video(spi.smk_obj, &spi.vid_width, &spi.vid_height, NULL);
+	unsigned long vid_w = 0, vid_h = 0; //mxd. smk_info_video() writes unsigned long*; spi fields are int.
+	smk_info_video(spi.smk_obj, &vid_w, &vid_h, NULL);
+	spi.vid_width = (int)vid_w;
+	spi.vid_height = (int)vid_h;
 
 	byte s_channels[7];
 	byte s_bitdepth[7];
@@ -249,11 +252,11 @@ void SCR_RunCinematic(void) // Called every rendered frame.
 	if (cl.cinematictime < 1)
 		return;
 
-	// Background thread still loading — keep the frame loop alive but don't advance.
+	// Background thread still loading ï¿½ keep the frame loop alive but don't advance.
 	if (MP4_IsLoading())
 		return;
 
-	// Background load finished — finalize on the main thread (GPU resources).
+	// Background load finished ï¿½ finalize on the main thread (GPU resources).
 	if (!MP4_IsOpen())
 	{
 		if (!MP4_FinishOpen())

@@ -5,6 +5,8 @@
 //
 
 #pragma once
+struct SinglyLinkedListNode_s;
+
 
 #include "H2Common.h"
 #include "GenericUnions.h"

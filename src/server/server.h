@@ -5,6 +5,10 @@
 //
 
 #pragma once
+struct FormMove_s;
+struct SinglyLinkedList_s;
+struct cmodel_s;
+
 
 #include "qcommon.h"
 #include "qfiles.h"

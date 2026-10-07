@@ -5,6 +5,9 @@
 //
 
 #pragma once
+struct animmove_map_s;
+struct func_map_s;
+
 
 #include "q_Typedef.h"
 

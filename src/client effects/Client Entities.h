@@ -5,6 +5,9 @@
 //
 
 #pragma once
+struct CE_DLight_s;
+struct client_particle_s;
+
 
 #include "client.h"
 #include "Message.h"

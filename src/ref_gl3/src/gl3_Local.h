@@ -5,6 +5,9 @@
 //
 
 #pragma once
+struct msurface_s;
+struct paletteRGB_s;
+
 
 #include <glad-GL4.6/glad.h> // Must be included before SDL.
 #include "ref.h"

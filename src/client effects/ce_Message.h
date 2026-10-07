@@ -5,6 +5,8 @@
 //
 
 #pragma once
+struct client_entity_s;
+
 
 #include "SinglyLinkedList.h"
 

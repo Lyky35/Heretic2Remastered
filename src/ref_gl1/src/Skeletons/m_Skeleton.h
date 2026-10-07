@@ -5,6 +5,8 @@
 //
 
 #pragma once
+struct ArrayedListNode_s;
+
 
 #include "Reference.h"
 

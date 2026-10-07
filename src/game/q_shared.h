@@ -5,6 +5,8 @@
 //
 
 #pragma once
+struct edict_s;
+
 
 #include <direct.h>
 #include <assert.h>

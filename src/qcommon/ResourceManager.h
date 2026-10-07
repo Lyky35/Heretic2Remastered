@@ -5,6 +5,8 @@
 //
 
 #pragma once
+struct ResMngr_Block_s;
+
 
 #include "H2Common.h"
 #include "q_Typedef.h" //mxd. For uint...

@@ -5,6 +5,12 @@
 //
 
 #pragma once
+struct ArrayedListNode_s;
+struct FormMove_s;
+struct G_SkeletalJoint_s;
+struct SinglyLinkedList_s;
+struct trace_s;
+
 
 #include "q_ClientServer.h"
 

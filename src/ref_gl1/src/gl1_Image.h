@@ -5,6 +5,8 @@
 //
 
 #pragma once
+struct image_s;
+
 
 #include "gl1_Local.h"
 

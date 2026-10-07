@@ -5,6 +5,8 @@
 //
 
 #pragma once
+struct ModelSkeleton_s;
+
 
 #include "gl1_Local.h"
 #include "FlexModel.h"

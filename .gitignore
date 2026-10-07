@@ -25,3 +25,5 @@
 /src/WinSnd/debug
 /src/WinSnd/release
 *.user
+/build-mingw/
+
