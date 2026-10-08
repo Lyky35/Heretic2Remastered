@@ -968,6 +968,15 @@ static void R_DrawParticles(const int num_particles, const particle_t* particles
 		particle_job_data_t* job_data = (particle_job_data_t*)malloc(num_threads * sizeof(particle_job_data_t));
 		job_handle_t* job_handles = (job_handle_t*)malloc(num_threads * sizeof(job_handle_t));
 
+		// Mark every handle invalid up front. The dispatch loop below may break
+		// early when there are fewer particles than threads, leaving trailing
+		// entries untouched; the wait loop must not act on uninitialized memory.
+		for (int t = 0; t < num_threads; t++)
+		{
+			job_handles[t].job_id = -1;
+			job_handles[t].completed = NULL;
+		}
+
 		for (int t = 0; t < num_threads; t++)
 		{
 			const int start_idx = t * particles_per_job;
