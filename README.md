@@ -117,14 +117,3 @@ The engine loads content from `base.pak`, `Htic2-0.pak` through `Htic2-9.pak`, a
 * HDR?
 
 Got any ideas? Create new issue, sell it to me.
-
-## Used libraries
-
-* [glad](https://glad.dav1d.de)
-* [libsmacker](https://github.com/JonnyH/libsmacker)
-* [SDL3](https://www.libsdl.org)
-* [stb](https://github.com/nothings/stb) (specifically, stb_image, stb_image_write, and stb_vorbis)
-
-## SAST Tools
-
-[PVS-Studio](https://pvs-studio.com/pvs-studio/?utm_source=website&utm_medium=github&utm_campaign=open_source) - static analyzer for C, C++, C#, and Java code.
