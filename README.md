@@ -18,7 +18,8 @@ Currently disabled, lack of proper textures, and water texture to do decent visu
 (Can be played with r_bump_scale_world 0.3 and higher, and r_bump_scale_water 0.5 and higher.)
 
 * Rebuild in mingw-w64 cross compiler
-Now it can be compiled with cmake, no longer needs msvc)
+Now it can be compiled with cmake, no longer needs msvc.
+It means full linux support.
  
 * Fixed in-game crashes, and crash on loading
 Self explanatory - game doesn't crash anymore.
