@@ -114,7 +114,10 @@ static cvar_t* r_shadows;
 cvar_t* r_reflections;
 cvar_t* r_reflections_intensity;
 cvar_t* r_bump;
-cvar_t* r_bump_scale;
+cvar_t* r_bump_scale_world;
+cvar_t* r_bump_scale_water;
+cvar_t* r_caustics;
+cvar_t* r_caustics_strength;
 cvar_t* r_hd_textures;
 cvar_t* r_antialiasing;
 
@@ -292,7 +295,10 @@ static void R_Register(void)
 	r_reflections     = ri.Cvar_Get("r_reflections",     "1",   CVAR_ARCHIVE);
 	r_reflections_intensity = ri.Cvar_Get("r_reflections_intensity", "1.6", CVAR_ARCHIVE);
 	r_bump            = ri.Cvar_Get("r_bump",            "1",   CVAR_ARCHIVE);
-	r_bump_scale      = ri.Cvar_Get("r_bump_scale",      "1.0", CVAR_ARCHIVE);
+	r_bump_scale_world = ri.Cvar_Get("r_bump_scale_world", "0", CVAR_ARCHIVE);
+	r_bump_scale_water = ri.Cvar_Get("r_bump_scale_water", "0.5", CVAR_ARCHIVE);
+	r_caustics        = ri.Cvar_Get("r_caustics",        "1",   CVAR_ARCHIVE);
+	r_caustics_strength = ri.Cvar_Get("r_caustics_strength", "0.6", CVAR_ARCHIVE);
 	r_hd_textures     = ri.Cvar_Get("r_hd_textures",     "1",   CVAR_ARCHIVE);
 	r_antialiasing    = ri.Cvar_Get("r_antialiasing",    "0",   CVAR_ARCHIVE);
 
@@ -651,7 +657,10 @@ static void R_SetupGL3D(void)
 	GL3_UpdateModelview3D(r_world_matrix);
 
 	// Bump-mapping strength for this frame (0 disables).
-	GL3_UpdateBumpScale((int)r_bump->value ? r_bump_scale->value : 0.0f);
+	if ((int)r_bump->value)
+		GL3_UpdateBumpScale(r_bump_scale_world->value, r_bump_scale_water->value);
+	else
+		GL3_UpdateBumpScale(0.0f, 0.0f);
 
 	glCullFace(GL_FRONT);
 
@@ -729,8 +738,23 @@ static dlight_t s_merged_dlights[MAX_DLIGHTS];
 
 static float R_ParticleLightWeight(const particle_t* p)
 {
-	const float lum   = (0.30f * p->color.r + 0.59f * p->color.g + 0.11f * p->color.b) / 255.0f;
+	const float r = p->color.r / 255.0f;
+	const float g = p->color.g / 255.0f;
+	const float b = p->color.b / 255.0f;
+
+	const float lum   = 0.30f * r + 0.59f * g + 0.11f * b;
 	const float alpha = p->color.a / 255.0f;
+
+	// Most weapon/effect particles (e.g. fx_spellhands) pass color_white as a
+	// tint; their visible colour comes from the sprite texture. Promoting that
+	// white tint into a dynamic light produced a white cast light that washed
+	// out the effect's authored (coloured) CE_DLight. Scale the contribution by
+	// colour saturation so only genuinely coloured particles cast light; the
+	// engine's own CE_DLight supplies the intended colour.
+	const float max_ch = max(r, max(g, b));
+	const float min_ch = min(r, min(g, b));
+	const float sat = (max_ch > 0.0001f) ? (max_ch - min_ch) / max_ch : 0.0f;
+
 	float scale = p->scale / 16.0f;
 
 	if (scale < 0.5f)
@@ -738,7 +762,7 @@ static float R_ParticleLightWeight(const particle_t* p)
 	if (scale > 2.5f)
 		scale = 2.5f;
 
-	return lum * alpha * scale;
+	return lum * alpha * scale * sat;
 }
 
 static int R_CollectParticleLights(dlight_t* out, int num, const int max_out)
@@ -883,6 +907,8 @@ static void R_BuildReflectClipPlane(const float* mv, const float water_z, float 
 	out[0] = n[0]; out[1] = n[1]; out[2] = n[2]; out[3] = d;
 }
 
+static void R_DrawParticles(const int num_particles, const particle_t* particles, const qboolean alpha_particle);
+
 static qboolean R_RenderReflection(const float water_z)
 {
 	if (!(int)r_reflections->value || gl3state.fboReflect == 0)
@@ -927,6 +953,8 @@ static qboolean R_RenderReflection(const float water_z)
 	R_Mat4x4_Rotate(r_world_matrix, -r_newrefdef.viewangles[1], 0.0f, 0.0f, 1.0f);
 	R_Mat4x4_Translate(r_world_matrix, -r_newrefdef.vieworg[0], -r_newrefdef.vieworg[1], -r_newrefdef.vieworg[2]);
 	GL3_UpdateModelview3D(r_world_matrix);
+	// Rebind dynamic lights into the reflected camera's view space.
+	GL3_UpdateDlights();
 
 	// Clip submerged world geometry out of the mirror so only the world above
 	// the water plane is reflected.
@@ -942,6 +970,16 @@ static qboolean R_RenderReflection(const float water_z)
 	// Draw the entities (flex models, sprites, brush models) into the
 	// reflection too, otherwise only the sky and world geometry are reflected.
 	R_DrawEntitiesOnList();
+	if ((int)r_shadows->value && (int)r_drawentities->value)
+		R_DrawEntityShadows();
+	// Dynamic-light flares.
+	R_RenderDlights();
+	// Alpha (transparent) surfaces and particles are part of "all effects".
+	glDepthMask(GL_FALSE);
+	R_SortAndDrawAlphaSurfaces();
+	R_DrawParticles(r_newrefdef.num_particles, r_newrefdef.particles, false);
+	R_DrawParticles(r_newrefdef.anum_particles, r_newrefdef.aparticles, true);
+	glDepthMask(GL_TRUE);
 	R_SetReflectionPass(false);
 	glDisable(GL_CLIP_DISTANCE0);
 
@@ -966,6 +1004,8 @@ static qboolean R_RenderReflection(const float water_z)
 	// Re-mark leaves and restore 3D matrices/viewport for main camera.
 	R_MarkLeaves();
 	R_SetupGL3D();
+	// Restore dynamic lights to the main camera's view space.
+	GL3_UpdateDlights();
 
 	return true;
 }
@@ -1299,9 +1339,14 @@ static void R_RenderView(const refdef_t* fd)
 		// Render the reflection texture for this frame (plane detected in a
 		// previous frame), then re-arm water tracking for the current frame.
 		float water_z;
-		const qboolean ran = R_GetLastWaterPlaneZ(&water_z) && R_RenderReflection(water_z);
+		const qboolean has_water = R_GetLastWaterPlaneZ(&water_z);
+		const qboolean ran = has_water && R_RenderReflection(water_z);
 		R_SetReflectValid(ran);
 		R_ClearWaterFrame();
+
+		// Underwater caustics on submerged world geometry.
+		const float caustic_strength = (int)r_caustics->value ? r_caustics_strength->value : 0.0f;
+		GL3_UpdateCaustics(has_water ? water_z : 1.0e30f, caustic_strength, r_newrefdef.time);
 	}
 
 	R_ResetBmodelTransforms();

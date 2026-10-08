@@ -134,13 +134,19 @@ static const char* vertexSource3DLM =
 	"uniform mat4 uProjection;\n"
 	"uniform mat4 uModelview;\n"
 	"uniform vec4 uClipPlane;\n"
+	"uniform int uWorldSpace;\n"
 	"out vec2 vTexCoord;\n"
 	"out vec2 vLMCoord;\n"
 	"out vec3 vViewPos;\n"
+	"out vec3 vWorldPos;\n"
 	"void main() {\n"
 	"    vec4 viewPos = uModelview * vec4(aPos, 1.0);\n"
 	"    gl_Position = uProjection * viewPos;\n"
 	"    vViewPos = viewPos.xyz;\n"
+	// Only the static world is drawn in true world space; brush models are
+	// drawn in model space, so park their "world" position far above any
+	// water plane to keep caustics off them.
+	"    vWorldPos = (uWorldSpace != 0) ? aPos : vec3(aPos.xy, 1.0e9);\n"
 	"    vTexCoord = aTexCoord;\n"
 	"    vLMCoord = aLMCoord;\n"
 	"    gl_ClipDistance[0] = dot(viewPos.xyz, uClipPlane.xyz) + uClipPlane.w;\n"
@@ -151,10 +157,14 @@ static const char* fragmentSource3DLM =
 	"in vec2 vTexCoord;\n"
 	"in vec2 vLMCoord;\n"
 	"in vec3 vViewPos;\n"
+	"in vec3 vWorldPos;\n"
 	"uniform sampler2D uDiffuse;\n"
 	"uniform sampler2D uLightmap;\n"
 	"uniform vec4 uColor;\n"
 	"uniform float uBumpScale;\n"
+	"uniform float uWaterZ;\n"
+	"uniform float uCausticStrength;\n"
+	"uniform float uTime;\n"
 	"out vec4 FragColor;\n"
 	"void main() {\n"
 	"    vec4 diffuse = texture(uDiffuse, vTexCoord);\n"
@@ -168,6 +178,17 @@ static const char* fragmentSource3DLM =
 	"    vec3 Hv = normalize(Lv + V);\n"
 	"    float spec = pow(max(dot(N, Hv), 0.0), 32.0) * 0.5 * uBumpScale;\n"
 	"    vec3 lit = diffuse.rgb * lm.rgb + lm.rgb * spec;\n"
+	// Underwater caustics: animated light patterns on submerged world geometry.
+	"    float water_depth = uWaterZ - vWorldPos.z;\n"
+	"    if (uCausticStrength > 0.0 && water_depth > 0.0) {\n"
+	"        vec2 cc = vWorldPos.xy * 0.06 + vec2(uTime * 0.05, uTime * 0.037);\n"
+	"        float c = sin(cc.x * 2.1 + uTime * 1.3) * sin(cc.y * 1.7 - uTime * 1.1);\n"
+	"        c += 0.6 * sin((cc.x + cc.y) * 1.3 + uTime * 0.9);\n"
+	"        c += 0.4 * cos((cc.x - cc.y) * 1.9 - uTime * 0.7);\n"
+	"        c = pow(max(c * 0.5 + 0.5, 0.0), 2.5);\n"
+	"        float atten = 1.0 / (1.0 + water_depth * 0.01);\n"
+	"        lit += lit * c * uCausticStrength * atten;\n"
+	"    }\n"
 	"    FragColor = vec4(lit, diffuse.a) * uColor;\n"
 	"    if (FragColor.a < 0.01) discard;\n"
 	"}\n";
@@ -536,6 +557,10 @@ qboolean GL3_InitShaders(void)
 	gl3state.uni3DLM_color      = glGetUniformLocation(gl3state.shader3DLightmap, "uColor");
 	gl3state.uni3DLM_clipPlane  = glGetUniformLocation(gl3state.shader3DLightmap, "uClipPlane");
 	gl3state.uni3DLM_bumpScale  = glGetUniformLocation(gl3state.shader3DLightmap, "uBumpScale");
+	gl3state.uni3DLM_worldSpace = glGetUniformLocation(gl3state.shader3DLightmap, "uWorldSpace");
+	gl3state.uni3DLM_waterZ     = glGetUniformLocation(gl3state.shader3DLightmap, "uWaterZ");
+	gl3state.uni3DLM_caustic    = glGetUniformLocation(gl3state.shader3DLightmap, "uCausticStrength");
+	gl3state.uni3DLM_time       = glGetUniformLocation(gl3state.shader3DLightmap, "uTime");
 
 	// Bind sampler units once
 	GL3_UseShader(gl3state.shader2D);
@@ -551,6 +576,10 @@ qboolean GL3_InitShaders(void)
 	glUniform1i(gl3state.uni3DLM_diffuse, 0);
 	glUniform1i(gl3state.uni3DLM_lightmap, 1);
 	glUniform4f(gl3state.uni3DLM_color, 1.0f, 1.0f, 1.0f, 1.0f);
+	glUniform1i(gl3state.uni3DLM_worldSpace, 1);
+	glUniform1f(gl3state.uni3DLM_waterZ, -1.0e9f);
+	glUniform1f(gl3state.uni3DLM_caustic, 0.0f);
+	glUniform1f(gl3state.uni3DLM_time, 0.0f);
 
 	// --- Create shared 2D VAO/VBO ---
 	glGenVertexArrays(1, &gl3state.vao2D);
@@ -710,7 +739,7 @@ qboolean GL3_InitShaders(void)
 	{
 		const float neutral_plane[4] = { 0.0f, 0.0f, 1.0f, 1.0e6f };
 		GL3_UpdateClipPlane(neutral_plane);
-		GL3_UpdateBumpScale(1.0f);
+		GL3_UpdateBumpScale(1.0f, 1.0f);
 	}
 
 	ri.Con_Printf(PRINT_ALL, "GL3 shaders initialized.\n");
@@ -868,20 +897,40 @@ void GL3_UpdateClipPlane(const float plane[4])
 	}
 }
 
-// Set the bump-map (normal perturbation + specular) strength.
-void GL3_UpdateBumpScale(const float scale)
+// Set the bump-map (normal perturbation + specular) strength. World surfaces
+// (models + lightmapped world) use `world_scale`, the water surface uses
+// `water_scale`.
+void GL3_UpdateBumpScale(const float world_scale, const float water_scale)
 {
 	GL3_UseShader(gl3state.shader3D);
-	glUniform1f(gl3state.uni3D_bumpScale, scale);
+	glUniform1f(gl3state.uni3D_bumpScale, world_scale);
 
 	GL3_UseShader(gl3state.shader3DLightmap);
-	glUniform1f(gl3state.uni3DLM_bumpScale, scale);
+	glUniform1f(gl3state.uni3DLM_bumpScale, world_scale);
 
 	if (gl3state.shaderWater != 0)
 	{
 		GL3_UseShader(gl3state.shaderWater);
-		glUniform1f(gl3state.uniWater_bumpScale, scale);
+		glUniform1f(gl3state.uniWater_bumpScale, water_scale);
 	}
+}
+
+// Flag whether the geometry about to be drawn by shader3DLightmap is in true
+// world space (static world) or in model space (brush models).
+void GL3_SetWorldSpace(const int world_space)
+{
+	GL3_UseShader(gl3state.shader3DLightmap);
+	glUniform1i(gl3state.uni3DLM_worldSpace, world_space ? 1 : 0);
+}
+
+// Configure underwater caustics for world surfaces. `water_z` is the world-space
+// Z of the nearest horizontal water plane; pass a very large value to disable.
+void GL3_UpdateCaustics(const float water_z, const float strength, const float time)
+{
+	GL3_UseShader(gl3state.shader3DLightmap);
+	glUniform1f(gl3state.uni3DLM_waterZ, water_z);
+	glUniform1f(gl3state.uni3DLM_caustic, strength);
+	glUniform1f(gl3state.uni3DLM_time, time);
 }
 
 // ============================================================

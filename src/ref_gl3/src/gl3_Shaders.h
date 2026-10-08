@@ -20,7 +20,9 @@ extern void GL3_UpdateModelviewLM(const float* matrix4x4);
 
 // Reflection-pass clip plane (view space) and bump-map strength.
 extern void GL3_UpdateClipPlane(const float plane[4]);
-extern void GL3_UpdateBumpScale(float scale);
+extern void GL3_UpdateBumpScale(float world_scale, float water_scale);
+extern void GL3_SetWorldSpace(int world_space);
+extern void GL3_UpdateCaustics(float water_z, float strength, float time);
 
 // Per-draw color helpers.
 extern void GL3_SetLMColor(float r, float g, float b, float a);

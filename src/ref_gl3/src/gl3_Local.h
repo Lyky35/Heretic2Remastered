@@ -59,7 +59,10 @@ extern cvar_t* r_references;
 extern cvar_t* r_reflections;
 extern cvar_t* r_reflections_intensity;
 extern cvar_t* r_bump;
-extern cvar_t* r_bump_scale;
+extern cvar_t* r_bump_scale_world;
+extern cvar_t* r_bump_scale_water;
+extern cvar_t* r_caustics;
+extern cvar_t* r_caustics_strength;
 extern cvar_t* r_hd_textures;
 extern cvar_t* r_antialiasing;
 
@@ -242,6 +245,10 @@ typedef struct
 	GLint uni3DLM_color;
 	GLint uni3DLM_clipPlane;	// vec4 view-space water plane (reflection clipping).
 	GLint uni3DLM_bumpScale;	// bump/normal-map strength.
+	GLint uni3DLM_worldSpace;	// int: 1 = vertices are world-space (caustics eligible).
+	GLint uni3DLM_waterZ;		// float: world-space Z of the nearest water plane.
+	GLint uni3DLM_caustic;		// float: underwater caustics strength (0 disables).
+	GLint uni3DLM_time;			// float: animation time for caustics.
 
 	// VAO/VBO for 2D drawing
 	GLuint vao2D;

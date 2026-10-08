@@ -560,6 +560,8 @@ static void R_DrawInlineBModel(const entity_t* ent)
 
 	const model_t* mdl = *ent->model;
 
+	GL3_SetWorldSpace(0);	// brush model vertices are in model space (no caustics)
+
 	// Calculate dynamic lighting for bmodel.
 	if (!(int)gl_flashblend->value)
 	{
@@ -609,6 +611,8 @@ static void R_DrawInlineBModel(const entity_t* ent)
 		glDisable(GL_BLEND);
 		GL3_SetLMColor(1.0f, 1.0f, 1.0f, 1.0f);
 	}
+
+	GL3_SetWorldSpace(1);	// restore for subsequent world drawing
 }
 
 void R_DrawBrushModel(entity_t* ent)
@@ -791,6 +795,7 @@ void R_DrawWorld(void)
 
 	R_RecursiveWorldNode(&ent, r_worldmodel->nodes);
 
+	GL3_SetWorldSpace(1);	// static world vertices are in true world space (caustics eligible)
 	R_DrawTextureChains(&ent);
 
 	R_DrawSkyBox();
