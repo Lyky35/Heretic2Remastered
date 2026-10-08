@@ -215,7 +215,7 @@ void ParseEffectToSizeBuf(sizebuf_t* sb, const char* format, va_list marker) // 
 		switch (*format)
 		{
 			case 'b':
-				MSG_WriteByte(sb, va_arg(marker, byte));
+				MSG_WriteByte(sb, (byte)va_arg(marker, int)); //mxd. Small int types are promoted to int in varargs; passing byte/short to va_arg is UB (GCC turns it into a trap).
 				break;
 
 			case 'd':
@@ -236,7 +236,7 @@ void ParseEffectToSizeBuf(sizebuf_t* sb, const char* format, va_list marker) // 
 				break;
 
 			case 's':
-				MSG_WriteShort(sb, va_arg(marker, short));
+				MSG_WriteShort(sb, (short)va_arg(marker, int)); //mxd. Same promotion rule as case 'b'.
 				break;
 
 			case 't':

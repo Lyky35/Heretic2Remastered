@@ -27,12 +27,12 @@ size_t MSG_SetParms(SinglyLinkedList_t* parms, const char* format, va_list marke
 		switch (format[count])
 		{
 			case 'b':
-				parm.t_byte = va_arg(marker, byte);
+				parm.t_byte = (byte)va_arg(marker, int); //mxd. Small int types are promoted to int in varargs; passing byte/short to va_arg is UB (GCC turns it into a trap).
 				bytesParsed += sizeof(parm.t_byte);
 				break;
 
 			case 's':
-				parm.t_short = va_arg(marker, short);
+				parm.t_short = (short)va_arg(marker, int); //mxd. See case 'b'.
 				bytesParsed += sizeof(parm.t_short);
 				break;
 
