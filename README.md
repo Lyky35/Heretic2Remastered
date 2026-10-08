@@ -115,5 +115,6 @@ The engine loads content from `base.pak`, `Htic2-0.pak` through `Htic2-9.pak`, a
 * Re-add staff effects that are currently ?gone? or aren't working.
 * Different color profiles (Adobe RGB, rec2020, DCI-P3, SRGB)
 * HDR?
+* 3D Sound
 
 Got any ideas? Create new issue, sell it to me.
