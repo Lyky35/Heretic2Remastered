@@ -83,6 +83,7 @@ cvar_t* no_shield;
 cvar_t* no_teleport;
 
 cvar_t* dm_no_bodies;
+cvar_t* g_keep_corpses;
 
 cvar_t* player_dll;
 
@@ -234,6 +235,7 @@ void InitGame(void)
 
 	blood_level = gi.cvar("blood_level", VIOLENCE_DEFAULT_STR, CVAR_ARCHIVE);
 	dm_no_bodies = gi.cvar("dm_no_bodies", "0", CVAR_ARCHIVE);
+	g_keep_corpses = gi.cvar("g_keep_corpses", "1", CVAR_ARCHIVE);
 
 	gi.cvar("flash_screen", "1", 0);
 

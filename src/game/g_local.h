@@ -611,6 +611,7 @@ extern cvar_t* sv_maplist;
 extern cvar_t* allowillegalskins;
 
 extern cvar_t* dm_no_bodies;
+extern cvar_t* g_keep_corpses;
 
 extern cvar_t* player_dll;
 

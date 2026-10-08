@@ -1142,6 +1142,16 @@ void BodyPhaseOutPostThink(edict_t* self) //mxd. Named 'body_phase_out' in origi
 {
 #define PHASE_OUT_STEP	30 //mxd
 
+	//mxd. Optionally keep corpses around indefinitely (default). Cancels the
+	//phase-out so the body stays fully opaque and stops being post-thought.
+	if ((int)g_keep_corpses->value)
+	{
+		self->s.color.a = 255;
+		self->post_think = NULL;
+		self->next_post_think = -1.0f;
+		return;
+	}
+
 	if (self->s.color.a > PHASE_OUT_STEP)
 	{
 		self->s.color.a -= (byte)irand(PHASE_OUT_STEP / 2, PHASE_OUT_STEP);

@@ -704,6 +704,132 @@ static void R_DrawEntitiesOnList(void)
 	}
 }
 
+// ============================================================
+// Particle-derived dynamic lights.
+//
+// Particle effects never emitted light of their own. We scan the current
+// frame's particle lists and promote the brightest ones (preferring the
+// additive/glowing particles) into dynamic lights, so fire, sparks,
+// explosions and magic actually illuminate the world around them.
+// ============================================================
+
+#define MAX_PARTICLE_DLIGHTS		6
+#define PARTICLE_LIGHT_THRESHOLD	0.35f
+
+static dlight_t s_merged_dlights[MAX_DLIGHTS];
+
+static float R_ParticleLightWeight(const particle_t* p)
+{
+	const float lum   = (0.30f * p->color.r + 0.59f * p->color.g + 0.11f * p->color.b) / 255.0f;
+	const float alpha = p->color.a / 255.0f;
+	float scale = p->scale / 16.0f;
+
+	if (scale < 0.5f)
+		scale = 0.5f;
+	if (scale > 2.5f)
+		scale = 2.5f;
+
+	return lum * alpha * scale;
+}
+
+static int R_CollectParticleLights(dlight_t* out, int num, const int max_out)
+{
+	const particle_t* lists[2]   = { r_newrefdef.particles, r_newrefdef.aparticles };
+	const int counts[2]          = { r_newrefdef.num_particles, r_newrefdef.anum_particles };
+	const qboolean additive[2]   = { false, true };
+	const float min_dist2        = 96.0f * 96.0f;
+
+	int added = 0;
+
+	while (added < MAX_PARTICLE_DLIGHTS && num < max_out)
+	{
+		float best = PARTICLE_LIGHT_THRESHOLD;
+		int best_list = -1;
+		int best_idx = -1;
+
+		for (int l = 0; l < 2; l++)
+		{
+			for (int i = 0; i < counts[l]; i++)
+			{
+				const particle_t* p = &lists[l][i];
+				const qboolean is_additive = additive[l] || (p->type & PFL_ADDITIVE) != 0;
+				float weight = R_ParticleLightWeight(p);
+
+				if (is_additive)
+					weight *= 1.6f;
+
+				if (weight <= best)
+					continue;
+
+				qboolean too_close = false;
+				for (int k = 0; k < num; k++)
+				{
+					vec3_t dist;
+					VectorSubtract(p->origin, out[k].origin, dist);
+					if (VectorLengthSquared(dist) < min_dist2)
+					{
+						too_close = true;
+						break;
+					}
+				}
+
+				if (too_close)
+					continue;
+
+				best = weight;
+				best_list = l;
+				best_idx = i;
+			}
+		}
+
+		if (best_list < 0)
+			break;
+
+		const particle_t* p = &lists[best_list][best_idx];
+		dlight_t* dl = &out[num];
+
+		VectorCopy(p->origin, dl->origin);
+		dl->color.r = p->color.r;
+		dl->color.g = p->color.g;
+		dl->color.b = p->color.b;
+		dl->color.a = 255;
+
+		float intensity = best * 220.0f;
+		if (additive[best_list] || (p->type & PFL_ADDITIVE) != 0)
+			intensity *= 1.3f;
+
+		if (intensity < 100.0f)
+			intensity = 100.0f;
+		if (intensity > 350.0f)
+			intensity = 350.0f;
+
+		dl->intensity = intensity;
+
+		num++;
+		added++;
+	}
+
+	return num;
+}
+
+static void R_BuildDlights(const refdef_t* fd)
+{
+	int num = fd->num_dlights;
+
+	if (num < 0)
+		num = 0;
+	if (num > MAX_DLIGHTS)
+		num = MAX_DLIGHTS;
+
+	for (int i = 0; i < num; i++)
+		s_merged_dlights[i] = fd->dlights[i];
+
+	num = R_CollectParticleLights(s_merged_dlights, num, MAX_DLIGHTS);
+
+	r_newrefdef.dlights = s_merged_dlights;
+	r_newrefdef.num_dlights = num;
+}
+
 static qboolean R_RenderReflection(const float water_z)
 {
 	if (!(int)r_reflections->value || gl3state.fboReflect == 0)
@@ -753,6 +879,9 @@ static qboolean R_RenderReflection(const float water_z)
 	R_MarkLeaves();
 	R_ResetBmodelTransforms();
 	R_DrawWorld();
+	// Draw the entities (flex models, sprites, brush models) into the
+	// reflection too, otherwise only the sky and world geometry are reflected.
+	R_DrawEntitiesOnList();
 	R_SetReflectionPass(false);
 
 	// Discard alpha surfaces accumulated during reflection.
@@ -1093,6 +1222,9 @@ static void R_RenderView(const refdef_t* fd)
 
 	if (r_worldmodel == NULL && !(r_newrefdef.rdflags & RDF_NOWORLDMODEL))
 		ri.Sys_Error(ERR_DROP, "R_RenderView: NULL worldmodel");
+
+	// Merge in dynamic lights derived from this frame's particles.
+	R_BuildDlights(fd);
 
 	R_PushDlights();
 
