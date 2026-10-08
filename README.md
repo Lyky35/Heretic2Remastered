@@ -1,47 +1,36 @@
 # Heretic II Remastered
 
 ![Logo](Logo.png)
-A Very Special Thank You to the efforts of the developers of Heretic2R (Source Port) Without this none of this would be possible! https://github.com/m-x-d/Heretic2R
+A Very Special Thank You to the efforts of the developers of Heretic2R (Source Port), and spacefarergames without this none of this would be possible! https://github.com/m-x-d/Heretic2R ; https://github.com/spacefarergames/Heretic2Remastered
+
 Heretic II Remastered is a reverse-engineered source port of Heretic II (1998, Raven Software), with HD enhancements and modern engine improvements. Now completely 64bit with modern game control support out of the box and automatic detection of Original game data (Steam / GOG / CD) The best way to play Heretic II now and for the forseeable future!
-> This is a Free, Non-profit passion project but takes us a lot of coffee to get it done! Donate to us at https://buymeacoffee.com/jakeysbakery
-> PayPal- jake@spacefarergames.com
-![Screenshot1](CorvusNight.png)
-![Screenshot2](EnterThePalace.png)
+> This is a Free, Non-profit passion project.
 
-[VIDEO (YOUTUBE)](https://www.youtube.com/watch?v=xOLrOAykgWw&feature=youtu.be)
 
-## Features
+## Changes from R8.0
 
-* Widescreen support (with automatic HUD scaling).
-* Rendering framerate decoupled from network packets sending rate (with theoretical maximum of 1000 FPS).
-* OGG music playback.
-* Most of special effects are updated at rendering framerate (instead of 20 FPS).
-* Improved map loading times.
-* Lots of cosmetic improvements (so the game plays as you remember it, not as it actually played).
-* Many bugfixes.
-* Gamepad support via SDL3 (xinput/dinput/HID controllers).
-* HiDPI / high-resolution display support.
-* **OpenGL 3.3 Core Profile** renderer (`ref_gl3.dll`). Allows support for ReShade (all latest versions) as FPO is supported with Depth Buffer (Upside down, flip to use in global preprocessor settings)
-* **With the OpenGL 3.3 renderer, the game can run on modern Linux and macOS via Wine/Proton** (untested, but should work in theory).
-* **Windows Media Foundation** video playback backend (`winmf_video.dll`) for MP4/MKV support and better performance compared to libsmacker.
-* **stb_vorbis** OGG music playback backend (`stbv_music.dll`) for better performance and lower memory usage compared to libvorbis.
-* **Dynamic Shadow Mapping** — dynamic shadows for entities and world geometry, with support for alpha-tested textures (e.g. grates, fences).
-* **Dynamic Lighting** — dynamic per-pixel lighting for entities and world geometry, with support for normal maps and specular maps in HD textures.
-* **Parallax Mapping** — parallax mapping for world geometry, with support for height maps in HD textures.
-* **Bloom** — bloom post-processing effect for emissive materials (e.g. lava, fire).
-* **Screen Space Reflections** — screen space reflections for water surfaces.
-* **Anti-Aliasing** — FXAA anti-aliasing for smoother edges.
-* **Configurable controls** — fully customizable keybindings and gamepad mappings via in-game menu.
-* **Skyboxes now have dynamic stars** (instead of static sky textures).
-* **Improved particle effects** — more particles, better blending, and support for HD textures.
-* **Improved water rendering** — animated water surfaces with reflections and refractions.
-* **SAO (Screen Space Ambient Occlusion)** — ambient occlusion effect for better depth perception and contact shadows.
-* **HD texture replacement** — drop-in PNG replacements for original `.m8`/`.m32` textures via the `HDTextures` folder.
-* **HD video playback** — MP4/MKV cinematics via Windows Media Foundation.
-* **PAK2 archive format** — extended PAK format supporting filenames up to 128 characters (see below).
-* **`base.pak` support** — all game data (textures, models, sounds, music, HD textures, HD videos) can be distributed as a single `base.pak` archive.
-* **Automatic CD detection** — if a Heretic II CD is in any CD/DVD drive, the engine automatically extracts the required PAK files (no manual copying needed).
-* **Smooth UI enhancements** - New animations added to UI, fade in/ out transitions and starfield / northen lights which makes the game look better when using hardcoded 4:3 assets
+* Multi Pass reflections water planes
+It uses same effect as 3dmark01 lobby scene for water.
+(There are still issues where not everything is being loaded.)
+
+* Bump mapping
+Currently disabled, lack of proper textures, and water texture to do decent visuals.
+(Can be played with r_bump_scale_world 0.3 and higher, and r_bump_scale_water 0.5 and higher.)
+
+* Rebuild in mingw-w64 cross compiler
+Now it can be compiled with cmake, no longer needs msvc)
+ 
+* Fixed in-game crashes, and crash on loading
+Self explanatory - game doesn't crash anymore.
+
+* Bodies no longer disappear
+Corpses stay by default, can be changed with g_keep_corpses 0, to enable cleanup after 10-20sec.
+
+* Particles now cast light
+Particles now lights, this includes fires, particles from weapons etc.
+There are some bugs, and missing lights from all weapons (or too small lights WIP)
+
+
 
 ## Installation
 
@@ -67,122 +56,6 @@ HD textures can also be loaded from `base.pak`.
 **HD videos:**  
 Place MP4 or MKV cinematics in "**base\video**". The game will play them in place of the original `.cin`/`.smk` files.  
 HD videos can also be loaded from `base.pak`.
-
-## Performance Improvements (R7 v2.0.7)
-
-**Multithreaded Job System**  
-The OpenGL 3.3 renderer now includes a multithreaded job system that automatically detects the number of available CPU cores and uses them for parallel rendering tasks.
-
-- **Particle Rendering**: Particle vertex generation is parallelized across multiple CPU cores, resulting in **2–3x performance improvement** on 4-core systems for scenes with 128+ particles.
-- **Automatic Core Detection**: The job system automatically adapts to the system's CPU configuration (supports 1–16 worker threads).
-- **Fallback Mode**: For small particle counts (<128), the system uses sequential processing to avoid threading overhead, ensuring consistent performance across all scenarios.
-- **Stability**: Includes improvements to the renderer's shutdown sequence to ensure clean exit and prevent game hangs.
-- **Backward Compatibility**: Works on all systems and automatically degrades to single-threaded mode on single-core CPUs or when explicitly configured.
-
-This improvement provides the best results in high-particle-count scenarios such as:
-- Dense weather effects (rain, snow)
-- Explosion particles
-- Magical spell effects
-- Atmospheric effects (dust, fog, sparks)
-
-**Now 64bit for the first time**  
-The game engine, renderer and backends are now all 64bit with 100% compatibility with the original game data. Only caveat is that save files made in 32bit and prior versions WILL NOT WORK.
-
-## CD Auto-Detection
-
-On startup, the engine scans all CD/DVD drives for the original Heretic II disc. If the disc is found (identified by the presence of `Setup/zip/h2.zip`), the engine automatically extracts `Htic2-0.pak` and `Htic2-1.pak` from the CD's installer ZIP archive into the `base` directory. A splash screen is displayed during extraction.
-
-- If both PAK files already exist in the `base` folder, extraction is skipped.
-- The built-in ZIP/DEFLATE decompressor requires no external libraries.
-
-## Controller Guide
-
-Heretic II Remastered has full gamepad support via SDL3. Any XInput, DirectInput, or HID controller should work out of the box. Analog sticks provide smooth movement and camera control — the left stick moves, the right stick looks (swappable via `joy_layout 1` for southpaw).
-
-### Button Mapping
-
-> Names follow Xbox layout. PlayStation equivalents in parentheses.
-
-#### Face Buttons
-
-| Button | Action |
-|---|---|
-| **A** (Cross) | Jump / Swim up |
-| **B** (Circle) | Quick 180° turn *(also Back in menus)* |
-| **X** (Square) | Interact / Use |
-| **Y** (Triangle) | Crouch / Swim down |
-
-#### Triggers & Bumpers
-
-| Button | Action |
-|---|---|
-| **RT** (R2) | Attack |
-| **LT** (L2) | Defend / Block |
-| **RB** (R1) | Next weapon |
-| **LB** (L1) | Previous weapon |
-
-#### Stick Clicks
-
-| Button | Action |
-|---|---|
-| **L3** | Run / Sprint |
-| **R3** | Creep / Sneak |
-
-#### D-Pad
-
-| Direction | Action |
-|---|---|
-| Up | Next defense |
-| Down | Previous defense |
-| Left | Previous weapon |
-| Right | Next weapon |
-
-#### System
-
-| Button | Action |
-|---|---|
-| **Start** (Options) | Open / Close menu |
-| **Back** (Select) | Open inventory |
-
-### Analog Sticks
-
-| Stick | Default (`joy_layout 0`) | Southpaw (`joy_layout 1`) |
-|---|---|---|
-| Left Stick | Movement | Camera look |
-| Right Stick | Camera look | Movement |
-
-The right stick (or left in southpaw) controls yaw and pitch with an adjustable response curve for fine-grained aiming at low deflections.
-
-### Controller Cvars
-
-All controller settings are saved automatically and can be tuned in the console:
-
-| Cvar | Default | Description |
-|---|---|---|
-| `joy_enable` | `1` | Enable / disable gamepad input |
-| `joy_deadzone` | `0.2` | Stick deadzone (0.0 – 1.0) |
-| `joy_sensitivity_yaw` | `240` | Horizontal look speed (°/sec at full deflection) |
-| `joy_sensitivity_pitch` | `150` | Vertical look speed (°/sec at full deflection) |
-| `joy_sensitivity_move` | `1.0` | Movement stick multiplier |
-| `joy_trigger_threshold` | `0.12` | Trigger activation threshold |
-| `joy_invert_y` | `0` | Invert camera Y axis |
-| `joy_response_curve` | `1.5` | Look stick response curve exponent (1.0 = linear, higher = more precision at low deflections) |
-| `joy_layout` | `0` | Stick layout: 0 = default, 1 = southpaw |
-
-### Rebinding
-
-All buttons can be rebound via the console. The key names are:
-
-```
-Face:     Joy1 (A)  Joy2 (B)  Joy3 (X)  Joy4 (Y)
-Bumpers:  Aux6 (LB) Aux7 (RB)
-Triggers: Aux12 (LT) Aux13 (RT)
-Sticks:   Aux4 (L3) Aux5 (R3)
-D-pad:    Aux8 (Up) Aux9 (Down) Aux10 (Left) Aux11 (Right)
-System:   Aux1 (Back) Aux3 (Start)
-```
-
-Example: `bind Joy1 "+attack"` to put attack on the A button.
 
 ## base.pak and the PAK2 format
 
@@ -228,7 +101,18 @@ The engine loads content from `base.pak`, `Htic2-0.pak` through `Htic2-9.pak`, a
 
 ## Planned features
 
-* See issues.
+* Vulkan rewrite + test technology
+* Test First-Person-Perspective
+* Re-do skyboxes
+* Re-create 3d models to make them look more up to date.
+* Create PBR workflow textures.
+* SSAO for objects (Not for water)
+* Gentle GI (potentially pre-baking light planes.)
+* Create nicer particle effects with physical collisions
+* Add water displacement when play or mobs move in it.
+* Add water refraction things underwater.
+* Get water caustics to work.
+* Re-add staff effects that are currently ?gone? or aren't working.
 
 ## Used libraries
 
