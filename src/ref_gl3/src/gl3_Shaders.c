@@ -52,6 +52,7 @@ static const char* vertexSource3D =
 	"layout(location = 2) in vec4 aColor;\n"
 	"uniform mat4 uProjection;\n"
 	"uniform mat4 uModelview;\n"
+	"uniform vec4 uClipPlane;\n"
 	"out vec2 vTexCoord;\n"
 	"out vec4 vColor;\n"
 	"out vec3 vViewPos;\n"
@@ -61,6 +62,7 @@ static const char* vertexSource3D =
 	"    vViewPos = viewPos4.xyz;\n"
 	"    vTexCoord = aTexCoord;\n"
 	"    vColor = aColor;\n"
+	"    gl_ClipDistance[0] = dot(viewPos4.xyz, uClipPlane.xyz) + uClipPlane.w;\n"
 	"}\n";
 
 static const char* fragmentSource3D =
@@ -73,6 +75,7 @@ static const char* fragmentSource3D =
 	"uniform int  uNumDlights;\n"
 	"uniform vec4 uDlightPosRad[8];\n"	// xyz = view-space pos, w = intensity (radius)
 	"uniform vec4 uDlightColor[8];\n"	// xyz = rgb (0..1), w = unused
+	"uniform float uBumpScale;\n"
 	"out vec4 FragColor;\n"
 	"void main() {\n"
 	"    vec4 base = texture(uTexture, vTexCoord) * vColor * uColor;\n"
@@ -83,7 +86,15 @@ static const char* fragmentSource3D =
 	"        float atten = max(0.0, (uDlightPosRad[i].w - dist) / 256.0);\n"
 	"        dlightSum += uDlightColor[i].rgb * atten;\n"
 	"    }\n"
-	"    vec3 lit = base.rgb + dlightSum;\n"
+	// Bump mapping: derive a surface normal from the diffuse luminance gradient,
+	// then add a directional specular highlight.
+	"    float h = dot(base.rgb, vec3(0.299, 0.587, 0.114));\n"
+	"    vec3 N = normalize(vec3(-dFdx(h) * uBumpScale * 24.0, -dFdy(h) * uBumpScale * 24.0, 1.0));\n"
+	"    vec3 V = normalize(-vViewPos);\n"
+	"    vec3 Lv = normalize(vec3(0.3, 0.5, 0.8));\n"
+	"    vec3 Hv = normalize(Lv + V);\n"
+	"    float spec = pow(max(dot(N, Hv), 0.0), 32.0) * 0.6 * uBumpScale;\n"
+	"    vec3 lit = base.rgb + dlightSum + vec3(spec);\n"
 	"    FragColor = vec4(lit, base.a);\n"
 	"}\n";
 
@@ -94,10 +105,13 @@ static const char* vertexSource3DColor =
 	"layout(location = 1) in vec4 aColor;\n"
 	"uniform mat4 uProjection;\n"
 	"uniform mat4 uModelview;\n"
+	"uniform vec4 uClipPlane;\n"
 	"out vec4 vColor;\n"
 	"void main() {\n"
-	"    gl_Position = uProjection * uModelview * vec4(aPos, 1.0);\n"
+	"    vec4 viewPos = uModelview * vec4(aPos, 1.0);\n"
+	"    gl_Position = uProjection * viewPos;\n"
 	"    vColor = aColor;\n"
+	"    gl_ClipDistance[0] = dot(viewPos.xyz, uClipPlane.xyz) + uClipPlane.w;\n"
 	"}\n";
 
 static const char* fragmentSource3DColor =
@@ -119,26 +133,41 @@ static const char* vertexSource3DLM =
 	"layout(location = 2) in vec2 aLMCoord;\n"
 	"uniform mat4 uProjection;\n"
 	"uniform mat4 uModelview;\n"
+	"uniform vec4 uClipPlane;\n"
 	"out vec2 vTexCoord;\n"
 	"out vec2 vLMCoord;\n"
+	"out vec3 vViewPos;\n"
 	"void main() {\n"
-	"    gl_Position = uProjection * uModelview * vec4(aPos, 1.0);\n"
+	"    vec4 viewPos = uModelview * vec4(aPos, 1.0);\n"
+	"    gl_Position = uProjection * viewPos;\n"
+	"    vViewPos = viewPos.xyz;\n"
 	"    vTexCoord = aTexCoord;\n"
 	"    vLMCoord = aLMCoord;\n"
+	"    gl_ClipDistance[0] = dot(viewPos.xyz, uClipPlane.xyz) + uClipPlane.w;\n"
 	"}\n";
 
 static const char* fragmentSource3DLM =
 	"#version 330 core\n"
 	"in vec2 vTexCoord;\n"
 	"in vec2 vLMCoord;\n"
+	"in vec3 vViewPos;\n"
 	"uniform sampler2D uDiffuse;\n"
 	"uniform sampler2D uLightmap;\n"
 	"uniform vec4 uColor;\n"
+	"uniform float uBumpScale;\n"
 	"out vec4 FragColor;\n"
 	"void main() {\n"
 	"    vec4 diffuse = texture(uDiffuse, vTexCoord);\n"
 	"    vec4 lm = texture(uLightmap, vLMCoord);\n"
-	"    vec3 lit = diffuse.rgb * lm.rgb;\n"
+	// Bump mapping: perturb the surface normal with the diffuse luminance
+	// gradient and add a directional specular highlight, masked by the lightmap.
+	"    float h = dot(diffuse.rgb, vec3(0.299, 0.587, 0.114));\n"
+	"    vec3 N = normalize(vec3(-dFdx(h) * uBumpScale * 24.0, -dFdy(h) * uBumpScale * 24.0, 1.0));\n"
+	"    vec3 V = normalize(-vViewPos);\n"
+	"    vec3 Lv = normalize(vec3(0.3, 0.5, 0.8));\n"
+	"    vec3 Hv = normalize(Lv + V);\n"
+	"    float spec = pow(max(dot(N, Hv), 0.0), 32.0) * 0.5 * uBumpScale;\n"
+	"    vec3 lit = diffuse.rgb * lm.rgb + lm.rgb * spec;\n"
 	"    FragColor = vec4(lit, diffuse.a) * uColor;\n"
 	"    if (FragColor.a < 0.01) discard;\n"
 	"}\n";
@@ -316,15 +345,19 @@ static const char* vertexSourceWater =
 	"layout(location = 2) in vec4 aColor;\n"
 	"uniform mat4 uProjection;\n"
 	"uniform mat4 uModelview;\n"
+	"uniform vec4 uClipPlane;\n"
 	"out vec2 vTexCoord;\n"
 	"out vec4 vColor;\n"
 	"out vec4 vClipPos;\n"
+	"out vec3 vViewPos;\n"
 	"void main() {\n"
 	"    vec4 viewPos = uModelview * vec4(aPos, 1.0);\n"
 	"    gl_Position = uProjection * viewPos;\n"
 	"    vClipPos    = gl_Position;\n"
 	"    vTexCoord   = aTexCoord;\n"
 	"    vColor      = aColor;\n"
+	"    vViewPos    = viewPos.xyz;\n"
+	"    gl_ClipDistance[0] = dot(viewPos.xyz, uClipPlane.xyz) + uClipPlane.w;\n"
 	"}\n";
 
 static const char* fragmentSourceWater =
@@ -332,24 +365,36 @@ static const char* fragmentSourceWater =
 	"in vec2 vTexCoord;\n"
 	"in vec4 vColor;\n"
 	"in vec4 vClipPos;\n"
+	"in vec3 vViewPos;\n"
 	"uniform sampler2D uTexture;\n"
 	"uniform sampler2D uReflectTex;\n"
 	"uniform vec4  uColor;\n"
 	"uniform float uReflectAmt;\n"
 	"uniform float uTime;\n"
+	"uniform float uBumpScale;\n"
 	"out vec4 FragColor;\n"
 	"void main() {\n"
 	"    vec4 waterColor = texture(uTexture, vTexCoord) * vColor * uColor;\n"
 	"    if (waterColor.a < 0.01) discard;\n"
-	"    float dx = sin(vTexCoord.y * 25.0 + uTime * 1.5) * 0.010\n"
-	"             + sin(vTexCoord.x * 17.0 + uTime * 2.3) * 0.006;\n"
-	"    float dy = cos(vTexCoord.x * 25.0 + uTime * 1.5) * 0.010\n"
-	"             + cos(vTexCoord.y * 17.0 + uTime * 2.3) * 0.006;\n"
-	"    vec2 screenUV = vClipPos.xy / vClipPos.w * 0.5 + 0.5 + vec2(dx, dy);\n"
+	// Bump mapping: build an animated wave-height field and its analytic
+	// gradient, giving a perturbed surface normal used both to distort the
+	// reflection lookup and to compute a specular highlight.
+	"    float t  = uTime;\n"
+	"    float px = vTexCoord.x;\n"
+	"    float py = vTexCoord.y;\n"
+	"    float dhdx = -sin(px * 25.0 + t * 1.5) * 17.5 + cos((px + py) * 17.0 + t * 2.3) * 8.5;\n"
+	"    float dhdy =  cos(py * 25.0 + t * 1.5) * 17.5 + cos((px + py) * 17.0 + t * 2.3) * 8.5;\n"
+	"    vec3 N = normalize(vec3(-dhdx * 0.0022 * uBumpScale, -dhdy * 0.0022 * uBumpScale, 1.0));\n"
+	"    vec2 screenUV = vClipPos.xy / vClipPos.w * 0.5 + 0.5 + N.xy * 0.05;\n"
 	"    screenUV.y = 1.0 - screenUV.y;\n"
 	"    screenUV = clamp(screenUV, 0.0, 1.0);\n"
 	"    vec3 reflectColor = texture(uReflectTex, screenUV).rgb;\n"
 	"    vec3 blended = mix(waterColor.rgb, reflectColor, uReflectAmt);\n"
+	"    vec3 V = normalize(-vViewPos);\n"
+	"    vec3 L = normalize(vec3(0.3, 0.6, 0.7));\n"
+	"    vec3 Hv = normalize(L + V);\n"
+	"    float spec = pow(max(dot(N, Hv), 0.0), 96.0) * uBumpScale;\n"
+	"    blended += vec3(spec);\n"
 	"    FragColor = vec4(blended, waterColor.a);\n"
 	"}\n";
 
@@ -460,6 +505,8 @@ qboolean GL3_InitShaders(void)
 	gl3state.uni3D_numDlights   = glGetUniformLocation(gl3state.shader3D, "uNumDlights");
 	gl3state.uni3D_dlightPosRad = glGetUniformLocation(gl3state.shader3D, "uDlightPosRad");
 	gl3state.uni3D_dlightColor  = glGetUniformLocation(gl3state.shader3D, "uDlightColor");
+	gl3state.uni3D_clipPlane    = glGetUniformLocation(gl3state.shader3D, "uClipPlane");
+	gl3state.uni3D_bumpScale    = glGetUniformLocation(gl3state.shader3D, "uBumpScale");
 
 	// --- 3D color-only shader ---
 	gl3state.shader3DColor = CreateProgram(vertexSource3DColor, fragmentSource3DColor);
@@ -472,6 +519,7 @@ qboolean GL3_InitShaders(void)
 	gl3state.uni3DColor_projection = glGetUniformLocation(gl3state.shader3DColor, "uProjection");
 	gl3state.uni3DColor_modelview = glGetUniformLocation(gl3state.shader3DColor, "uModelview");
 	gl3state.uni3DColor_color = glGetUniformLocation(gl3state.shader3DColor, "uColor");
+	gl3state.uni3DColor_clipPlane = glGetUniformLocation(gl3state.shader3DColor, "uClipPlane");
 
 	// --- 3D lightmapped shader ---
 	gl3state.shader3DLightmap = CreateProgram(vertexSource3DLM, fragmentSource3DLM);
@@ -486,6 +534,8 @@ qboolean GL3_InitShaders(void)
 	gl3state.uni3DLM_diffuse    = glGetUniformLocation(gl3state.shader3DLightmap, "uDiffuse");
 	gl3state.uni3DLM_lightmap   = glGetUniformLocation(gl3state.shader3DLightmap, "uLightmap");
 	gl3state.uni3DLM_color      = glGetUniformLocation(gl3state.shader3DLightmap, "uColor");
+	gl3state.uni3DLM_clipPlane  = glGetUniformLocation(gl3state.shader3DLightmap, "uClipPlane");
+	gl3state.uni3DLM_bumpScale  = glGetUniformLocation(gl3state.shader3DLightmap, "uBumpScale");
 
 	// Bind sampler units once
 	GL3_UseShader(gl3state.shader2D);
@@ -647,12 +697,21 @@ qboolean GL3_InitShaders(void)
 	gl3state.uniWater_reflectTex = glGetUniformLocation(gl3state.shaderWater, "uReflectTex");
 	gl3state.uniWater_reflectAmt = glGetUniformLocation(gl3state.shaderWater, "uReflectAmt");
 	gl3state.uniWater_time       = glGetUniformLocation(gl3state.shaderWater, "uTime");
+	gl3state.uniWater_clipPlane  = glGetUniformLocation(gl3state.shaderWater, "uClipPlane");
+	gl3state.uniWater_bumpScale  = glGetUniformLocation(gl3state.shaderWater, "uBumpScale");
 
 	GL3_UseShader(gl3state.shaderWater);
 	glUniform1i(gl3state.uniWater_reflectTex, 1);      // TMU1: reflection texture.
 	glUniform4f(gl3state.uniWater_color, 1.0f, 1.0f, 1.0f, 1.0f);
 	glUniform1f(gl3state.uniWater_reflectAmt, 0.35f);
 	glUniform1f(gl3state.uniWater_time, 0.0f);
+
+	// Neutral clip plane + default bump strength on all 3D programs.
+	{
+		const float neutral_plane[4] = { 0.0f, 0.0f, 1.0f, 1.0e6f };
+		GL3_UpdateClipPlane(neutral_plane);
+		GL3_UpdateBumpScale(1.0f);
+	}
 
 	ri.Con_Printf(PRINT_ALL, "GL3 shaders initialized.\n");
 
@@ -786,6 +845,42 @@ void GL3_Set3DColor(const float r, const float g, const float b, const float a)
 	{
 		GL3_UseShader(gl3state.shaderWater);
 		glUniform4f(gl3state.uniWater_color, r, g, b, a);
+	}
+}
+
+// Set the view-space clip plane used by the reflection pass. Pass a neutral
+// plane (0,0,1,large) to effectively disable clipping.
+void GL3_UpdateClipPlane(const float plane[4])
+{
+	GL3_UseShader(gl3state.shader3D);
+	glUniform4fv(gl3state.uni3D_clipPlane, 1, plane);
+
+	GL3_UseShader(gl3state.shader3DColor);
+	glUniform4fv(gl3state.uni3DColor_clipPlane, 1, plane);
+
+	GL3_UseShader(gl3state.shader3DLightmap);
+	glUniform4fv(gl3state.uni3DLM_clipPlane, 1, plane);
+
+	if (gl3state.shaderWater != 0)
+	{
+		GL3_UseShader(gl3state.shaderWater);
+		glUniform4fv(gl3state.uniWater_clipPlane, 1, plane);
+	}
+}
+
+// Set the bump-map (normal perturbation + specular) strength.
+void GL3_UpdateBumpScale(const float scale)
+{
+	GL3_UseShader(gl3state.shader3D);
+	glUniform1f(gl3state.uni3D_bumpScale, scale);
+
+	GL3_UseShader(gl3state.shader3DLightmap);
+	glUniform1f(gl3state.uni3DLM_bumpScale, scale);
+
+	if (gl3state.shaderWater != 0)
+	{
+		GL3_UseShader(gl3state.shaderWater);
+		glUniform1f(gl3state.uniWater_bumpScale, scale);
 	}
 }
 
@@ -926,8 +1021,9 @@ void GL3_ShutdownFBO(void)
 
 qboolean GL3_InitReflect(const int width, const int height)
 {
-	gl3state.reflect_width  = (width  > 1) ? width  / 2 : 1;
-	gl3state.reflect_height = (height > 1) ? height / 2 : 1;
+	// Full resolution so the planar reflection is sampled 1:1 (crisp mirror).
+	gl3state.reflect_width  = (width  > 0) ? width  : 1;
+	gl3state.reflect_height = (height > 0) ? height : 1;
 
 	// RGBA16F color texture (sampled by the water shader).
 	glGenTextures(1, &gl3state.fboTexReflect);

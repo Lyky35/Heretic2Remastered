@@ -58,6 +58,8 @@ extern cvar_t* r_frameswap;
 extern cvar_t* r_references;
 extern cvar_t* r_reflections;
 extern cvar_t* r_reflections_intensity;
+extern cvar_t* r_bump;
+extern cvar_t* r_bump_scale;
 extern cvar_t* r_hd_textures;
 extern cvar_t* r_antialiasing;
 
@@ -223,11 +225,14 @@ typedef struct
 	GLint uni3D_numDlights;
 	GLint uni3D_dlightPosRad;	// vec4[GL3_MAX_DLIGHTS]: xyz=view-space pos, w=intensity.
 	GLint uni3D_dlightColor;	// vec4[GL3_MAX_DLIGHTS]: xyz=rgb (0..1), w=unused.
+	GLint uni3D_clipPlane;		// vec4 view-space water plane (reflection clipping).
+	GLint uni3D_bumpScale;		// bump/normal-map strength.
 
 	// Uniform locations for shader3DColor.
 	GLint uni3DColor_projection;
 	GLint uni3DColor_modelview;
 	GLint uni3DColor_color;
+	GLint uni3DColor_clipPlane;	// vec4 view-space water plane (reflection clipping).
 
 	// Uniform locations for shader3DLightmap.
 	GLint uni3DLM_projection;
@@ -235,6 +240,8 @@ typedef struct
 	GLint uni3DLM_diffuse;
 	GLint uni3DLM_lightmap;
 	GLint uni3DLM_color;
+	GLint uni3DLM_clipPlane;	// vec4 view-space water plane (reflection clipping).
+	GLint uni3DLM_bumpScale;	// bump/normal-map strength.
 
 	// VAO/VBO for 2D drawing
 	GLuint vao2D;
@@ -341,6 +348,8 @@ typedef struct
 	GLint  uniWater_reflectTex;   // unit 1: reflection FBO texture.
 	GLint  uniWater_reflectAmt;   // blend factor.
 	GLint  uniWater_time;
+	GLint  uniWater_clipPlane;    // vec4 view-space water plane (reflection clipping).
+	GLint  uniWater_bumpScale;    // bump/normal-map strength.
 
 	// Lightmap GL texture IDs
 	GLuint lightmap_textures[MAX_LIGHTMAPS + 1];

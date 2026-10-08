@@ -1146,6 +1146,12 @@ void R_DrawSkyBox(void)
 	glGetBooleanv(GL_CULL_FACE, &cull_was_enabled);
 	glDisable(GL_CULL_FACE);
 
+	// The sky is rendered in camera-centered space (no meaningful world
+	// position), so it must not be clipped by the reflection water plane.
+	GLboolean clip_was_enabled;
+	glGetBooleanv(GL_CLIP_DISTANCE0, &clip_was_enabled);
+	glDisable(GL_CLIP_DISTANCE0);
+
 	for (int i = 0; i < 6; i++)
 	{
 		// Always force full sky to draw to avoid culling artifacts.
@@ -1196,6 +1202,9 @@ void R_DrawSkyBox(void)
 		R_DrawSkyAurora();
 		R_DrawSkyStars();
 	}
+
+	if (clip_was_enabled)
+		glEnable(GL_CLIP_DISTANCE0);
 
 	// GL3: Restore world modelview matrix (equivalent of glPopMatrix).
 	GL3_UpdateModelview3D(r_world_matrix);

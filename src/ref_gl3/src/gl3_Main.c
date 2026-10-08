@@ -113,6 +113,8 @@ static cvar_t* r_ssao_strength;
 static cvar_t* r_shadows;
 cvar_t* r_reflections;
 cvar_t* r_reflections_intensity;
+cvar_t* r_bump;
+cvar_t* r_bump_scale;
 cvar_t* r_hd_textures;
 cvar_t* r_antialiasing;
 
@@ -288,7 +290,9 @@ static void R_Register(void)
 	r_ssao_strength   = ri.Cvar_Get("r_ssao_strength",   "1.0", CVAR_ARCHIVE);
 	r_shadows         = ri.Cvar_Get("r_shadows",         "1",   CVAR_ARCHIVE);
 	r_reflections     = ri.Cvar_Get("r_reflections",     "1",   CVAR_ARCHIVE);
-	r_reflections_intensity = ri.Cvar_Get("r_reflections_intensity", "0.55", CVAR_ARCHIVE);
+	r_reflections_intensity = ri.Cvar_Get("r_reflections_intensity", "1.6", CVAR_ARCHIVE);
+	r_bump            = ri.Cvar_Get("r_bump",            "1",   CVAR_ARCHIVE);
+	r_bump_scale      = ri.Cvar_Get("r_bump_scale",      "1.0", CVAR_ARCHIVE);
 	r_hd_textures     = ri.Cvar_Get("r_hd_textures",     "1",   CVAR_ARCHIVE);
 	r_antialiasing    = ri.Cvar_Get("r_antialiasing",    "0",   CVAR_ARCHIVE);
 
@@ -646,6 +650,9 @@ static void R_SetupGL3D(void)
 	R_Mat4x4_Translate(r_world_matrix, -r_newrefdef.vieworg[0], -r_newrefdef.vieworg[1], -r_newrefdef.vieworg[2]);
 	GL3_UpdateModelview3D(r_world_matrix);
 
+	// Bump-mapping strength for this frame (0 disables).
+	GL3_UpdateBumpScale((int)r_bump->value ? r_bump_scale->value : 0.0f);
+
 	glCullFace(GL_FRONT);
 
 	if ((int)gl_cull->value)
@@ -832,6 +839,50 @@ static void R_BuildDlights(const refdef_t* fd)
 	r_newrefdef.num_dlights = num;
 }
 
+// Transform a world-space point by a column-major 4x4 matrix.
+static void R_TransformPoint4(const float* m, const float in[3], float out[3])
+{
+	out[0] = m[0] * in[0] + m[4] * in[1] + m[8]  * in[2] + m[12];
+	out[1] = m[1] * in[0] + m[5] * in[1] + m[9]  * in[2] + m[13];
+	out[2] = m[2] * in[0] + m[6] * in[1] + m[10] * in[2] + m[14];
+}
+
+// Build the water-plane (world z = water_z) clip equation in the reflection
+// view space. Vertices above the water (z >= water_z) get a positive distance
+// so gl_ClipDistance[0] discards submerged geometry from the mirror image.
+static void R_BuildReflectClipPlane(const float* mv, const float water_z, float out[4])
+{
+	const float p0[3] = { 0.0f, 0.0f, water_z };
+	const float p1[3] = { 1.0f, 0.0f, water_z };
+	const float p2[3] = { 0.0f, 1.0f, water_z };
+	const float pa[3] = { 0.0f, 0.0f, water_z + 100.0f };
+
+	float v0[3], v1[3], v2[3], va[3];
+	R_TransformPoint4(mv, p0, v0);
+	R_TransformPoint4(mv, p1, v1);
+	R_TransformPoint4(mv, p2, v2);
+	R_TransformPoint4(mv, pa, va);
+
+	float e1[3], e2[3], n[3];
+	e1[0] = v1[0] - v0[0]; e1[1] = v1[1] - v0[1]; e1[2] = v1[2] - v0[2];
+	e2[0] = v2[0] - v0[0]; e2[1] = v2[1] - v0[1]; e2[2] = v2[2] - v0[2];
+	n[0] = e1[1] * e2[2] - e1[2] * e2[1];
+	n[1] = e1[2] * e2[0] - e1[0] * e2[2];
+	n[2] = e1[0] * e2[1] - e1[1] * e2[0];
+
+	const float len = sqrtf(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+	if (len > 1e-6f) { n[0] /= len; n[1] /= len; n[2] /= len; }
+	float d = -(n[0] * v0[0] + n[1] * v0[1] + n[2] * v0[2]);
+
+	// Orient the normal so the "above water" side is positive.
+	if (n[0] * va[0] + n[1] * va[1] + n[2] * va[2] + d < 0.0f)
+	{
+		n[0] = -n[0]; n[1] = -n[1]; n[2] = -n[2]; d = -d;
+	}
+
+	out[0] = n[0]; out[1] = n[1]; out[2] = n[2]; out[3] = d;
+}
+
 static qboolean R_RenderReflection(const float water_z)
 {
 	if (!(int)r_reflections->value || gl3state.fboReflect == 0)
@@ -877,6 +928,13 @@ static qboolean R_RenderReflection(const float water_z)
 	R_Mat4x4_Translate(r_world_matrix, -r_newrefdef.vieworg[0], -r_newrefdef.vieworg[1], -r_newrefdef.vieworg[2]);
 	GL3_UpdateModelview3D(r_world_matrix);
 
+	// Clip submerged world geometry out of the mirror so only the world above
+	// the water plane is reflected.
+	float clip_plane[4];
+	R_BuildReflectClipPlane(r_world_matrix, water_z, clip_plane);
+	GL3_UpdateClipPlane(clip_plane);
+	glEnable(GL_CLIP_DISTANCE0);
+
 	R_SetReflectionPass(true);
 	R_MarkLeaves();
 	R_ResetBmodelTransforms();
@@ -885,6 +943,7 @@ static qboolean R_RenderReflection(const float water_z)
 	// reflection too, otherwise only the sky and world geometry are reflected.
 	R_DrawEntitiesOnList();
 	R_SetReflectionPass(false);
+	glDisable(GL_CLIP_DISTANCE0);
 
 	// Discard alpha surfaces accumulated during reflection.
 	R_SetAlphaSurfaces(NULL);

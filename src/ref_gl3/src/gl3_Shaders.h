@@ -18,6 +18,10 @@ extern void GL3_UpdateProjection3D(float fov_y, float aspect, float znear, float
 extern void GL3_UpdateModelview3D(const float* matrix4x4);
 extern void GL3_UpdateModelviewLM(const float* matrix4x4);
 
+// Reflection-pass clip plane (view space) and bump-map strength.
+extern void GL3_UpdateClipPlane(const float plane[4]);
+extern void GL3_UpdateBumpScale(float scale);
+
 // Per-draw color helpers.
 extern void GL3_SetLMColor(float r, float g, float b, float a);
 extern void GL3_Set3DColor(float r, float g, float b, float a);
