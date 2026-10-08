@@ -113,6 +113,10 @@ The engine loads content from `base.pak`, `Htic2-0.pak` through `Htic2-9.pak`, a
 * Add water refraction things underwater.
 * Get water caustics to work.
 * Re-add staff effects that are currently ?gone? or aren't working.
+* Different color profiles (Adobe RGB, rec2020, DCI-P3, SRGB)
+* HDR?
+
+Got any ideas? Create new issue, sell it to me.
 
 ## Used libraries
 
