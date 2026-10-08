@@ -113,9 +113,11 @@ target_link_libraries(Heretic2R PRIVATE quake2)
 set_target_properties(Heretic2R PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${H2_OUT}" OUTPUT_NAME "Heretic2R")
 
 # --- Game logic DLL ---------------------------------------------------------
-h2_add_target(gamex64
+# Output name must be gamex86: Sys_LoadGameDll("gamex86", ...) in
+# src/server/sv_game.c hardcodes it (game.vcxproj's own gamex64 name is wrong).
+h2_add_target(gamex86
 	VCPROJ "src/game/game.vcxproj"
-	OUTNAME "gamex64" OUTDIR "${H2_BASE}"
+	OUTNAME "gamex86" OUTDIR "${H2_BASE}"
 	DEFS  GAME_DLL
 	INCS  "${CMAKE_SOURCE_DIR}/src/Player" "${CMAKE_SOURCE_DIR}/src/qcommon" "${CMAKE_SOURCE_DIR}/src/game"
 	LIBS  H2Common quake2
