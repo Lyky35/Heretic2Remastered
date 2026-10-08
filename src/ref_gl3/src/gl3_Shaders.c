@@ -345,7 +345,9 @@ static const char* fragmentSourceWater =
 	"             + sin(vTexCoord.x * 17.0 + uTime * 2.3) * 0.006;\n"
 	"    float dy = cos(vTexCoord.x * 25.0 + uTime * 1.5) * 0.010\n"
 	"             + cos(vTexCoord.y * 17.0 + uTime * 2.3) * 0.006;\n"
-	"    vec2 screenUV = clamp(vClipPos.xy / vClipPos.w * 0.5 + 0.5 + vec2(dx, dy), 0.0, 1.0);\n"
+	"    vec2 screenUV = vClipPos.xy / vClipPos.w * 0.5 + 0.5 + vec2(dx, dy);\n"
+	"    screenUV.y = 1.0 - screenUV.y;\n"
+	"    screenUV = clamp(screenUV, 0.0, 1.0);\n"
 	"    vec3 reflectColor = texture(uReflectTex, screenUV).rgb;\n"
 	"    vec3 blended = mix(waterColor.rgb, reflectColor, uReflectAmt);\n"
 	"    FragColor = vec4(blended, waterColor.a);\n"
@@ -819,6 +821,9 @@ void GL3_DrawWaterPoly(const GLenum mode, const float* verts, const int numverts
 
 	// Update per-draw time uniform for animated distortion.
 	glUniform1f(gl3state.uniWater_time, r_newrefdef.time);
+
+	// Reflection blend factor (tunable).
+	glUniform1f(gl3state.uniWater_reflectAmt, r_reflections_intensity->value);
 
 	// Bind the reflection texture to TMU1 without disturbing the cached TMU0 state.
 	glActiveTexture(GL_TEXTURE1);
