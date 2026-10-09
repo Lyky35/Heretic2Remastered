@@ -131,6 +131,7 @@ cvar_t* gl_showtris;
 static cvar_t* gl_clear;
 static cvar_t* gl_cull;
 cvar_t* gl_lensflare;
+cvar_t* gl_dlight_scale;
 cvar_t* gl_flashblend;
 cvar_t* gl_texturemode;
 cvar_t* gl_lockpvs;
@@ -313,6 +314,7 @@ static void R_Register(void)
 	gl_clear = ri.Cvar_Get("gl_clear", "0", 0);
 	gl_cull = ri.Cvar_Get("gl_cull", "1", 0);
 	gl_lensflare = ri.Cvar_Get("gl_lensflare", "1", CVAR_ARCHIVE);
+	gl_dlight_scale = ri.Cvar_Get("gl_dlight_scale", "2.5", CVAR_ARCHIVE);
 	gl_flashblend = ri.Cvar_Get("gl_flashblend", "0", 0);
 	gl_texturemode = ri.Cvar_Get("gl_texturemode", "GL_LINEAR_MIPMAP_NEAREST", CVAR_ARCHIVE);
 	gl_lockpvs = ri.Cvar_Get("gl_lockpvs", "0", 0);
@@ -867,6 +869,14 @@ static void R_BuildDlights(const refdef_t* fd)
 		s_merged_dlights[i] = fd->dlights[i];
 
 	num = R_CollectParticleLights(s_merged_dlights, num, MAX_DLIGHTS);
+
+	// Boost dynamic-light range/brightness so effects read as more emissive.
+	// Intensity drives the falloff radius in both the model shader and the world
+	// lightmap, so scaling it scales the reach of every dynamic light.
+	const float dlight_scale = gl_dlight_scale->value;
+	if (dlight_scale != 1.0f)
+		for (int i = 0; i < num; i++)
+			s_merged_dlights[i].intensity *= dlight_scale;
 
 	r_newrefdef.dlights = s_merged_dlights;
 	r_newrefdef.num_dlights = num;
