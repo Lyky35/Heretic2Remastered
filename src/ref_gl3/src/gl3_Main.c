@@ -948,7 +948,11 @@ static qboolean R_RenderReflection(const float water_z)
 	glBindFramebuffer(GL_FRAMEBUFFER, gl3state.fboReflect);
 	glViewport(0, 0, gl3state.reflect_width, gl3state.reflect_height);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glCullFace(GL_BACK);
+	// The reflected camera (negate pitch+roll) is a PROPER transform (det +1),
+	// so polygon winding is preserved and the culling must match the main pass
+	// (GL_FRONT). Using GL_BACK here would cull the clockwise-wound world
+	// polygons, so walls/floors/doors never appear in the reflection.
+	glCullFace(GL_FRONT);
 
 	const float aspect = (float)r_newrefdef.width / (float)r_newrefdef.height;
 	GL3_UpdateProjection3D(r_newrefdef.fov_y, aspect, 1.0f, r_farclipdist->value);
