@@ -298,7 +298,7 @@ static void R_Register(void)
 	r_bump            = ri.Cvar_Get("r_bump",            "1",   CVAR_ARCHIVE);
 	r_bump_scale_world = ri.Cvar_Get("r_bump_scale_world", "0", CVAR_ARCHIVE);
 	r_bump_scale_water = ri.Cvar_Get("r_bump_scale_water", "0.5", CVAR_ARCHIVE);
-	r_caustics        = ri.Cvar_Get("r_caustics",        "1",   CVAR_ARCHIVE);
+	r_caustics        = ri.Cvar_Get("r_caustics",        "0",   CVAR_ARCHIVE);
 	r_caustics_strength = ri.Cvar_Get("r_caustics_strength", "0.6", CVAR_ARCHIVE);
 	r_hd_textures     = ri.Cvar_Get("r_hd_textures",     "1",   CVAR_ARCHIVE);
 	r_antialiasing    = ri.Cvar_Get("r_antialiasing",    "0",   CVAR_ARCHIVE);
