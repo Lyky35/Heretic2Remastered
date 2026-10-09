@@ -586,6 +586,25 @@ static void R_SetFrustum(void)
 	}
 }
 
+// Compute the PVS cluster for the current r_origin. Shared by the main camera
+// and the reflection pass so each viewpoint gets its own correct visibility set.
+static void R_SetupViewCluster(void)
+{
+	const mleaf_t* leaf = Mod_PointInLeaf(r_origin, r_worldmodel);
+	r_viewcluster  = leaf->cluster;
+	r_viewcluster2 = r_viewcluster;
+
+	vec3_t temp = VEC3_INIT(r_origin);
+	if (leaf->contents == 0)
+		temp[2] -= 16.0f;
+	else
+		temp[2] += 16.0f;
+
+	leaf = Mod_PointInLeaf(temp, r_worldmodel);
+	if (!(leaf->contents & CONTENTS_SOLID))
+		r_viewcluster2 = leaf->cluster;
+}
+
 static void R_SetupFrame(void)
 {
 	r_framecount++;
@@ -598,19 +617,7 @@ static void R_SetupFrame(void)
 		r_oldviewcluster  = r_viewcluster;
 		r_oldviewcluster2 = r_viewcluster2;
 
-		const mleaf_t* leaf = Mod_PointInLeaf(r_origin, r_worldmodel);
-		r_viewcluster  = leaf->cluster;
-		r_viewcluster2 = r_viewcluster;
-
-		vec3_t temp = VEC3_INIT(r_origin);
-		if (leaf->contents == 0)
-			temp[2] -= 16.0f;
-		else
-			temp[2] += 16.0f;
-
-		leaf = Mod_PointInLeaf(temp, r_worldmodel);
-		if (!(leaf->contents & CONTENTS_SOLID))
-			r_viewcluster2 = leaf->cluster;
+		R_SetupViewCluster();
 	}
 
 	for (int i = 0; i < 4; i++)
@@ -962,6 +969,14 @@ static qboolean R_RenderReflection(const float water_z)
 	R_BuildReflectClipPlane(r_world_matrix, water_z, clip_plane);
 	GL3_UpdateClipPlane(clip_plane);
 	glEnable(GL_CLIP_DISTANCE0);
+
+	// Recompute the PVS cluster for the reflected camera position. Without this
+	// the reflection reuses the main camera's cluster, so geometry only visible
+	// from the mirrored viewpoint (walls, floors, arches, etc.) is leaf-culled
+	// and missing from the reflection.
+	r_oldviewcluster  = -1;
+	r_oldviewcluster2 = -1;
+	R_SetupViewCluster();
 
 	R_SetReflectionPass(true);
 	R_MarkLeaves();
