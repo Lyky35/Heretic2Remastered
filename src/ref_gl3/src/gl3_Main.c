@@ -936,12 +936,21 @@ static qboolean R_RenderReflection(const float water_z)
 	msurface_t* const saved_alpha = R_GetAlphaSurfaces();
 	R_SetAlphaSurfaces(NULL);
 
-	// Build reflected refdef: flip camera Z across water plane, negate pitch+roll.
+	// Save the main camera's view matrix so the reflection can be built as a
+	// true mirror of it.
+	float saved_world_matrix[16];
+	memcpy(saved_world_matrix, r_world_matrix, sizeof(saved_world_matrix));
+
+	// Build a true mirror camera: reflect the position and the orientation
+	// basis across the water plane. Mirroring only the camera position (with a
+	// proper rotation) does not yield a mirror image and leaves the world
+	// back-face culled in the reflection, so walls/floors/arches never show.
 	r_newrefdef.vieworg[2] = 2.0f * water_z - r_newrefdef.vieworg[2];
-	r_newrefdef.viewangles[0] = -r_newrefdef.viewangles[0];
-	r_newrefdef.viewangles[2] = -r_newrefdef.viewangles[2];
 	VectorCopy(r_newrefdef.vieworg, r_origin);
-	AngleVectors(r_newrefdef.viewangles, vpn, vright, vup);
+
+	VectorCopy(saved_vpn, vpn);     vpn[2]     = -vpn[2];
+	VectorCopy(saved_vright, vright); vright[2] = -vright[2];
+	VectorCopy(saved_vup, vup);     vup[2]     = -vup[2];
 	R_SetFrustum();
 
 	// Render reflected scene into fboReflect.
@@ -949,16 +958,21 @@ static qboolean R_RenderReflection(const float water_z)
 	glViewport(0, 0, gl3state.reflect_width, gl3state.reflect_height);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glCullFace(GL_BACK);
+	// The mirrored view flips polygon winding, so the front-face convention is
+	// reversed to keep the (clockwise-wound) world polygons visible.
+	glFrontFace(GL_CW);
 
 	const float aspect = (float)r_newrefdef.width / (float)r_newrefdef.height;
 	GL3_UpdateProjection3D(r_newrefdef.fov_y, aspect, 1.0f, r_farclipdist->value);
-	R_Mat4x4_Identity(r_world_matrix);
-	R_Mat4x4_Rotate(r_world_matrix, -90.0f, 1.0f, 0.0f, 0.0f);
-	R_Mat4x4_Rotate(r_world_matrix,  90.0f, 0.0f, 0.0f, 1.0f);
-	R_Mat4x4_Rotate(r_world_matrix, -r_newrefdef.viewangles[2], 1.0f, 0.0f, 0.0f);
-	R_Mat4x4_Rotate(r_world_matrix, -r_newrefdef.viewangles[0], 0.0f, 1.0f, 0.0f);
-	R_Mat4x4_Rotate(r_world_matrix, -r_newrefdef.viewangles[1], 0.0f, 0.0f, 1.0f);
-	R_Mat4x4_Translate(r_world_matrix, -r_newrefdef.vieworg[0], -r_newrefdef.vieworg[1], -r_newrefdef.vieworg[2]);
+
+	// True mirror view matrix: V_refl = S * V_main, where S reflects across the
+	// water plane (z = water_z). S is improper (det -1), which is exactly what
+	// makes the rendered image a real mirror of the main view.
+	float reflect_matrix[16];
+	R_Mat4x4_Identity(reflect_matrix);
+	reflect_matrix[10] = -1.0f;
+	reflect_matrix[14] = 2.0f * water_z;
+	R_Mat4x4_Mul(r_world_matrix, reflect_matrix, saved_world_matrix);
 	GL3_UpdateModelview3D(r_world_matrix);
 	// Rebind dynamic lights into the reflected camera's view space.
 	GL3_UpdateDlights();
@@ -970,13 +984,12 @@ static qboolean R_RenderReflection(const float water_z)
 	GL3_UpdateClipPlane(clip_plane);
 	glEnable(GL_CLIP_DISTANCE0);
 
-	// Recompute the PVS cluster for the reflected camera position. Without this
-	// the reflection reuses the main camera's cluster, so geometry only visible
-	// from the mirrored viewpoint (walls, floors, arches, etc.) is leaf-culled
-	// and missing from the reflection.
+	// Force every leaf visible for the reflection. The mirrored camera sits
+	// below the water, whose PVS cluster would not include the above-water
+	// world that must be reflected, so PVS culling is disabled for the mirror.
+	r_viewcluster  = -1;
 	r_oldviewcluster  = -1;
 	r_oldviewcluster2 = -1;
-	R_SetupViewCluster();
 
 	R_SetReflectionPass(true);
 	R_MarkLeaves();
@@ -997,6 +1010,7 @@ static qboolean R_RenderReflection(const float water_z)
 	glDepthMask(GL_TRUE);
 	R_SetReflectionPass(false);
 	glDisable(GL_CLIP_DISTANCE0);
+	glFrontFace(GL_CCW);
 
 	// Discard alpha surfaces accumulated during reflection.
 	R_SetAlphaSurfaces(NULL);
@@ -1010,6 +1024,7 @@ static qboolean R_RenderReflection(const float water_z)
 	VectorCopy(saved_vright, vright);
 	VectorCopy(saved_vup, vup);
 	memcpy(frustum, saved_frustum, sizeof(frustum));
+	memcpy(r_world_matrix, saved_world_matrix, sizeof(saved_world_matrix));
 	r_viewcluster  = saved_viewcluster;
 	r_viewcluster2 = saved_viewcluster2;
 	r_oldviewcluster  = -1;
