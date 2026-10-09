@@ -130,6 +130,7 @@ cvar_t* gl_nobind;
 cvar_t* gl_showtris;
 static cvar_t* gl_clear;
 static cvar_t* gl_cull;
+cvar_t* gl_lensflare;
 cvar_t* gl_flashblend;
 cvar_t* gl_texturemode;
 cvar_t* gl_lockpvs;
@@ -311,6 +312,7 @@ static void R_Register(void)
 	gl_showtris = ri.Cvar_Get("gl_showtris", "0", 0);
 	gl_clear = ri.Cvar_Get("gl_clear", "0", 0);
 	gl_cull = ri.Cvar_Get("gl_cull", "1", 0);
+	gl_lensflare = ri.Cvar_Get("gl_lensflare", "1", CVAR_ARCHIVE);
 	gl_flashblend = ri.Cvar_Get("gl_flashblend", "0", 0);
 	gl_texturemode = ri.Cvar_Get("gl_texturemode", "GL_LINEAR_MIPMAP_NEAREST", CVAR_ARCHIVE);
 	gl_lockpvs = ri.Cvar_Get("gl_lockpvs", "0", 0);

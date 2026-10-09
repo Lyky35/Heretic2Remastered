@@ -10,3 +10,5 @@
 #include "gl3_Local.h"
 
 extern void R_DrawSpriteModel(entity_t* e);
+
+extern cvar_t* gl_lensflare;

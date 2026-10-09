@@ -11,6 +11,7 @@
 #include "gl3_Shaders.h"
 #include "q_Sprite.h"
 #include "Vector.h"
+#include <string.h>
 
 // Helper: write a 9-float vertex (pos3+tc2+col4).
 static void WriteSpriteVert(float* dest, const vec3_t pos, float s, float t, float r, float g, float b, float a)
@@ -126,6 +127,11 @@ static void R_DrawLineSprite(const entity_t* e, const vec3_t up)
 void R_DrawSpriteModel(entity_t* e)
 {
 	const model_t* mdl = *e->model;
+
+	// Lens-flare sprites (sprites/lens/flare*.sp2, sprites/lens/blind1.sp2).
+	if (!(int)gl_lensflare->value && mdl->name != NULL &&
+		(strstr(mdl->name, "sprites/lens/") != NULL))
+		return;
 
 	// Don't even bother culling, because it's just a single polygon without a surface cache.
 	const dsprite_t* psprite = mdl->extradata;
