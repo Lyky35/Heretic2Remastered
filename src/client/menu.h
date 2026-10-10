@@ -40,6 +40,11 @@ extern cvar_t* m_item_detail;
 
 extern cvar_t* m_item_hd_mode;
 extern cvar_t* m_item_antialiasing;
+extern cvar_t* m_item_color_profile;
+extern cvar_t* m_item_water_reflections;
+extern cvar_t* m_item_water_reflection_res;
+extern cvar_t* m_item_light_emission;
+extern cvar_t* m_item_shadows;
 
 // Action keys.
 extern cvar_t* m_item_attack;

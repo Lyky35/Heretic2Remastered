@@ -20,6 +20,11 @@ cvar_t* m_item_minlight; // YQ2
 cvar_t* m_item_detail;
 cvar_t* m_item_hd_mode;
 cvar_t* m_item_antialiasing;
+cvar_t* m_item_color_profile;
+cvar_t* m_item_water_reflections;
+cvar_t* m_item_water_reflection_res;
+cvar_t* m_item_light_emission;
+cvar_t* m_item_shadows;
 
 static float m_gamma;
 static float m_brightness;
@@ -27,6 +32,7 @@ static float m_contrast;
 static float m_minlight; //mxd. gl_minlight when entering menu.
 static float m_hd_mode; //mxd. r_hd_textures when entering menu.
 static float m_antialiasing; //mxd. r_antialiasing when entering menu.
+static float m_color_profile; //mxd. r_colorprofile when entering menu.
 
 static menuframework_t s_video_menu;
 
@@ -40,6 +46,11 @@ static menuslider_t s_minlight_slider; // YQ2
 static menuslider_t s_detail_slider;
 static menulist_t s_hd_mode_list;
 static menulist_t s_antialiasing_list;
+static menulist_t s_color_profile_list;
+static menulist_t s_water_reflections_list;
+static menulist_t s_water_reflection_res_list;
+static menulist_t s_light_emission_list;
+static menulist_t s_shadows_list;
 
 static const char* ref_list_titles[MAX_REFLIBS];
 static int initial_reflib_index; // vid_ref index when entering menu.
@@ -99,6 +110,31 @@ static void UpdateAntiAliasingFunc(void* self)
 	vid_restart_required = true;
 }
 
+static void UpdateColorProfileFunc(void* self)
+{
+	Cvar_SetValue("r_colorprofile", (float)s_color_profile_list.curvalue);
+}
+
+static void UpdateWaterReflectionsFunc(void* self)
+{
+	Cvar_SetValue("r_reflections", (float)(s_water_reflections_list.curvalue == 0));
+}
+
+static void UpdateWaterReflectionResFunc(void* self)
+{
+	Cvar_SetValue("r_reflections_res", (float)s_water_reflection_res_list.curvalue);
+}
+
+static void UpdateLightEmissionFunc(void* self)
+{
+	Cvar_SetValue("gl_dlight_scale", (float)s_light_emission_list.curvalue);
+}
+
+static void UpdateShadowsFunc(void* self)
+{
+	Cvar_SetValue("r_shadows", (float)(s_shadows_list.curvalue == 0));
+}
+
 static void ApplyChanges(const qboolean close_menu) //mxd. +close_menu arg.
 {
 	if (initial_vid_mode != s_mode_list.curvalue)
@@ -121,7 +157,7 @@ static void ApplyChanges(const qboolean close_menu) //mxd. +close_menu arg.
 	{
 		//mxd. These don't require vid_restart, but we still need to update ALL textures in RI_BeginFrame() AFTER menu is closed.
 		// (only it_pic/it_sky textures are updated by R_GammaAffect() when menus are open (for performance reasons)).
-		if (m_gamma != vid_gamma->value || m_brightness != vid_brightness->value || m_contrast != vid_contrast->value)
+		if (m_gamma != vid_gamma->value || m_brightness != vid_brightness->value || m_contrast != vid_contrast->value || m_color_profile != Cvar_VariableValue("r_colorprofile"))
 			Cvar_SetValue("vid_textures_refresh_required", 1.0f);
 
 		M_PopMenu();
@@ -169,6 +205,10 @@ static void VID_MenuInit(void)
 	static const char* target_fps_names[] = { "30", "60", "90", "120", "144", "240", NULL }; //mxd
 	static const int target_fps_values[] = { 30, 60, 90, 120, 144, 240 };
 	static const char* antialiasing_names[] = { "Off", "MSAA", "FXAA", NULL };
+	static const char* color_profile_names[] = { "sRGB", "Adobe RGB", "DCI-P3", "Rec.2020", NULL };
+	static const char* on_off_names[] = { "On", "Off", NULL };
+	static const char* reflection_res_names[] = { "Native", "Half", NULL };
+	static const char* light_emission_names[] = { "0", "1", "2", "3", "4", "5", "6", NULL };
 
 	static char name_driver[MAX_QPATH];
 	static char name_vidmode[MAX_QPATH];
@@ -180,6 +220,11 @@ static void VID_MenuInit(void)
 	static char name_detail[MAX_QPATH];
 	static char name_hd_mode[MAX_QPATH];
 	static char name_antialiasing[MAX_QPATH];
+	static char name_color_profile[MAX_QPATH];
+	static char name_water_reflections[MAX_QPATH];
+	static char name_water_reflection_res[MAX_QPATH];
+	static char name_light_emission[MAX_QPATH];
+	static char name_shadows[MAX_QPATH];
 
 	VID_PreMenuInit();
 
@@ -189,6 +234,7 @@ static void VID_MenuInit(void)
 	m_minlight = Cvar_VariableValue("gl_minlight"); // YQ2
 	m_hd_mode = Cvar_VariableValue("r_hd_textures");
 	m_antialiasing = Cvar_VariableValue("r_antialiasing");
+	m_color_profile = Cvar_VariableValue("r_colorprofile");
 
 	s_video_menu.nitems = 0;
 
@@ -196,6 +242,66 @@ static void VID_MenuInit(void)
 	Cvar_SetValue("gl_minlight", Clamp(m_gl_minlight->value, 0.0f, 32.0f)); //mxd
 	Cvar_SetValue("vid_maxfps", Clamp(vid_maxfps->value, 30.0f, 240.0f)); //mxd
 	Cvar_SetValue("r_antialiasing", Clamp(Cvar_VariableValue("r_antialiasing"), 0.0f, 2.0f));
+	Cvar_SetValue("r_colorprofile", Clamp(Cvar_VariableValue("r_colorprofile"), 0.0f, 3.0f));
+	Cvar_SetValue("r_reflections", (Cvar_VariableValue("r_reflections") != 0.0f) ? 1.0f : 0.0f);
+	Cvar_SetValue("r_reflections_res", Clamp(Cvar_VariableValue("r_reflections_res"), 0.0f, 1.0f));
+	Cvar_SetValue("gl_dlight_scale", Clamp((float)(int)(Cvar_VariableValue("gl_dlight_scale") + 0.5f), 0.0f, 6.0f));
+	Cvar_SetValue("r_shadows", (Cvar_VariableValue("r_shadows") != 0.0f) ? 1.0f : 0.0f);
+
+	Com_sprintf(name_color_profile, sizeof(name_color_profile), "\x02%s", m_item_color_profile->string);
+	s_color_profile_list.generic.type = MTYPE_SPINCONTROL;
+	s_color_profile_list.generic.x = 0;
+	s_color_profile_list.generic.y = 40;
+	s_color_profile_list.generic.name = name_color_profile;
+	s_color_profile_list.generic.width = re.BF_Strlen(name_color_profile);
+	s_color_profile_list.generic.flags = QMF_SINGLELINE;
+	s_color_profile_list.generic.callback = UpdateColorProfileFunc;
+	s_color_profile_list.curvalue = (int)Cvar_VariableValue("r_colorprofile");
+	s_color_profile_list.itemnames = color_profile_names;
+
+	Com_sprintf(name_water_reflections, sizeof(name_water_reflections), "\x02%s", m_item_water_reflections->string);
+	s_water_reflections_list.generic.type = MTYPE_SPINCONTROL;
+	s_water_reflections_list.generic.x = 0;
+	s_water_reflections_list.generic.y = 60;
+	s_water_reflections_list.generic.name = name_water_reflections;
+	s_water_reflections_list.generic.width = re.BF_Strlen(name_water_reflections);
+	s_water_reflections_list.generic.flags = QMF_SINGLELINE;
+	s_water_reflections_list.generic.callback = UpdateWaterReflectionsFunc;
+	s_water_reflections_list.curvalue = (Cvar_VariableValue("r_reflections") != 0.0f) ? 0 : 1;
+	s_water_reflections_list.itemnames = on_off_names;
+
+	Com_sprintf(name_water_reflection_res, sizeof(name_water_reflection_res), "\x02%s", m_item_water_reflection_res->string);
+	s_water_reflection_res_list.generic.type = MTYPE_SPINCONTROL;
+	s_water_reflection_res_list.generic.x = 0;
+	s_water_reflection_res_list.generic.y = 80;
+	s_water_reflection_res_list.generic.name = name_water_reflection_res;
+	s_water_reflection_res_list.generic.width = re.BF_Strlen(name_water_reflection_res);
+	s_water_reflection_res_list.generic.flags = QMF_SINGLELINE;
+	s_water_reflection_res_list.generic.callback = UpdateWaterReflectionResFunc;
+	s_water_reflection_res_list.curvalue = (int)Clamp(Cvar_VariableValue("r_reflections_res"), 0.0f, 1.0f);
+	s_water_reflection_res_list.itemnames = reflection_res_names;
+
+	Com_sprintf(name_light_emission, sizeof(name_light_emission), "\x02%s", m_item_light_emission->string);
+	s_light_emission_list.generic.type = MTYPE_SPINCONTROL;
+	s_light_emission_list.generic.x = 0;
+	s_light_emission_list.generic.y = 100;
+	s_light_emission_list.generic.name = name_light_emission;
+	s_light_emission_list.generic.width = re.BF_Strlen(name_light_emission);
+	s_light_emission_list.generic.flags = QMF_SINGLELINE;
+	s_light_emission_list.generic.callback = UpdateLightEmissionFunc;
+	s_light_emission_list.curvalue = (int)Clamp((float)(int)(Cvar_VariableValue("gl_dlight_scale") + 0.5f), 0.0f, 6.0f);
+	s_light_emission_list.itemnames = light_emission_names;
+
+	Com_sprintf(name_shadows, sizeof(name_shadows), "\x02%s", m_item_shadows->string);
+	s_shadows_list.generic.type = MTYPE_SPINCONTROL;
+	s_shadows_list.generic.x = 0;
+	s_shadows_list.generic.y = 120;
+	s_shadows_list.generic.name = name_shadows;
+	s_shadows_list.generic.width = re.BF_Strlen(name_shadows);
+	s_shadows_list.generic.flags = QMF_SINGLELINE;
+	s_shadows_list.generic.callback = UpdateShadowsFunc;
+	s_shadows_list.curvalue = (Cvar_VariableValue("r_shadows") != 0.0f) ? 0 : 1;
+	s_shadows_list.itemnames = on_off_names;
 
 	Com_sprintf(name_hd_mode, sizeof(name_hd_mode), "\x02%s", m_item_hd_mode->string);
 	s_hd_mode_list.generic.type = MTYPE_SPINCONTROL;
@@ -231,7 +337,7 @@ static void VID_MenuInit(void)
 	Com_sprintf(name_vidmode, sizeof(name_vidmode), "\x02%s", m_item_vidmode->string);
 	s_mode_list.generic.type = MTYPE_SPINCONTROL;
 	s_mode_list.generic.x = 0;
-	s_mode_list.generic.y = 80;
+	s_mode_list.generic.y = 160;
 	s_mode_list.generic.name = name_vidmode;
 	s_mode_list.generic.width = re.BF_Strlen(name_vidmode);
 	s_mode_list.curvalue = initial_vid_mode;
@@ -240,7 +346,7 @@ static void VID_MenuInit(void)
 	Com_sprintf(name_target_fps, sizeof(name_target_fps), "\x02%s", m_item_target_fps->string);
 	s_target_fps_list.generic.type = MTYPE_SPINCONTROL;
 	s_target_fps_list.generic.x = 0;
-	s_target_fps_list.generic.y = 120;
+	s_target_fps_list.generic.y = 200;
 	s_target_fps_list.generic.name = name_target_fps;
 	s_target_fps_list.generic.width = re.BF_Strlen(name_target_fps);
 	s_target_fps_list.generic.flags = QMF_SINGLELINE;
@@ -262,7 +368,7 @@ static void VID_MenuInit(void)
 	s_gamma_slider.generic.type = MTYPE_SLIDER;
 	s_gamma_slider.generic.flags = QMF_SELECT_SOUND;
 	s_gamma_slider.generic.x = 0;
-	s_gamma_slider.generic.y = 140;
+	s_gamma_slider.generic.y = 220;
 	s_gamma_slider.generic.name = name_gamma;
 	s_gamma_slider.generic.width = re.BF_Strlen(name_gamma);
 	s_gamma_slider.generic.callback = UpdateGammaFunc;
@@ -274,7 +380,7 @@ static void VID_MenuInit(void)
 	s_brightness_slider.generic.type = MTYPE_SLIDER;
 	s_brightness_slider.generic.flags = QMF_SELECT_SOUND;
 	s_brightness_slider.generic.x = 0;
-	s_brightness_slider.generic.y = 180;
+	s_brightness_slider.generic.y = 260;
 	s_brightness_slider.generic.name = name_brightness;
 	s_brightness_slider.generic.width = re.BF_Strlen(name_brightness);
 	s_brightness_slider.generic.callback = UpdateBrightnessFunc;
@@ -286,7 +392,7 @@ static void VID_MenuInit(void)
 	s_contrast_slider.generic.type = MTYPE_SLIDER;
 	s_contrast_slider.generic.flags = QMF_SELECT_SOUND;
 	s_contrast_slider.generic.x = 0;
-	s_contrast_slider.generic.y = 220;
+	s_contrast_slider.generic.y = 300;
 	s_contrast_slider.generic.name = name_contrast;
 	s_contrast_slider.generic.width = re.BF_Strlen(name_contrast);
 	s_contrast_slider.generic.callback = UpdateContrastFunc;
@@ -299,7 +405,7 @@ static void VID_MenuInit(void)
 	s_minlight_slider.generic.type = MTYPE_SLIDER;
 	s_minlight_slider.generic.flags = QMF_SELECT_SOUND;
 	s_minlight_slider.generic.x = 0;
-	s_minlight_slider.generic.y = 260;
+	s_minlight_slider.generic.y = 340;
 	s_minlight_slider.generic.name = name_minlight;
 	s_minlight_slider.generic.width = re.BF_Strlen(name_minlight);
 	s_minlight_slider.generic.callback = UpdateMinlightFunc;
@@ -311,7 +417,7 @@ static void VID_MenuInit(void)
 	s_detail_slider.generic.type = MTYPE_SLIDER;
 	s_detail_slider.generic.flags = QMF_SELECT_SOUND; //mxd. QMF_SELECT_SOUND flag was missing in original version.
 	s_detail_slider.generic.x = 0;
-	s_detail_slider.generic.y = 300;
+	s_detail_slider.generic.y = 380;
 	s_detail_slider.generic.name = name_detail;
 	s_detail_slider.generic.width = re.BF_Strlen(name_detail);
 	s_detail_slider.generic.callback = UpdateDetailFunc;
@@ -321,6 +427,11 @@ static void VID_MenuInit(void)
 
 	Menu_AddItem(&s_video_menu, &s_hd_mode_list);
 	Menu_AddItem(&s_video_menu, &s_antialiasing_list);
+	Menu_AddItem(&s_video_menu, &s_color_profile_list);
+	Menu_AddItem(&s_video_menu, &s_water_reflections_list);
+	Menu_AddItem(&s_video_menu, &s_water_reflection_res_list);
+	Menu_AddItem(&s_video_menu, &s_light_emission_list);
+	Menu_AddItem(&s_video_menu, &s_shadows_list);
 	Menu_AddItem(&s_video_menu, &s_mode_list);
 	Menu_AddItem(&s_video_menu, &s_target_fps_list); //mxd
 	Menu_AddItem(&s_video_menu, &s_gamma_slider);

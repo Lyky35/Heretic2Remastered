@@ -58,6 +58,7 @@ extern cvar_t* r_frameswap;
 extern cvar_t* r_references;
 extern cvar_t* r_reflections;
 extern cvar_t* r_reflections_intensity;
+extern cvar_t* r_reflections_res; // 0 = native, 1 = half
 extern cvar_t* r_refractions;
 extern cvar_t* r_refractions_intensity;
 extern cvar_t* r_water_wave_height;
@@ -70,6 +71,7 @@ extern cvar_t* r_caustics;
 extern cvar_t* r_caustics_strength;
 extern cvar_t* r_hd_textures;
 extern cvar_t* r_antialiasing;
+extern cvar_t* r_shadows;
 
 extern cvar_t* gl_noartifacts;
 
@@ -94,6 +96,7 @@ extern cvar_t* gl_saturatelighting;
 extern cvar_t* vid_gamma;
 extern cvar_t* vid_brightness;
 extern cvar_t* vid_contrast;
+extern cvar_t* r_colorprofile;
 
 extern cvar_t* vid_ref;
 
@@ -281,6 +284,7 @@ typedef struct
 	GLuint shaderPost;
 	GLint  uniPost_hdrBuffer;
 	GLint  uniPost_exposure;
+	GLint  uniPost_colorProfile;
 
 	// Fog uniforms for shaderPost (depth-based post-process fog).
 	GLint  uniPost_depthMap;

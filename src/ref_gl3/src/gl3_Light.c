@@ -157,67 +157,6 @@ void R_RenderDlights(void)
 
 #pragma region ========================== DYNAMIC LIGHTS MANAGEMENT ==========================
 
-// BSP ray cast: returns the distance along the ray to the first solid leaf hit,
-// or maxlen if the ray reaches the end without hitting solid world geometry.
-static float R_RayCastWorld(mnode_t* node, const vec3_t start, const vec3_t dir, const float maxlen)
-{
-	if (node->contents != -1)
-		return (node->contents == CONTENTS_SOLID) ? 0.0f : maxlen;
-
-	const cplane_t* plane = node->plane;
-	const float dist = DotProduct(start, plane->normal) - plane->dist;
-	const float dir_dot = DotProduct(dir, plane->normal);
-
-	if (fabsf(dir_dot) < 1e-6f)
-		return R_RayCastWorld((dist > 0.0f) ? node->children[0] : node->children[1], start, dir, maxlen);
-
-	const float t_cross = -dist / dir_dot;
-	if (t_cross < 0.0f || t_cross > maxlen)
-		return R_RayCastWorld((dist > 0.0f) ? node->children[0] : node->children[1], start, dir, maxlen);
-
-	if (dist > 0.0f)
-	{
-		const float near_t = R_RayCastWorld(node->children[0], start, dir, t_cross);
-		if (near_t < t_cross)
-			return near_t;
-		vec3_t newstart;
-		VectorMA(start, t_cross, dir, newstart);
-		return t_cross + R_RayCastWorld(node->children[1], newstart, dir, maxlen - t_cross);
-	}
-
-	const float near_t = R_RayCastWorld(node->children[1], start, dir, t_cross);
-	if (near_t < t_cross)
-		return near_t;
-	vec3_t newstart;
-	VectorMA(start, t_cross, dir, newstart);
-	return t_cross + R_RayCastWorld(node->children[0], newstart, dir, maxlen - t_cross);
-}
-
-// Returns true if the dlight has an unobstructed line of sight to the surface
-// centre (i.e. no wall / static mesh between them).
-static qboolean R_DlightCanSeeSurface(const dlight_t* light, const msurface_t* surf)
-{
-	vec3_t centre;
-	VectorClear(centre);
-	for (int i = 0; i < surf->numedges; i++)
-	{
-		const int lindex = r_worldmodel->surfedges[surf->firstedge + i];
-		const medge_t* edge = (lindex > 0) ? &r_worldmodel->edges[lindex] : &r_worldmodel->edges[-lindex];
-		const int vnum = (lindex > 0) ? edge->v[0] : edge->v[1];
-		VectorAdd(centre, r_worldmodel->vertexes[vnum].position, centre);
-	}
-	VectorScale(centre, 1.0f / (float)surf->numedges, centre);
-
-	vec3_t ldir;
-	VectorSubtract(centre, light->origin, ldir);
-	const float llen = VectorNormalize(ldir);
-	if (llen < 1.0f)
-		return true;
-
-	const float t = R_RayCastWorld(r_worldmodel->nodes, light->origin, ldir, llen);
-	return (t >= llen - 2.0f);
-}
-
 void R_MarkLights(dlight_t* light, const int bit, const mnode_t* node)
 {
 	if (node->contents != -1)
@@ -247,8 +186,7 @@ void R_MarkLights(dlight_t* light, const int bit, const mnode_t* node)
 			surf->dlightframe = r_dlightframecount;
 		}
 
-		if (R_DlightCanSeeSurface(light, surf))
-			surf->dlightbits |= bit;
+		surf->dlightbits |= bit;
 	}
 
 	R_MarkLights(light, bit, node->children[0]);

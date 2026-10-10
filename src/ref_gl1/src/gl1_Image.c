@@ -16,6 +16,42 @@ static image_t* gltextures_hashed[NUM_HASHED_GLTEXTURES]; // H2
 
 static byte gammatable[256];
 
+// Color profile 3x3 matrix (row-major), applied after gamma. sRGB (profile 0) = identity.
+static float r_color_matrix[3][3];
+
+static void R_InitColorProfile(void)
+{
+	static const float identity[3][3]      = { { 1.00000f,  0.00000f,  0.00000f }, {  0.00000f,  1.00000f,  0.00000f }, {  0.00000f,  0.00000f,  1.00000f } };
+	static const float adobe_rgb[3][3]     = { { 1.39836f, -0.39836f,  0.00000f }, {  0.00000f,  1.00000f,  0.00000f }, {  0.00000f, -0.04293f,  1.04293f } };
+	static const float dci_p3[3][3]        = { { 1.22494f, -0.22494f,  0.00000f }, { -0.04206f,  1.04206f,  0.00000f }, { -0.01964f, -0.07864f,  1.09827f } };
+	static const float rec2020[3][3]       = { { 1.66049f, -0.58764f, -0.07285f }, { -0.12455f,  1.13290f, -0.00835f }, { -0.01815f, -0.10058f,  1.11873f } };
+
+	const float(*m)[3] = identity;
+	switch ((int)r_colorprofile->value)
+	{
+		case 1: m = adobe_rgb; break;
+		case 2: m = dci_p3; break;
+		case 3: m = rec2020; break;
+		default: break;
+	}
+
+	for (int r = 0; r < 3; r++)
+		for (int c = 0; c < 3; c++)
+			r_color_matrix[r][c] = m[r][c];
+}
+
+// Applies the selected color profile to a single RGB triple (values already gamma-corrected).
+static void R_ProfileColor(const byte in_r, const byte in_g, const byte in_b, byte* out_r, byte* out_g, byte* out_b)
+{
+	const float r = (float)in_r;
+	const float g = (float)in_g;
+	const float b = (float)in_b;
+
+	*out_r = (byte)ClampI((int)(r_color_matrix[0][0] * r + r_color_matrix[0][1] * g + r_color_matrix[0][2] * b + 0.5f), 0, 255);
+	*out_g = (byte)ClampI((int)(r_color_matrix[1][0] * r + r_color_matrix[1][1] * g + r_color_matrix[1][2] * b + 0.5f), 0, 255);
+	*out_b = (byte)ClampI((int)(r_color_matrix[2][0] * r + r_color_matrix[2][1] * g + r_color_matrix[2][2] * b + 0.5f), 0, 255);
+}
+
 int gl_filter_min = GL_NEAREST_MIPMAP_LINEAR; // Q2: GL_LINEAR_MIPMAP_NEAREST; H2: GL_NEAREST.
 int gl_filter_max = GL_LINEAR;
 
@@ -45,6 +81,8 @@ static glmode_t modes[] =
 void R_InitGammaTable(void) // H2: InitGammaTable()
 {
 	float contrast = 1.0f - vid_contrast->value;
+
+	R_InitColorProfile();
 
 	if (contrast > 0.5f)
 		contrast = powf(contrast + 0.5f, 3.0f);
@@ -351,9 +389,10 @@ static void GrabPalette(paletteRGB_t* src, paletteRGB_t* dst) // H2
 
 	for (i = 0, src_p = src, dst_p = dst; i < PAL_SIZE; i++, src_p++, dst_p++)
 	{
-		dst_p->r = gammatable[src_p->r];
-		dst_p->g = gammatable[src_p->g];
-		dst_p->b = gammatable[src_p->b];
+		const byte r = gammatable[src_p->r];
+		const byte g = gammatable[src_p->g];
+		const byte b = gammatable[src_p->b];
+		R_ProfileColor(r, g, b, &dst_p->r, &dst_p->g, &dst_p->b);
 	}
 }
 
@@ -462,9 +501,10 @@ static void R_ApplyGamma32(miptex32_t* mt) // H2: GL_ApplyGamma32().
 		paletteRGBA_t* color = (paletteRGBA_t*)((byte*)mt + mt->offsets[mip]);
 		for (uint i = 0; i < mip_size; i++, color++)
 		{
-			color->r = gammatable[color->r];
-			color->g = gammatable[color->g];
-			color->b = gammatable[color->b];
+			const byte r = gammatable[color->r];
+			const byte g = gammatable[color->g];
+			const byte b = gammatable[color->b];
+			R_ProfileColor(r, g, b, &color->r, &color->g, &color->b);
 		}
 	}
 }

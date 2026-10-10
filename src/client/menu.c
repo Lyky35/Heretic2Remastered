@@ -643,6 +643,11 @@ void M_Init(void)
 	m_item_detail = Cvar_Get("m_item_detail", "Detail Level", 0);
 	m_item_hd_mode = Cvar_Get("m_item_hd_mode", "HD Mode", 0);
 	m_item_antialiasing = Cvar_Get("m_item_antialiasing", "Anti-Aliasing", 0);
+	m_item_color_profile = Cvar_Get("m_item_color_profile", "Color Profile", 0);
+	m_item_water_reflections = Cvar_Get("m_item_water_reflections", "Water Reflections", 0);
+	m_item_water_reflection_res = Cvar_Get("m_item_water_reflection_res", "Reflection Resolution", 0);
+	m_item_light_emission = Cvar_Get("m_item_light_emission", "Light Emission Scale", 0);
+	m_item_shadows = Cvar_Get("m_item_shadows", "Shadows", 0);
 
 	// Options / Video Settings menus.
 	m_item_defaults = Cvar_Get("m_item_defaults", "Reset to Defaults", 0);

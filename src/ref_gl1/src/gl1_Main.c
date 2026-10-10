@@ -97,6 +97,10 @@ static cvar_t* r_underwater_color;
 cvar_t* r_frameswap;
 cvar_t* r_references;
 cvar_t* r_antialiasing;
+cvar_t* r_shadows;
+cvar_t* r_reflections;
+cvar_t* r_reflections_res;
+cvar_t* gl_dlight_scale;
 
 cvar_t* gl_noartifacts;
 
@@ -127,6 +131,7 @@ cvar_t* gl_saturatelighting;
 cvar_t* vid_gamma;
 cvar_t* vid_brightness;
 cvar_t* vid_contrast;
+cvar_t* r_colorprofile;
 static cvar_t* vid_textures_refresh_required; //mxd
 
 cvar_t* vid_ref;
@@ -667,6 +672,11 @@ static void R_Register(void)
 	r_frameswap = ri.Cvar_Get("r_frameswap", "1.0", 0);
 	r_references = ri.Cvar_Get("r_references", "1.0", 0);
 	r_antialiasing = ri.Cvar_Get("r_antialiasing", "0", CVAR_ARCHIVE);
+	// Registered here so the shared Video Settings menu always has these cvars; only ref_gl3 acts on them.
+	r_shadows = ri.Cvar_Get("r_shadows", "1", CVAR_ARCHIVE);
+	r_reflections = ri.Cvar_Get("r_reflections", "1", CVAR_ARCHIVE);
+	r_reflections_res = ri.Cvar_Get("r_reflections_res", "0", CVAR_ARCHIVE);
+	gl_dlight_scale = ri.Cvar_Get("gl_dlight_scale", "2", CVAR_ARCHIVE);
 
 	gl_noartifacts = ri.Cvar_Get("gl_noartifacts", "0", 0); // H2
 
@@ -698,6 +708,7 @@ static void R_Register(void)
 	vid_gamma = ri.Cvar_Get("vid_gamma", "0.5", CVAR_ARCHIVE);
 	vid_brightness = ri.Cvar_Get("vid_brightness", "0.5", CVAR_ARCHIVE); // H2
 	vid_contrast = ri.Cvar_Get("vid_contrast", "0.5", CVAR_ARCHIVE); // H2
+	r_colorprofile = ri.Cvar_Get("r_colorprofile", "0", CVAR_ARCHIVE); // 0=sRGB, 1=Adobe RGB, 2=DCI-P3, 3=Rec.2020.
 	vid_textures_refresh_required = ri.Cvar_Get("vid_textures_refresh_required", "0", 0); //mxd
 
 	vid_ref = ri.Cvar_Get("vid_ref", "gl", CVAR_ARCHIVE);
@@ -849,7 +860,7 @@ static void RI_Shutdown(void)
 static void RI_BeginFrame(const float camera_separation) //TODO: remove camera_separation arg?
 {
 	// Changed.
-	if (vid_gamma->modified || vid_brightness->modified || vid_contrast->modified)
+	if (vid_gamma->modified || vid_brightness->modified || vid_contrast->modified || r_colorprofile->modified)
 	{
 		R_InitGammaTable();
 		R_GammaAffect(false);
@@ -857,6 +868,7 @@ static void RI_BeginFrame(const float camera_separation) //TODO: remove camera_s
 		vid_gamma->modified = false;
 		vid_brightness->modified = false;
 		vid_contrast->modified = false;
+		r_colorprofile->modified = false;
 	}
 	else if (vid_textures_refresh_required->value == 1.0f) //mxd. Roundabout way to apply gamma changes to ALL textures after Video menu is closed...
 	{

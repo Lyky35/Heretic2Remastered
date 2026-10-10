@@ -189,14 +189,17 @@ void PrepAddEffectsToView(void)
 	AngleVectors(refdef->viewangles, view_dir, NULL, NULL);
 }
 
-static void AddDLightToView(const client_entity_t* self, const float view_dist, const float view_dot) //mxd. Added to simplify logic. Assumes dlight exists.
+static void AddDLightToView(const client_entity_t* self, const float view_dist) //mxd. Added to simplify logic. Assumes dlight exists.
 {
 	const CE_DLight_t* ce_dlight = self->dlight;
 
 	if (fxi.cls->r_numdlights >= MAX_DLIGHTS || ce_dlight->intensity <= 0.0f)
 		return;
 
-	if (view_dot + (ce_dlight->intensity * ce_dlight->intensity) / (view_dist * 300.0f) <= view_fov) // 300.0 was determined by trial and error with intensities of 200 and 400.
+	// Cull by distance from the viewer, not by view direction: an off-screen light
+	// must still illuminate surfaces that are on-screen. The owning effect is
+	// already distance-culled past r_farclipdist above, so use the same bound.
+	if (view_dist > r_farclipdist->value)
 		return;
 
 	dlight_t* dl = &fxi.cls->r_dlights[fxi.cls->r_numdlights++];
@@ -243,7 +246,7 @@ int AddEffectsToView(client_entity_t** root, centity_t* owner)
 		const float dot = DotProduct(dir, view_dir);
 
 		if (current->dlight != NULL)
-			AddDLightToView(current, dist, dot); //mxd. Split into separate function.
+			AddDLightToView(current, dist); //mxd. Split into separate function.
 
 		// If no part of our radius is in the field of view, cull us.
 		if (dot + (current->radius / dist) < view_fov)

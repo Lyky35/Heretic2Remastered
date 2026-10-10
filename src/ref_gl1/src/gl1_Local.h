@@ -75,6 +75,7 @@ extern cvar_t* gl_saturatelighting;
 extern cvar_t* vid_gamma;
 extern cvar_t* vid_brightness;
 extern cvar_t* vid_contrast;
+extern cvar_t* r_colorprofile;
 
 extern cvar_t* vid_ref;
 

@@ -213,6 +213,7 @@ static const char* fragmentSourcePost =
 	"uniform sampler2D uAOBuffer;\n"
 	"uniform sampler2D uDepthMap;\n"
 	"uniform float uExposure;\n"
+	"uniform mat3  uColorProfile;\n"
 	"uniform float uBloomStrength;\n"
 	"uniform float uAOStrength;\n"
 	"uniform int  uFogEnabled;\n"
@@ -244,7 +245,7 @@ static const char* fragmentSourcePost =
 	"        }\n"
 	"        color = mix(uFogColor, color, fogFactor);\n"
 	"    }\n"
-	"    FragColor = vec4(color * uExposure, 1.0);\n"
+	"    FragColor = vec4(uColorProfile * (color * uExposure), 1.0);\n"
 	"}\n";
 
 // --- Bloom bright-pass extract shader ---
@@ -726,6 +727,7 @@ qboolean GL3_InitShaders(void)
 
 	gl3state.uniPost_hdrBuffer = glGetUniformLocation(gl3state.shaderPost, "uHDRBuffer");
 	gl3state.uniPost_exposure  = glGetUniformLocation(gl3state.shaderPost, "uExposure");
+	gl3state.uniPost_colorProfile = glGetUniformLocation(gl3state.shaderPost, "uColorProfile");
 
 	gl3state.uniPost_depthMap    = glGetUniformLocation(gl3state.shaderPost, "uDepthMap");
 	gl3state.uniPost_fogEnabled  = glGetUniformLocation(gl3state.shaderPost, "uFogEnabled");
@@ -741,6 +743,12 @@ qboolean GL3_InitShaders(void)
 	glUniform1f(gl3state.uniPost_exposure, 1.0f);
 	glUniform1i(gl3state.uniPost_depthMap, 3);
 	glUniform1i(gl3state.uniPost_fogEnabled, 0);
+
+	// Default to the sRGB profile (identity) until GL3_CompositeHDR applies the real one.
+	{
+		static const GLfloat identity[9] = { 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f };
+		glUniformMatrix3fv(gl3state.uniPost_colorProfile, 1, GL_TRUE, identity);
+	}
 
 	// --- Create 1x1 white texture for color-only 2D drawing ---
 	{
@@ -1377,6 +1385,24 @@ void GL3_CompositeHDR(const int w, const int h, const float exposure, const floa
 	glUniform1f(gl3state.uniPost_exposure,      exposure);
 	glUniform1f(gl3state.uniPost_bloomStrength, bloom_strength);
 	glUniform1f(gl3state.uniPost_aoStrength,    ao_strength);
+
+	// Color profile: map content into the wider primaries, then re-interpret as sRGB.
+	// (D65 white point is shared by all profiles, so white/neutral colors stay unchanged.)
+	static const float sRGB_gamut[9]   = { 1.00000f,  0.00000f,  0.00000f,  0.00000f,  1.00000f,  0.00000f,  0.00000f,  0.00000f,  1.00000f };
+	static const float AdobeRGB_gamut[9] = { 1.39836f, -0.39836f,  0.00000f,  0.00000f,  1.00000f,  0.00000f,  0.00000f, -0.04293f,  1.04293f };
+	static const float DCI_P3_gamut[9]    = { 1.22494f, -0.22494f,  0.00000f, -0.04206f,  1.04206f,  0.00000f, -0.01964f, -0.07864f,  1.09827f };
+	static const float Rec2020_gamut[9]   = { 1.66049f, -0.58764f, -0.07285f, -0.12455f,  1.13290f, -0.00835f, -0.01815f, -0.10058f,  1.11873f };
+
+	const float* profile = sRGB_gamut;
+	switch ((int)r_colorprofile->value)
+	{
+		case 1: profile = AdobeRGB_gamut; break;
+		case 2: profile = DCI_P3_gamut; break;
+		case 3: profile = Rec2020_gamut; break;
+		default: break;
+	}
+
+	glUniformMatrix3fv(gl3state.uniPost_colorProfile, 1, GL_TRUE, profile);
 
 	// Bind the HDR color texture to TMU0 and keep the binding cache consistent.
 	glActiveTexture(GL_TEXTURE0);

@@ -110,9 +110,10 @@ static cvar_t* r_ssao;
 static cvar_t* r_ssao_radius;
 static cvar_t* r_ssao_bias;
 static cvar_t* r_ssao_strength;
-static cvar_t* r_shadows;
+cvar_t* r_shadows;
 cvar_t* r_reflections;
 cvar_t* r_reflections_intensity;
+cvar_t* r_reflections_res;
 cvar_t* r_refractions;
 cvar_t* r_refractions_intensity;
 cvar_t* r_water_wave_height;
@@ -153,6 +154,7 @@ cvar_t* gl_saturatelighting;
 cvar_t* vid_gamma;
 cvar_t* vid_brightness;
 cvar_t* vid_contrast;
+cvar_t* r_colorprofile;
 static cvar_t* vid_textures_refresh_required;
 
 cvar_t* vid_ref;
@@ -301,6 +303,7 @@ static void R_Register(void)
 	r_shadows         = ri.Cvar_Get("r_shadows",         "1",   CVAR_ARCHIVE);
 	r_reflections     = ri.Cvar_Get("r_reflections",     "1",   CVAR_ARCHIVE);
 	r_reflections_intensity = ri.Cvar_Get("r_reflections_intensity", "1.6", CVAR_ARCHIVE);
+	r_reflections_res = ri.Cvar_Get("r_reflections_res", "0", CVAR_ARCHIVE); // 0 = native, 1 = half
 	r_bump            = ri.Cvar_Get("r_bump",            "1",   CVAR_ARCHIVE);
 	r_bump_scale_world = ri.Cvar_Get("r_bump_scale_world", "0", CVAR_ARCHIVE);
 	r_bump_scale_water = ri.Cvar_Get("r_bump_scale_water", "0.5", CVAR_ARCHIVE);
@@ -324,7 +327,7 @@ static void R_Register(void)
 	gl_clear = ri.Cvar_Get("gl_clear", "0", 0);
 	gl_cull = ri.Cvar_Get("gl_cull", "1", 0);
 	gl_lensflare = ri.Cvar_Get("gl_lensflare", "1", CVAR_ARCHIVE);
-	gl_dlight_scale = ri.Cvar_Get("gl_dlight_scale", "2.5", CVAR_ARCHIVE);
+	gl_dlight_scale = ri.Cvar_Get("gl_dlight_scale", "2", CVAR_ARCHIVE);
 	gl_flashblend = ri.Cvar_Get("gl_flashblend", "0", 0);
 	gl_texturemode = ri.Cvar_Get("gl_texturemode", "GL_LINEAR_MIPMAP_NEAREST", CVAR_ARCHIVE);
 	gl_lockpvs = ri.Cvar_Get("gl_lockpvs", "0", 0);
@@ -341,6 +344,7 @@ static void R_Register(void)
 	vid_gamma = ri.Cvar_Get("vid_gamma", "0.5", CVAR_ARCHIVE);
 	vid_brightness = ri.Cvar_Get("vid_brightness", "0.5", CVAR_ARCHIVE);
 	vid_contrast = ri.Cvar_Get("vid_contrast", "0.5", CVAR_ARCHIVE);
+	r_colorprofile = ri.Cvar_Get("r_colorprofile", "0", CVAR_ARCHIVE); // 0=sRGB, 1=Adobe RGB, 2=DCI-P3, 3=Rec.2020.
 	vid_textures_refresh_required = ri.Cvar_Get("vid_textures_refresh_required", "0", 0);
 
 	vid_ref = ri.Cvar_Get("vid_ref", "gl3", CVAR_ARCHIVE);
@@ -478,7 +482,10 @@ static qboolean RI_Init(void)
 	GL3_InitFBO(viddef.width, viddef.height);
 	GL3_InitBloom(viddef.width, viddef.height);
 	GL3_InitSSAO(viddef.width, viddef.height);
-	GL3_InitReflect(viddef.width, viddef.height);
+
+	const int reflect_w = (int)r_reflections_res->value == 1 ? (viddef.width + 1) / 2 : viddef.width;
+	const int reflect_h = (int)r_reflections_res->value == 1 ? (viddef.height + 1) / 2 : viddef.height;
+	GL3_InitReflect(reflect_w, reflect_h);
 	GL3_InitRefract(viddef.width, viddef.height);
 
 	// Initialize job system for multithreading.
@@ -531,6 +538,16 @@ static void RI_BeginFrame(const float camera_separation)
 	{
 		R_HDTextureToggle();
 		r_hd_textures->modified = false;
+	}
+
+	// Recreate the planar reflection FBO when its resolution changes on the fly.
+	if (r_reflections_res->modified)
+	{
+		const int rw = (int)r_reflections_res->value == 1 ? (viddef.width + 1) / 2 : viddef.width;
+		const int rh = (int)r_reflections_res->value == 1 ? (viddef.height + 1) / 2 : viddef.height;
+		GL3_ShutdownReflect();
+		GL3_InitReflect(rw, rh);
+		r_reflections_res->modified = false;
 	}
 
 	// Changed.
