@@ -110,7 +110,7 @@ void FXSphereOfAnnihilation(centity_t* owner, const int type, const int flags, v
 
 	aura_thinker->flags |= CEF_NO_DRAW;
 	if (R_DETAIL > DETAIL_LOW)
-		aura_thinker->dlight = CE_DLight_new(light_color, 150.0f, 0.0f);
+		aura_thinker->dlight = CE_DLight_new(light_color, 300.0f, 0.0f);
 
 	aura_thinker->extra = (void*)(&fxi.server_entities[caster_entnum]); // The caster's centity_t.
 	aura_thinker->AddToView = LinkedEntityUpdatePlacement;
@@ -128,6 +128,7 @@ void FXSphereOfAnnihilation(centity_t* owner, const int type, const int flags, v
 	sphere->r.scale = owner->current.scale;
 	sphere->AddToView = LinkedEntityUpdatePlacement;
 	sphere->Update = SphereOfAnnihilationSphereUpdate;
+	sphere->dlight = CE_DLight_new(light_color, 300.0f, 0.0f);
 
 	AddEffect(owner, sphere);
 }

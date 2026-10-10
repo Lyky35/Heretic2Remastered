@@ -123,7 +123,7 @@ void FXMagicMissile(centity_t* owner, const int type, const int flags, vec3_t or
 	missile->r.flags = (RF_TRANSLUCENT | RF_TRANS_ADD);
 	missile->r.scale = 0.4f;
 	missile->d_scale = 4.0f;
-	missile->dlight = CE_DLight_new(light_color, 150.0f, 0.0f);
+	missile->dlight = CE_DLight_new(light_color, 300.0f, 0.0f);
 	missile->Update = MagicMissileUpdate;
 
 	AddEffect(owner, missile);
@@ -168,7 +168,7 @@ void FXMagicMissileExplode(centity_t* owner, const int type, const int flags, ve
 	halo->d_scale = -6.0f;
 	halo->d_alpha = -2.0f;
 	halo->radius = 20.0f;
-	halo->dlight = CE_DLight_new(light_color, 150.0f, -50.0f);
+	halo->dlight = CE_DLight_new(light_color, 300.0f, -50.0f);
 
 	VectorScale(dir, 8.0f, halo->velocity);
 

@@ -66,7 +66,7 @@ void FXMaceball(centity_t* owner, const int type, const int flags, vec3_t origin
 	ball->r.scale = BALL_RADIUS;
 	ball->d_scale = BALL_GROWTH;
 	ball->color.c = 0xff00ffff;
-	ball->dlight = CE_DLight_new(ball->color, 150.0f, 0.0f);
+	ball->dlight = CE_DLight_new(ball->color, 300.0f, 0.0f);
 	ball->Update = MaceballUpdate;
 
 	AddEffect(owner, ball);
@@ -87,6 +87,7 @@ void FXMaceballBounce(centity_t* owner, const int type, const int flags, vec3_t 
 	client_entity_t* hit_fx = ClientEntity_new(type, (int)(flags | CEF_NO_DRAW | CEF_ADDITIVE_PARTS), origin, NULL, BALL_BOUNCE_LIFETIME);
 
 	hit_fx->radius = BALL_RADIUS;
+	hit_fx->dlight = CE_DLight_new((paletteRGBA_t){ .r = 0, .g = 228, .b = 0, .a = 255 }, 300.0f, 0.0f);
 	VectorScale(normal, MACEBALL_SPARK_VEL, hit_fx->velocity); // This velocity is used by the sparks (to be more precise, hit_fx->r.origin is used to update particles position --mxd).
 	AddEffect(NULL, hit_fx);
 

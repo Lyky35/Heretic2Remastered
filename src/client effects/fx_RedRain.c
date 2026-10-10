@@ -290,6 +290,9 @@ void FXRedRain(centity_t* owner, const int type, int flags, vec3_t origin)
 	spawner->color = color_white;
 	spawner->nextEventTime = fx_time + duration; // Waits for EF_DISABLE from owner, but in case we miss the message, time out.
 
+	// Light the whole rain/thunder volume so the effect reads as emissive.
+	spawner->dlight = CE_DLight_new((powerup ? color_orange : color_red), 300.0f, 0.0f);
+
 	// The rain should start at the impact height, then move up to the target height.
 	spawner->SpawnData = -ceiling;
 	spawner->SpawnInfo = (powerup ? 1 : 0);
@@ -376,7 +379,7 @@ void FXRedRainMissile(centity_t* owner, const int type, const int flags, vec3_t 
 		missile->color.c = 0xff0000ff; // Red.
 	}
 
-	missile->dlight = CE_DLight_new(missile->color, 150.0f, 0.0f);
+	missile->dlight = CE_DLight_new(missile->color, 300.0f, 0.0f);
 	missile->Update = RedRainMissileUpdate;
 
 	AddEffect(owner, missile);
