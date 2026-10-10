@@ -1373,6 +1373,15 @@ void GL3_UpdateDlights(void)
 	glUniform4fv(gl3state.uni3D_dlightColor,  n, colors);
 }
 
+// Set only the model-shader dynamic-light count (used to disable dynamic
+// lights on models during the water-reflection pass, where the mirrored
+// dlight tint reads as a full-strength colour wash).
+void GL3_SetNumDlights(const int n)
+{
+	GL3_UseShader(gl3state.shader3D);
+	glUniform1i(gl3state.uni3D_numDlights, n);
+}
+
 // ============================================================
 // SSAO post-process.
 // ============================================================

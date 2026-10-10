@@ -976,8 +976,11 @@ static qboolean R_RenderReflection(const float water_z)
 	R_Mat4x4_Rotate(r_world_matrix, -r_newrefdef.viewangles[1], 0.0f, 0.0f, 1.0f);
 	R_Mat4x4_Translate(r_world_matrix, -r_newrefdef.vieworg[0], -r_newrefdef.vieworg[1], -r_newrefdef.vieworg[2]);
 	GL3_UpdateModelview3D(r_world_matrix);
-	// Rebind dynamic lights into the reflected camera's view space.
-	GL3_UpdateDlights();
+	// Dynamic lights are NOT applied to models in the reflection: the mirrored
+	// dlight tint reads as a full-strength colour wash on player/enemy models,
+	// unlike the main view. World lighting is computed on the CPU and is
+	// unaffected, so only the model shader's dlight count is zeroed here.
+	GL3_SetNumDlights(0);
 
 	// Clip submerged world geometry out of the mirror so only the world above
 	// the water plane is reflected.

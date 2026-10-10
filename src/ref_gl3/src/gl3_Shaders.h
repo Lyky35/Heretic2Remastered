@@ -61,3 +61,4 @@ extern void GL3_RenderSSAO(float radius, float bias);
 
 // Per-frame dynamic light update (transforms dlights to view-space, sets shader3D uniforms).
 extern void GL3_UpdateDlights(void);
+extern void GL3_SetNumDlights(const int n);
