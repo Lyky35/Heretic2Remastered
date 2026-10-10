@@ -36,7 +36,7 @@ Corpses stay by default, can be changed with g_keep_corpses 0, to enable cleanup
 Particles now lights, this includes fires, particles from weapons etc.
 There are some bugs, and missing lights from all weapons (or too small lights WIP)
 
-
+* Different color profiles (Adobe RGB, rec2020, DCI-P3, SRGB)
 
 ## Installation
 
@@ -119,7 +119,6 @@ The engine loads content from `base.pak`, `Htic2-0.pak` through `Htic2-9.pak`, a
 * Add water refraction things underwater.
 * Get water caustics to work.
 * Re-add staff effects that are currently ?gone? or aren't working.
-* Different color profiles (Adobe RGB, rec2020, DCI-P3, SRGB)
 * HDR?
 * 3D Sound
 
