@@ -117,12 +117,9 @@
     <ClCompile Include="fx_insectstaff.c">
       <Filter>src\Effects</Filter>
     </ClCompile>
-    <ClCompile Include="fx_lensflare.c">
-      <Filter>src\Effects</Filter>
-    </ClCompile>
-    <ClCompile Include="fx_lightning.c">
-      <Filter>src\Effects</Filter>
-    </ClCompile>
+     <ClCompile Include="fx_lightning.c">
+       <Filter>src\Effects</Filter>
+     </ClCompile>
     <ClCompile Include="fx_Maceball.c">
       <Filter>src\Effects</Filter>
     </ClCompile>

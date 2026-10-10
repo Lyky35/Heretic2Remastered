@@ -466,9 +466,9 @@ ClientEffect_t clientEffectSpawners[NUM_FX] =
 		.formatString = "b"
 	},
 
-	{ // FX_LENSFLARE
-		.SpawnCFX = FXLensFlare,
-		.PrecacheCFX = PreCacheFlare,
+	{ // FX_LENSFLARE //mxd. Removed: no lens-flare rendering.
+		.SpawnCFX = NULL,
+		.PrecacheCFX = NULL,
 		.PrecacheSFX = NULL,
 		.formatString = "bbbf"
 	},

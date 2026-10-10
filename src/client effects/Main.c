@@ -392,10 +392,15 @@ static void ParseEffects(centity_t* owner)
 			// The client-effect has already been started by client-prediction, so just skip it.
 			DummyEffectParams(owner, flags, effect);
 		}
-		else
+		else if (clientEffectSpawners[effect].SpawnCFX != NULL)
 		{
 			// Start the client-effect.
 			clientEffectSpawners[effect].SpawnCFX(temp_owner, effect, flags, position);
+		}
+		else
+		{
+			// Effect has no client spawner (removed effect): consume its parameters so the stream stays in sync.
+			DummyEffectParams(owner, flags, effect);
 		}
 
 		if (effect_is_from_server && fxi.EffectEventIdTimeArray[event_id] <= *fxi.leveltime)
