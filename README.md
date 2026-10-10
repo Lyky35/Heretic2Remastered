@@ -16,7 +16,8 @@ Heretic II Remastered is a reverse-engineered source port of Heretic II (1998, R
 
 * Multi Pass reflections water planes
 It uses same effect as 3dmark01 lobby scene for water.
-(There are still issues where not everything is being loaded.)
+(There are still some issues with water.)
+(Since its still on old OpenGL, there's significant CPU load on draw calls.)
 
 * Bump mapping
 Currently disabled, lack of proper textures, and water texture to do decent visuals.
