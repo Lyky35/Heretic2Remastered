@@ -358,7 +358,7 @@ static const char* fragmentSourceSSAOBlur =
 	"    FragColor = result / 16.0;\n"
 	"}\n";
 
-// --- Water surface shader (9-float vertex layout: pos3+tc2+col4, adds projective reflection) ---
+// --- Water surface shader (9-float vertex layout: pos3+tc2+col4, Gerstner waves + reflection + refraction) ---
 static const char* vertexSourceWater =
 	"#version 330 core\n"
 	"layout(location = 0) in vec3 aPos;\n"
@@ -367,12 +367,45 @@ static const char* vertexSourceWater =
 	"uniform mat4 uProjection;\n"
 	"uniform mat4 uModelview;\n"
 	"uniform vec4 uClipPlane;\n"
+	"uniform float uTime;\n"
+	"uniform float uWaveHeight;\n"
+	"uniform float uWaveSpeed;\n"
+	"uniform float uWaveSharp;\n"
 	"out vec2 vTexCoord;\n"
 	"out vec4 vColor;\n"
 	"out vec4 vClipPos;\n"
 	"out vec3 vViewPos;\n"
+	"out vec3 vWorldPos;\n"
+	"out vec3 vNormal;\n"
+	"// Gerstner wave for a Z-up world: the wave plane is XY, displacement is along Z.\n"
+	"// P += (Q*A*D*cos(phase), A*sin(phase)) horizontally+vertically. The tangent and\n"
+	"// binormal are accumulated via the analytic partial derivatives so the surface\n"
+	"// normal can be rebuilt after the vertices are displaced (GPU Gems formulation).\n"
+	"vec3 gerstnerWave(vec2 dir, float w, float amp, float speed, float q, float t, float hscale, vec3 p, inout vec3 tangent, inout vec3 binormal) {\n"
+	"    float phase = w * dot(dir, p.xy) + speed * t;\n"
+	"    float s = sin(phase);\n"
+	"    float c = cos(phase);\n"
+	"    float qA = q * amp * hscale;   // horizontal displacement magnitude\n"
+	"    float wqA = w * qA;            // horizontal derivative factor\n"
+	"    float wA = w * amp * hscale;   // vertical derivative factor\n"
+	"    tangent  += vec3(-dir.x * dir.x * wqA * s, -dir.x * dir.y * wqA * s, dir.x * wA * c);\n"
+	"    binormal += vec3(-dir.x * dir.y * wqA * s, -dir.y * dir.y * wqA * s, dir.y * wA * c);\n"
+	"    return vec3(dir.x * qA * c, dir.y * qA * c, amp * hscale * s);\n"
+	"}\n"
 	"void main() {\n"
-	"    vec4 viewPos = uModelview * vec4(aPos, 1.0);\n"
+	"    vec3 worldPos = aPos;\n"
+	"    vec3 tangent = vec3(1.0, 0.0, 0.0);\n"
+	"    vec3 binormal = vec3(0.0, 1.0, 0.0);\n"
+	"    float t = uTime * uWaveSpeed;\n"
+	"    vec3 disp = vec3(0.0);\n"
+	"    disp += gerstnerWave(normalize(vec2( 1.0,  0.3)), 0.0314, 1.5, 1.0, uWaveSharp, t, uWaveHeight, worldPos, tangent, binormal);\n"
+	"    disp += gerstnerWave(normalize(vec2( 0.7, -0.7)), 0.048, 1.2, 1.3, uWaveSharp, t, uWaveHeight, worldPos, tangent, binormal);\n"
+	"    disp += gerstnerWave(normalize(vec2(-0.4,  0.9)), 0.09,  0.8, 1.7, uWaveSharp, t, uWaveHeight, worldPos, tangent, binormal);\n"
+	"    disp += gerstnerWave(normalize(vec2( 0.2,  1.0)), 0.157, 0.4, 2.1, uWaveSharp, t, uWaveHeight, worldPos, tangent, binormal);\n"
+	"    worldPos += disp;\n"
+	"    vNormal = normalize(cross(tangent, binormal));\n"
+	"    vWorldPos = worldPos;\n"
+	"    vec4 viewPos = uModelview * vec4(worldPos, 1.0);\n"
 	"    gl_Position = uProjection * viewPos;\n"
 	"    vClipPos    = gl_Position;\n"
 	"    vTexCoord   = aTexCoord;\n"
@@ -387,31 +420,39 @@ static const char* fragmentSourceWater =
 	"in vec4 vColor;\n"
 	"in vec4 vClipPos;\n"
 	"in vec3 vViewPos;\n"
+	"in vec3 vWorldPos;\n"
+	"in vec3 vNormal;\n"
 	"uniform sampler2D uTexture;\n"
 	"uniform sampler2D uReflectTex;\n"
+	"uniform sampler2D uRefractTex;\n"
 	"uniform vec4  uColor;\n"
 	"uniform float uReflectAmt;\n"
+	"uniform float uRefractAmt;\n"
 	"uniform float uTime;\n"
 	"uniform float uBumpScale;\n"
 	"out vec4 FragColor;\n"
 	"void main() {\n"
 	"    vec4 waterColor = texture(uTexture, vTexCoord) * vColor * uColor;\n"
 	"    if (waterColor.a < 0.01) discard;\n"
-	// Bump mapping: build an animated wave-height field and its analytic
-	// gradient, giving a perturbed surface normal used both to distort the
-	// reflection lookup and to compute a specular highlight.
-	"    float t  = uTime;\n"
-	"    float px = vTexCoord.x;\n"
-	"    float py = vTexCoord.y;\n"
-	"    float dhdx = -sin(px * 25.0 + t * 1.5) * 17.5 + cos((px + py) * 17.0 + t * 2.3) * 8.5;\n"
-	"    float dhdy =  cos(py * 25.0 + t * 1.5) * 17.5 + cos((px + py) * 17.0 + t * 2.3) * 8.5;\n"
-	"    vec3 N = normalize(vec3(-dhdx * 0.0022 * uBumpScale, -dhdy * 0.0022 * uBumpScale, 1.0));\n"
-	"    vec2 screenUV = vClipPos.xy / vClipPos.w * 0.5 + 0.5 + N.xy * 0.05;\n"
-	"    screenUV.y = 1.0 - screenUV.y;\n"
-	"    screenUV = clamp(screenUV, 0.0, 1.0);\n"
-	"    vec3 reflectColor = texture(uReflectTex, screenUV).rgb;\n"
-	"    vec3 blended = mix(waterColor.rgb, reflectColor, uReflectAmt);\n"
+	"    vec2 screenUV = vClipPos.xy / vClipPos.w * 0.5 + 0.5;\n"
+	"    vec3 N = normalize(vNormal);\n"
+	"    // Refraction: sample the scene (without water) with a small UV offset\n"
+	"    // that follows the displaced surface normal.\n"
+	"    vec3 blended = waterColor.rgb;\n"
+	"    if (uRefractAmt > 0.001) {\n"
+	"        vec2 refractUV = clamp(screenUV + N.xy * uRefractAmt, 0.0, 1.0);\n"
+	"        refractUV.y = 1.0 - refractUV.y;\n"
+	"        vec3 refractColor = texture(uRefractTex, refractUV).rgb;\n"
+	"        blended = mix(refractColor, waterColor.rgb, 0.35);\n"
+	"    }\n"
+	"    // Reflection: projective lookup with normal distortion and a fresnel term.\n"
+	"    vec2 reflectUV = clamp(screenUV + N.xy * 0.05, 0.0, 1.0);\n"
+	"    reflectUV.y = 1.0 - reflectUV.y;\n"
+	"    vec3 reflectColor = texture(uReflectTex, reflectUV).rgb;\n"
 	"    vec3 V = normalize(-vViewPos);\n"
+	"    float fresnel = pow(1.0 - max(dot(N, V), 0.0), 3.0) * 0.6 + 0.4;\n"
+	"    blended = mix(blended, reflectColor, clamp(uReflectAmt * fresnel, 0.0, 1.0));\n"
+	"    // Specular highlight (Blinn-Phong).\n"
 	"    vec3 L = normalize(vec3(0.3, 0.6, 0.7));\n"
 	"    vec3 Hv = normalize(L + V);\n"
 	"    float spec = pow(max(dot(N, Hv), 0.0), 96.0) * uBumpScale;\n"
@@ -725,15 +766,25 @@ qboolean GL3_InitShaders(void)
 	gl3state.uniWater_color      = glGetUniformLocation(gl3state.shaderWater, "uColor");
 	gl3state.uniWater_reflectTex = glGetUniformLocation(gl3state.shaderWater, "uReflectTex");
 	gl3state.uniWater_reflectAmt = glGetUniformLocation(gl3state.shaderWater, "uReflectAmt");
+	gl3state.uniWater_refractTex = glGetUniformLocation(gl3state.shaderWater, "uRefractTex");
+	gl3state.uniWater_refractAmt = glGetUniformLocation(gl3state.shaderWater, "uRefractAmt");
 	gl3state.uniWater_time       = glGetUniformLocation(gl3state.shaderWater, "uTime");
 	gl3state.uniWater_clipPlane  = glGetUniformLocation(gl3state.shaderWater, "uClipPlane");
 	gl3state.uniWater_bumpScale  = glGetUniformLocation(gl3state.shaderWater, "uBumpScale");
+	gl3state.uniWater_waveHeight = glGetUniformLocation(gl3state.shaderWater, "uWaveHeight");
+	gl3state.uniWater_waveSpeed  = glGetUniformLocation(gl3state.shaderWater, "uWaveSpeed");
+	gl3state.uniWater_waveSharp  = glGetUniformLocation(gl3state.shaderWater, "uWaveSharp");
 
 	GL3_UseShader(gl3state.shaderWater);
 	glUniform1i(gl3state.uniWater_reflectTex, 1);      // TMU1: reflection texture.
+	glUniform1i(gl3state.uniWater_refractTex, 2);      // TMU2: refraction texture.
 	glUniform4f(gl3state.uniWater_color, 1.0f, 1.0f, 1.0f, 1.0f);
 	glUniform1f(gl3state.uniWater_reflectAmt, 0.35f);
+	glUniform1f(gl3state.uniWater_refractAmt, 0.5f);
 	glUniform1f(gl3state.uniWater_time, 0.0f);
+	glUniform1f(gl3state.uniWater_waveHeight, 0.6f);
+	glUniform1f(gl3state.uniWater_waveSpeed, 1.0f);
+	glUniform1f(gl3state.uniWater_waveSharp, 0.5f);
 
 	// Neutral clip plane + default bump strength on all 3D programs.
 	{
@@ -957,21 +1008,52 @@ void GL3_Draw3DPoly(const GLenum mode, const float* verts, const int numverts)
 	glDrawArrays(mode, 0, numverts);
 }
 
+// Copy the current scene color into the refraction FBO.
+// Called before water surfaces are drawn so the refraction texture
+// contains the scene without water. Preserves the current draw framebuffer.
+void GL3_CopySceneToRefract(void)
+{
+	if (gl3state.fboRefract == 0 || gl3state.fbo3D == 0)
+		return;
+
+	GLint cur_read_fb = 0, cur_draw_fb = 0;
+	glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &cur_read_fb);
+	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &cur_draw_fb);
+
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, gl3state.fbo3D);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, gl3state.fboRefract);
+	glBlitFramebuffer(0, 0, gl3state.fbo_width, gl3state.fbo_height,
+	                  0, 0, gl3state.refract_width, gl3state.refract_height,
+	                  GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, (GLuint)cur_read_fb);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, (GLuint)cur_draw_fb);
+}
+
 // Draw a water polygon using shaderWater (same 9 floats/vert as GL3_Draw3DPoly).
-// Binds the reflection texture to TMU1; TMU0 must already be bound to the water diffuse.
-void GL3_DrawWaterPoly(const GLenum mode, const float* verts, const int numverts)
+// Binds the reflection texture to TMU1 and refraction texture to TMU2;
+// TMU0 must already be bound to the water diffuse. reflect_valid selects
+// whether this frame's planar reflection is sampled (0 disables reflection
+// but keeps the Gerstner waves and refraction).
+void GL3_DrawWaterPoly(const GLenum mode, const float* verts, const int numverts, const int reflect_valid)
 {
 	GL3_UseShader(gl3state.shaderWater);
 
-	// Update per-draw time uniform for animated distortion.
 	glUniform1f(gl3state.uniWater_time, r_newrefdef.time);
+	const float reflect_strength = (reflect_valid && gl3state.fboTexReflect != 0)
+		? r_reflections_intensity->value : 0.0f;
+	glUniform1f(gl3state.uniWater_reflectAmt, reflect_strength);
+	const float refract_strength = ((int)r_refractions->value && gl3state.fboTexRefract != 0)
+		? r_refractions_intensity->value : 0.0f;
+	glUniform1f(gl3state.uniWater_refractAmt, refract_strength);
+	glUniform1f(gl3state.uniWater_waveHeight, r_water_wave_height->value);
+	glUniform1f(gl3state.uniWater_waveSpeed, r_water_wave_speed->value);
+	glUniform1f(gl3state.uniWater_waveSharp, r_water_wave_sharp->value);
 
-	// Reflection blend factor (tunable).
-	glUniform1f(gl3state.uniWater_reflectAmt, r_reflections_intensity->value);
-
-	// Bind the reflection texture to TMU1 without disturbing the cached TMU0 state.
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, gl3state.fboTexReflect);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, gl3state.fboTexRefract);
 	glActiveTexture(GL_TEXTURE0);
 
 	glBindVertexArray(gl3state.vao3D);
@@ -1117,6 +1199,58 @@ void GL3_ShutdownReflect(void)
 
 	gl3state.reflect_width  = 0;
 	gl3state.reflect_height = 0;
+}
+
+// ============================================================
+// Refraction FBO management.
+// ============================================================
+
+qboolean GL3_InitRefract(const int width, const int height)
+{
+	gl3state.refract_width  = (width  > 0) ? width  : 1;
+	gl3state.refract_height = (height > 0) ? height : 1;
+
+	glGenTextures(1, &gl3state.fboTexRefract);
+	glBindTexture(GL_TEXTURE_2D, gl3state.fboTexRefract);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, gl3state.refract_width, gl3state.refract_height, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glGenRenderbuffers(1, &gl3state.rboRefractDepth);
+	glBindRenderbuffer(GL_RENDERBUFFER, gl3state.rboRefractDepth);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, gl3state.refract_width, gl3state.refract_height);
+	glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+	glGenFramebuffers(1, &gl3state.fboRefract);
+	glBindFramebuffer(GL_FRAMEBUFFER, gl3state.fboRefract);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gl3state.fboTexRefract, 0);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, gl3state.rboRefractDepth);
+
+	const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	if (status != GL_FRAMEBUFFER_COMPLETE)
+	{
+		ri.Con_Printf(PRINT_ALL, "GL3_InitRefract: framebuffer incomplete (status 0x%x)\n", (unsigned)status);
+		GL3_ShutdownRefract();
+		return false;
+	}
+
+	ri.Con_Printf(PRINT_ALL, "GL3 refraction FBO initialized (%dx%d RGBA16F).\n", gl3state.refract_width, gl3state.refract_height);
+	return true;
+}
+
+void GL3_ShutdownRefract(void)
+{
+	if (gl3state.fboTexRefract   != 0) { glDeleteTextures(1,      &gl3state.fboTexRefract);   gl3state.fboTexRefract   = 0; }
+	if (gl3state.rboRefractDepth != 0) { glDeleteRenderbuffers(1, &gl3state.rboRefractDepth); gl3state.rboRefractDepth = 0; }
+	if (gl3state.fboRefract      != 0) { glDeleteFramebuffers(1,  &gl3state.fboRefract);      gl3state.fboRefract      = 0; }
+
+	gl3state.refract_width  = 0;
+	gl3state.refract_height = 0;
 }
 
 // ============================================================

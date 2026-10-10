@@ -113,6 +113,11 @@ static cvar_t* r_ssao_strength;
 static cvar_t* r_shadows;
 cvar_t* r_reflections;
 cvar_t* r_reflections_intensity;
+cvar_t* r_refractions;
+cvar_t* r_refractions_intensity;
+cvar_t* r_water_wave_height;
+cvar_t* r_water_wave_speed;
+cvar_t* r_water_wave_sharp;
 cvar_t* r_bump;
 cvar_t* r_bump_scale_world;
 cvar_t* r_bump_scale_water;
@@ -301,6 +306,11 @@ static void R_Register(void)
 	r_bump_scale_water = ri.Cvar_Get("r_bump_scale_water", "0.5", CVAR_ARCHIVE);
 	r_caustics        = ri.Cvar_Get("r_caustics",        "0",   CVAR_ARCHIVE);
 	r_caustics_strength = ri.Cvar_Get("r_caustics_strength", "0.6", CVAR_ARCHIVE);
+	r_refractions     = ri.Cvar_Get("r_refractions",     "1",   CVAR_ARCHIVE);
+	r_refractions_intensity = ri.Cvar_Get("r_refractions_intensity", "0.5", CVAR_ARCHIVE);
+	r_water_wave_height = ri.Cvar_Get("r_water_wave_height", "0.6", CVAR_ARCHIVE);
+	r_water_wave_speed  = ri.Cvar_Get("r_water_wave_speed",  "1.0", CVAR_ARCHIVE);
+	r_water_wave_sharp  = ri.Cvar_Get("r_water_wave_sharp",  "0.5", CVAR_ARCHIVE);
 	r_hd_textures     = ri.Cvar_Get("r_hd_textures",     "1",   CVAR_ARCHIVE);
 	r_antialiasing    = ri.Cvar_Get("r_antialiasing",    "0",   CVAR_ARCHIVE);
 
@@ -469,6 +479,7 @@ static qboolean RI_Init(void)
 	GL3_InitBloom(viddef.width, viddef.height);
 	GL3_InitSSAO(viddef.width, viddef.height);
 	GL3_InitReflect(viddef.width, viddef.height);
+	GL3_InitRefract(viddef.width, viddef.height);
 
 	// Initialize job system for multithreading.
 	GL3_InitJobs(0);
@@ -501,6 +512,7 @@ static void RI_Shutdown(void)
 	Mod_FreeAll();
 	R_ShutdownImages();
 	R_ShutdownShadows();
+	GL3_ShutdownRefract();
 	GL3_ShutdownReflect();
 	GL3_ShutdownSSAO();
 	GL3_ShutdownBloom();

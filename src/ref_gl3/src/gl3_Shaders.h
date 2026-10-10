@@ -37,8 +37,9 @@ extern void GL3_DisableFog(void);
 extern void GL3_DrawLMPoly(const float* verts, int numverts);
 // GL3_Draw3DPoly: 9 floats/vert (pos3+tc2+col4), uses shader3D.
 extern void GL3_Draw3DPoly(GLenum mode, const float* verts, int numverts);
-// GL3_DrawWaterPoly: 9 floats/vert (pos3+tc2+col4), uses shaderWater (samples reflection TMU1).
-extern void GL3_DrawWaterPoly(GLenum mode, const float* verts, int numverts);
+// GL3_DrawWaterPoly: 9 floats/vert (pos3+tc2+col4), uses shaderWater
+// (Gerstner waves + refraction TMU2 + reflection TMU1 when reflect_valid).
+extern void GL3_DrawWaterPoly(GLenum mode, const float* verts, int numverts, int reflect_valid);
 
 // FBO management and HDR composite.
 extern qboolean GL3_InitFBO(int width, int height);
@@ -48,6 +49,11 @@ extern void GL3_CompositeHDR(int w, int h, float exposure, float bloom_strength,
 // Reflection FBO management.
 extern qboolean GL3_InitReflect(int width, int height);
 extern void GL3_ShutdownReflect(void);
+
+// Refraction FBO management.
+extern qboolean GL3_InitRefract(int width, int height);
+extern void GL3_ShutdownRefract(void);
+extern void GL3_CopySceneToRefract(void);
 
 // Bloom post-process: bright-pass extract + separable Gaussian blur.
 extern qboolean GL3_InitBloom(int width, int height);

@@ -519,6 +519,11 @@ static void R_DrawTextureChains(const entity_t* ent)
 
 	// Render warping (water) surfaces (no lightmaps).
 	{
+		// Capture the scene (without water) for refraction before any warp
+		// surfaces are drawn. Skipped during the reflection pass.
+		if (!r_reflection_pass && (int)r_refractions->value && gl3state.fboTexRefract != 0)
+			GL3_CopySceneToRefract();
+
 		image_t* image = &gltextures[0];
 		for (int i = 0; i < numgltextures; i++, image++)
 		{

@@ -58,6 +58,11 @@ extern cvar_t* r_frameswap;
 extern cvar_t* r_references;
 extern cvar_t* r_reflections;
 extern cvar_t* r_reflections_intensity;
+extern cvar_t* r_refractions;
+extern cvar_t* r_refractions_intensity;
+extern cvar_t* r_water_wave_height;
+extern cvar_t* r_water_wave_speed;
+extern cvar_t* r_water_wave_sharp;
 extern cvar_t* r_bump;
 extern cvar_t* r_bump_scale_world;
 extern cvar_t* r_bump_scale_water;
@@ -347,6 +352,14 @@ typedef struct
 	int    reflect_width;
 	int    reflect_height;
 
+	// Water refraction FBO (full-res: refract_width x refract_height, RGBA16F, depth renderbuffer).
+	// Captures the scene without water surfaces; sampled by the water shader for refraction.
+	GLuint fboRefract;
+	GLuint fboTexRefract;     // RGBA16F color texture sampled by water shader.
+	GLuint rboRefractDepth;   // Depth renderbuffer (not sampled).
+	int    refract_width;
+	int    refract_height;
+
 	// Water surface shader (same 9-float vertex layout as shader3D, adds projective reflection).
 	GLuint shaderWater;
 	GLint  uniWater_projection;
@@ -354,9 +367,14 @@ typedef struct
 	GLint  uniWater_color;
 	GLint  uniWater_reflectTex;   // unit 1: reflection FBO texture.
 	GLint  uniWater_reflectAmt;   // blend factor.
+	GLint  uniWater_refractTex;   // unit 2: refraction FBO texture.
+	GLint  uniWater_refractAmt;   // refraction strength.
 	GLint  uniWater_time;
 	GLint  uniWater_clipPlane;    // vec4 view-space water plane (reflection clipping).
 	GLint  uniWater_bumpScale;    // bump/normal-map strength.
+	GLint  uniWater_waveHeight;   // Gerstner wave amplitude.
+	GLint  uniWater_waveSpeed;    // Gerstner wave animation speed.
+	GLint  uniWater_waveSharp;    // Gerstner wave crest sharpness (Q).
 
 	// Lightmap GL texture IDs
 	GLuint lightmap_textures[MAX_LIGHTMAPS + 1];

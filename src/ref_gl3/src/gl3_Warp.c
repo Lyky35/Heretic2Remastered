@@ -57,10 +57,10 @@ void R_EmitWaterPolys(const msurface_t* fa, const qboolean undulate, const qbool
 			WriteWarpVert(&vbuf[i * 9], v, s, t, pz);
 		}
 
-		if (use_reflect)
-			GL3_DrawWaterPoly(GL_TRIANGLE_FAN, vbuf, p->numverts);
-		else
-			GL3_Draw3DPoly(GL_TRIANGLE_FAN, vbuf, p->numverts);
+		// Always use the water shader so the Gerstner waves and refraction are
+		// applied; reflection is only sampled when this frame's planar
+		// reflection is valid (use_reflect).
+		GL3_DrawWaterPoly(GL_TRIANGLE_FAN, vbuf, p->numverts, use_reflect);
 	}
 }
 
