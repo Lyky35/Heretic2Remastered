@@ -158,6 +158,7 @@ static qboolean SphereOfAnnihilationGlowballUpdate(client_entity_t* self, centit
 		COLOUR_SET(spark->r.color, irand(128, 180), irand(128, 180), irand(180, 255)); //mxd. Use macro.
 		spark->Scale = flrand(0.8f, 1.0f);
 		spark->d_scale = -1.5f;
+		spark->dlight = CE_DLight_new((paletteRGBA_t){ .r = 128, .g = 128, .b = 255, .a = 255 }, 250.0f, -50.0f);
 
 		AddEffect(NULL, spark);
 	}

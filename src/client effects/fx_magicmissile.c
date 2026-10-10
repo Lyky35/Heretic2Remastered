@@ -148,6 +148,7 @@ void FXMagicMissileExplode(centity_t* owner, const int type, const int flags, ve
 		puff->r.model = &missile_models[1]; // Indigo streak sprite.
 		puff->r.scale = flrand(MISSILE_SCALE * 0.75f, MISSILE_SCALE * 1.5f);
 		puff->r.flags = RF_TRANSLUCENT | RF_TRANS_ADD | RF_TRANS_ADD_ALPHA;
+		puff->dlight = CE_DLight_new(light_color, 250.0f, -50.0f);
 
 		VectorRandomCopy(dir, puff->velocity, MISSILE_EXPLODE_SPEED);
 		puff->acceleration[2] = GetGravity() * 0.3f;
