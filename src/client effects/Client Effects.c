@@ -1018,6 +1018,13 @@ ClientEffect_t clientEffectSpawners[NUM_FX] =
 		.PrecacheSFX = NULL,
 		.formatString = NULL
 	},
+
+	{ // FX_STAFF_SLASH //mxd. Ref-independent staff melee swing arc.
+		.SpawnCFX = FXStaffSlash,
+		.PrecacheCFX = PreCacheStaffSlash,
+		.PrecacheSFX = NULL,
+		.formatString = "bb"
+	},
 };
 
 #pragma endregion

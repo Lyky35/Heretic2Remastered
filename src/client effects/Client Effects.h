@@ -111,6 +111,7 @@ extern void FXPlagueMist(centity_t* owner, int type, int flags, vec3_t origin);
 extern void FXPlagueMistExplode(centity_t* owner, int type, int flags, vec3_t origin);
 extern void FXSpellHands(centity_t* owner, int type, int flags, vec3_t origin);
 extern void FXStaff(centity_t* owner, int type, int flags, vec3_t origin);
+extern void FXStaffSlash(centity_t* owner, int type, int flags, vec3_t origin); //mxd
 extern void FXSpoo(centity_t* owner, int type, int flags, vec3_t origin);
 extern void FXHalo(centity_t* owner, int type, int flags, vec3_t origin);
 extern void FXRemoteCamera(centity_t* owner, int type, int flags, vec3_t origin);
@@ -239,6 +240,7 @@ extern void PreCacheSmokeSFX(void); //mxd
 extern void PreCacheSphere(void);
 extern void PreCacheSpoo(void);
 extern void PreCacheStaff(void);
+extern void PreCacheStaffSlash(void); //mxd
 extern void PreCacheWaterSplash(void);
 extern void PreCacheWaterSplashSFX(void); //mxd
 extern void PreCacheWake(void);

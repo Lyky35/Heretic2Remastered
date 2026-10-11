@@ -670,6 +670,20 @@ void PlayerActionStaffTrailStart(playerinfo_t* info, const float value) //mxd. O
 			PlayerActionStaffTrailSound(info, va("weapons/%s_3.wav", sound_type));
 			break;
 	}
+
+	//mxd. Spawn a ref-independent swing arc, so the attack still reads visually when the player
+	// model's per-frame staff/blade reference points are unavailable (which silently kills the
+	// reference-driven FXStaff trails). Origin is the staff hand, relative to the player origin
+	// (the client adds the owner's origin back when parsing an entity-attached effect).
+	vec3_t forward, right, up;
+	AngleVectors(info->angles, forward, right, up);
+
+	vec3_t slash_offset;
+	VectorScale(up, 30.0f, slash_offset); // Staff hand height.
+	VectorMA(slash_offset, 16.0f, forward, slash_offset);
+	VectorMA(slash_offset, 5.0f, right, slash_offset);
+
+	P_CreateEffect(info, EFFECT_PRED_ID34, info->self, FX_STAFF_SLASH, CEF_DONT_LINK, slash_offset, "bb", (byte)powerlevel, (byte)trail_type); //mxd
 }
 
 void PlayerActionRedRainBowTrailStart(playerinfo_t* info, float value)

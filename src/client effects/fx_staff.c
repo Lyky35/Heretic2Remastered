@@ -30,6 +30,20 @@ enum
 
 static struct model_s* staff_models[NUM_MODELS];
 
+//mxd. Models used by the ref-independent melee swing arc. Kept separate from the
+// persistent staff trail models, even though the sprites are the same.
+enum
+{
+	SLASH_PATBALL,
+	SLASH_HALO,
+	SLASH_FLAME,
+	SLASH_HALOBLUE,
+
+	SLASH_NUM_MODELS
+};
+
+static struct model_s* slash_models[SLASH_NUM_MODELS];
+
 void PreCacheStaff(void)
 {
 	staff_models[0] = fxi.RegisterModel("sprites/spells/patball.sp2");
@@ -37,6 +51,14 @@ void PreCacheStaff(void)
 	staff_models[2] = fxi.RegisterModel("sprites/spells/wflame2.sp2");
 	staff_models[3] = fxi.RegisterModel("sprites/fx/steam.sp2");
 	staff_models[4] = fxi.RegisterModel("sprites/fx/haloblue.sp2");
+}
+
+void PreCacheStaffSlash(void) //mxd
+{
+	slash_models[SLASH_PATBALL]  = fxi.RegisterModel("sprites/spells/patball.sp2");
+	slash_models[SLASH_HALO]     = fxi.RegisterModel("sprites/fx/halo.sp2");
+	slash_models[SLASH_FLAME]    = fxi.RegisterModel("sprites/spells/wflame2.sp2");
+	slash_models[SLASH_HALOBLUE] = fxi.RegisterModel("sprites/fx/haloblue.sp2");
 }
 
 static qboolean StaffElementUpdate(client_entity_t* self, centity_t* owner) //mxd. Named 'FXStaffElementThink' in original logic.
@@ -381,6 +403,135 @@ void FXStaff(centity_t* owner, const int type, const int flags, vec3_t origin)
 
 	AddEffect(owner, trail);
 }
+
+#pragma region ========================== Ref-independent staff swing arc ==========================
+
+#define SLASH_LIFETIME			220	//mxd. ms.
+#define SLASH_DLIGHT_LIFETIME	-120
+
+// Per trail type: {start yaw offset, end yaw offset (degrees, relative to owner facing), arc radius}.
+// Row order matches Player/p_anim_data.h trailtype_e (TRAIL_SPIN1 .. TRAIL_COUNTERRIGHT).
+static const float slash_arc[8][3] =
+{
+	{ -85.0f,  85.0f, 44.0f }, // TRAIL_SPIN1
+	{  85.0f, -85.0f, 44.0f }, // TRAIL_SPIN2
+	{ -70.0f,  25.0f, 34.0f }, // TRAIL_STAND
+	{ -55.0f,  40.0f, 34.0f }, // TRAIL_STEP
+	{ 120.0f, 205.0f, 34.0f }, // TRAIL_BACK
+	{ -16.0f,  16.0f, 22.0f }, // TRAIL_STAB
+	{ -75.0f,   5.0f, 34.0f }, // TRAIL_COUNTERLEFT
+	{  -5.0f,  75.0f, 34.0f }, // TRAIL_COUNTERRIGHT
+};
+
+//mxd. Draws a staff melee swing arc from an explicit world-space origin, so the attack reads visually
+// even when the player model's per-frame staff/blade reference points are unavailable (which silently
+// kills the reference-driven FXStaff trails).
+void FXStaffSlash(centity_t* owner, const int type, const int flags, vec3_t origin)
+{
+	byte powerlevel;
+	byte trail_type;
+	fxi.GetEffect(owner, flags, clientEffectSpawners[FX_STAFF_SLASH].formatString, &powerlevel, &trail_type);
+
+	if (trail_type >= 8)
+		trail_type = 2; // TRAIL_STAND
+
+	const float start_ang = slash_arc[trail_type][0] * ANGLE_TO_RAD;
+	const float end_ang = slash_arc[trail_type][1] * ANGLE_TO_RAD;
+	const float radius = slash_arc[trail_type][2];
+
+	const float yaw = (owner != NULL ? owner->lerp_angles[YAW] * ANGLE_TO_RAD : 0.0f);
+	const float yaw_cs = cosf(yaw);
+	const float yaw_sn = sinf(yaw);
+
+	// Power level determines the sprite model, tint and light brightness.
+	int model_index;
+	paletteRGBA_t color;
+	float base_scale;
+	float dlight_intensity;
+
+	switch (powerlevel)
+	{
+		case 2: // Fire.
+			model_index = SLASH_FLAME;
+			color = (paletteRGBA_t){ .r = 0xff, .g = 0x90, .b = 0x28, .a = 0xff };
+			base_scale = 0.34f;
+			dlight_intensity = 110.0f;
+			break;
+
+		case 3: // Energy.
+		case 4:
+			model_index = SLASH_HALOBLUE;
+			color = (paletteRGBA_t){ .r = 0xc0, .g = 0xd0, .b = 0xff, .a = 0xff };
+			base_scale = 0.4f;
+			dlight_intensity = 140.0f;
+			break;
+
+		default: // Blue.
+		case 1:
+			model_index = SLASH_PATBALL;
+			color = (paletteRGBA_t){ .r = 0x50, .g = 0x90, .b = 0xff, .a = 0xff };
+			base_scale = 0.28f;
+			dlight_intensity = 80.0f;
+			break;
+	}
+
+	const float sweep = fabsf(slash_arc[trail_type][1] - slash_arc[trail_type][0]);
+	int num_sprites = 4 + (int)(sweep * 3.0f);
+	num_sprites = (num_sprites < 4 ? 4 : (num_sprites > 12 ? 12 : num_sprites));
+
+	// Lay the arc out in the horizontal plane, relative to the owner's facing.
+	for (int i = 0; i < num_sprites; i++)
+	{
+		const float t = (num_sprites > 1 ? (float)i / (float)(num_sprites - 1) : 0.5f);
+		const float ang = start_ang + (end_ang - start_ang) * t;
+
+		const float dir_x = cosf(ang);
+		const float dir_y = sinf(ang);
+		const float wx = dir_x * yaw_cs - dir_y * yaw_sn;
+		const float wy = dir_x * yaw_sn + dir_y * yaw_cs;
+
+		vec3_t sprite_org;
+		sprite_org[0] = origin[0] + wx * radius;
+		sprite_org[1] = origin[1] + wy * radius;
+		sprite_org[2] = origin[2] + (t - 0.5f) * 10.0f;
+
+		client_entity_t* trail = ClientEntity_new(FX_SPELLHANDS, flags & ~CEF_NO_DRAW, sprite_org, NULL, SLASH_LIFETIME);
+
+		trail->r.model = &slash_models[model_index];
+		trail->r.flags = (RF_TRANSLUCENT | RF_TRANS_ADD | RF_TRANS_ADD_ALPHA);
+		trail->r.scale = base_scale * flrand(0.85f, 1.2f);
+		trail->r.color = color;
+		trail->alpha = 0.85f;
+		trail->d_scale = -base_scale * 0.5f;
+		trail->d_alpha = -3.5f;
+
+		AddEffect(NULL, trail);
+	}
+
+	// Bright flash at the arc centre.
+	client_entity_t* flash = ClientEntity_new(FX_SPELLHANDS, flags & ~CEF_NO_DRAW, origin, NULL, SLASH_LIFETIME);
+
+	flash->r.model = &slash_models[SLASH_HALO];
+	flash->r.flags = (RF_TRANSLUCENT | RF_TRANS_ADD | RF_TRANS_ADD_ALPHA);
+	flash->r.scale = base_scale * 1.6f;
+	flash->r.color = color;
+	flash->alpha = 0.9f;
+	flash->d_scale = -base_scale;
+	flash->d_alpha = -3.0f;
+
+	AddEffect(NULL, flash);
+
+	// A short dynamic light, so the swing also lights its surroundings.
+	if (R_DETAIL >= DETAIL_NORMAL)
+	{
+		client_entity_t* dlight = ClientEntity_new(FX_SPELLHANDS, flags | CEF_NO_DRAW, origin, NULL, SLASH_LIFETIME);
+
+		dlight->dlight = CE_DLight_new(color, dlight_intensity, SLASH_DLIGHT_LIFETIME);
+		AddEffect(NULL, dlight);
+	}
+}
+
+#pragma endregion
 
 static qboolean StaffCreateOrRemoveUpdate(client_entity_t* self, centity_t* owner, const qboolean create) //mxd. Added to reduce code duplication.
 {
