@@ -648,6 +648,8 @@ void M_Init(void)
 	m_item_water_reflection_res = Cvar_Get("m_item_water_reflection_res", "Reflection Resolution", 0);
 	m_item_light_emission = Cvar_Get("m_item_light_emission", "Light Emission Scale", 0);
 	m_item_shadows = Cvar_Get("m_item_shadows", "Shadows", 0);
+	m_item_tessellation = Cvar_Get("m_item_tessellation", "Tessellation", 0);
+	m_item_tessellation_disp = Cvar_Get("m_item_tessellation_disp", "Tessellation Displacement", 0);
 
 	// Options / Video Settings menus.
 	m_item_defaults = Cvar_Get("m_item_defaults", "Reset to Defaults", 0);

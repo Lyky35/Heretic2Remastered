@@ -126,6 +126,8 @@ cvar_t* r_caustics;
 cvar_t* r_caustics_strength;
 cvar_t* r_hd_textures;
 cvar_t* r_antialiasing;
+cvar_t* r_tessellation;
+cvar_t* r_tessellation_disp;
 
 cvar_t* gl_noartifacts;
 
@@ -316,6 +318,8 @@ static void R_Register(void)
 	r_water_wave_sharp  = ri.Cvar_Get("r_water_wave_sharp",  "0.5", CVAR_ARCHIVE);
 	r_hd_textures     = ri.Cvar_Get("r_hd_textures",     "1",   CVAR_ARCHIVE);
 	r_antialiasing    = ri.Cvar_Get("r_antialiasing",    "0",   CVAR_ARCHIVE);
+	r_tessellation    = ri.Cvar_Get("r_tessellation",    "0",   CVAR_ARCHIVE); // 0 = off, 1..4 = subdivision level.
+	r_tessellation_disp = ri.Cvar_Get("r_tessellation_disp", "0", CVAR_ARCHIVE); // displacement height (world units).
 
 	gl_noartifacts = ri.Cvar_Get("gl_noartifacts", "0", 0);
 

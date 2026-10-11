@@ -45,6 +45,8 @@ extern cvar_t* m_item_water_reflections;
 extern cvar_t* m_item_water_reflection_res;
 extern cvar_t* m_item_light_emission;
 extern cvar_t* m_item_shadows;
+extern cvar_t* m_item_tessellation;
+extern cvar_t* m_item_tessellation_disp;
 
 // Action keys.
 extern cvar_t* m_item_attack;

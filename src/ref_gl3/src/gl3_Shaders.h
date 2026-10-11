@@ -37,6 +37,9 @@ extern void GL3_DisableFog(void);
 extern void GL3_DrawLMPoly(const float* verts, int numverts);
 // GL3_Draw3DPoly: 9 floats/vert (pos3+tc2+col4), uses shader3D.
 extern void GL3_Draw3DPoly(GLenum mode, const float* verts, int numverts);
+// GL3_Draw3DPolyN: same as above plus optional per-vertex normals (3 floats/vert),
+// applied only when tessellation is enabled and mode is GL_TRIANGLES.
+extern void GL3_Draw3DPolyN(GLenum mode, const float* verts, const float* normals, int numverts);
 // GL3_DrawWaterPoly: 9 floats/vert (pos3+tc2+col4), uses shaderWater
 // (Gerstner waves + refraction TMU2 + reflection TMU1 when reflect_valid).
 extern void GL3_DrawWaterPoly(GLenum mode, const float* verts, int numverts, int reflect_valid);
