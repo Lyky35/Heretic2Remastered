@@ -670,7 +670,7 @@ static void R_Register(void)
 	r_fog_underwater_color_a = ri.Cvar_Get("r_fog_underwater_color_a", "0.0", 0);
 	r_underwater_color = ri.Cvar_Get("r_underwater_color", "0x70c06000", 0);
 	r_frameswap = ri.Cvar_Get("r_frameswap", "1.0", 0);
-	r_references = ri.Cvar_Get("r_references", "1.0", 0);
+	r_references = ri.Cvar_Get("r_references", "0.0", 0); //mxd. Default off: Corvus's jointIDs all point at CORVUS_UPPERBACK, which collapses the baked per-frame reference points (incl. CORVUS_BLADE) onto the torso and kills the ref-driven staff trail. The refsForFrame data is authoritative.
 	r_antialiasing = ri.Cvar_Get("r_antialiasing", "0", CVAR_ARCHIVE);
 	// Registered here so the shared Video Settings menu always has these cvars; only ref_gl3 acts on them.
 	r_shadows = ri.Cvar_Get("r_shadows", "1", CVAR_ARCHIVE);

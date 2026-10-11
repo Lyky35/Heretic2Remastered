@@ -291,7 +291,7 @@ static void R_Register(void)
 	r_fog_underwater_color_a = ri.Cvar_Get("r_fog_underwater_color_a", "0.0", 0);
 	r_underwater_color = ri.Cvar_Get("r_underwater_color", "0x70c06000", 0);
 	r_frameswap = ri.Cvar_Get("r_frameswap", "1.0", 0);
-	r_references = ri.Cvar_Get("r_references", "1.0", 0);
+	r_references = ri.Cvar_Get("r_references", "0.0", 0); //mxd. Default off: Corvus's jointIDs all point at CORVUS_UPPERBACK, which collapses the baked per-frame reference points (incl. CORVUS_BLADE) onto the torso and kills the ref-driven staff trail. The refsForFrame data is authoritative.
 	r_hdr_exposure    = ri.Cvar_Get("r_hdr_exposure",    "1.0", CVAR_ARCHIVE);
 	r_bloom           = ri.Cvar_Get("r_bloom",           "1",   CVAR_ARCHIVE);
 	r_bloom_threshold = ri.Cvar_Get("r_bloom_threshold", "0.9", CVAR_ARCHIVE);  // Higher = less bloom
