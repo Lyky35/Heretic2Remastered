@@ -6,7 +6,6 @@
 
 #include "gl3_Shaders.h"
 #include <math.h>
-#include <stdlib.h>
 #include <string.h>
 
 #ifndef M_PI
@@ -46,108 +45,28 @@ static const char* fragmentSource2D =
 	"}\n";
 
 // --- 3D textured shader ---
-// #version 400 is required so the tessellation control/evaluation stages below
-// are part of core (the renderer's GL context is 4.6 core).
 static const char* vertexSource3D =
-	"#version 400 core\n"
+	"#version 330 core\n"
 	"layout(location = 0) in vec3 aPos;\n"
 	"layout(location = 1) in vec2 aTexCoord;\n"
 	"layout(location = 2) in vec4 aColor;\n"
-	"layout(location = 3) in vec3 aNormal;\n"
 	"uniform mat4 uProjection;\n"
 	"uniform mat4 uModelview;\n"
 	"uniform vec4 uClipPlane;\n"
 	"out vec2 vTexCoord;\n"
 	"out vec4 vColor;\n"
 	"out vec3 vViewPos;\n"
-	"out vec3 vNormal;\n"
 	"void main() {\n"
 	"    vec4 viewPos4 = uModelview * vec4(aPos, 1.0);\n"
 	"    gl_Position = uProjection * viewPos4;\n"
 	"    vViewPos = viewPos4.xyz;\n"
 	"    vTexCoord = aTexCoord;\n"
 	"    vColor = aColor;\n"
-	"    vNormal = mat3(uModelview) * aNormal;\n"
 	"    gl_ClipDistance[0] = dot(viewPos4.xyz, uClipPlane.xyz) + uClipPlane.w;\n"
 	"}\n";
 
-// Tessellation control stage for shader3D: passes attributes through and sets
-// a distance-faded tessellation level (uniform uTessLevel at close range).
-static const char* tessControlSource3D =
-	"#version 400 core\n"
-	"layout(vertices = 3) out;\n"
-	"in vec2 vTexCoord[];\n"
-	"in vec4 vColor[];\n"
-	"in vec3 vViewPos[];\n"
-	"in vec3 vNormal[];\n"
-	"out vec2 tcTexCoord[];\n"
-	"out vec4 tcColor[];\n"
-	"out vec3 tcViewPos[];\n"
-	"out vec3 tcNormal[];\n"
-	"uniform float uTessLevel;\n"
-	"uniform vec2 uTessDistance;\n"
-	"void main() {\n"
-	"    tcTexCoord[gl_InvocationID] = vTexCoord[gl_InvocationID];\n"
-	"    tcColor[gl_InvocationID]    = vColor[gl_InvocationID];\n"
-	"    tcViewPos[gl_InvocationID]  = vViewPos[gl_InvocationID];\n"
-	"    tcNormal[gl_InvocationID]   = vNormal[gl_InvocationID];\n"
-	"    gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;\n"
-	"    gl_out[gl_InvocationID].gl_ClipDistance[0] = gl_in[gl_InvocationID].gl_ClipDistance[0];\n"
-	"    if (gl_InvocationID == 0) {\n"
-	"        float d = (gl_in[0].gl_Position.w + gl_in[1].gl_Position.w + gl_in[2].gl_Position.w) / 3.0;\n"
-	"        float fade = clamp((uTessDistance.y - d) / max(uTessDistance.y - uTessDistance.x, 0.001), 0.0, 1.0);\n"
-	"        float lod = max(1.0, uTessLevel * fade);\n"
-	"        gl_TessLevelOuter[0] = lod;\n"
-	"        gl_TessLevelOuter[1] = lod;\n"
-	"        gl_TessLevelOuter[2] = lod;\n"
-	"        gl_TessLevelInner[0] = lod;\n"
-	"    }\n"
-	"}\n";
-
-// Tessellation evaluation stage for shader3D: Phong (curved-point-normal)
-// tessellation blended by uTessAlpha, plus optional luminance-driven
-// displacement along the surface normal scaled by uTessDisp.
-static const char* tessEvalSource3D =
-	"#version 400 core\n"
-	"layout(triangles, fractional_even_spacing, cw) in;\n"
-	"in vec2 tcTexCoord[];\n"
-	"in vec4 tcColor[];\n"
-	"in vec3 tcViewPos[];\n"
-	"in vec3 tcNormal[];\n"
-	"out vec2 vTexCoord;\n"
-	"out vec4 vColor;\n"
-	"out vec3 vViewPos;\n"
-	"uniform mat4 uProjection;\n"
-	"uniform float uTessAlpha;\n"
-	"uniform float uTessDisp;\n"
-	"uniform sampler2D uTexture;\n"
-	"void main() {\n"
-	"    vec3 b = gl_TessCoord.xyz;\n"
-	"    vec3 p0 = tcViewPos[0], p1 = tcViewPos[1], p2 = tcViewPos[2];\n"
-	"    vec3 n0 = normalize(tcNormal[0]);\n"
-	"    vec3 n1 = normalize(tcNormal[1]);\n"
-	"    vec3 n2 = normalize(tcNormal[2]);\n"
-	"    vec3 P = b.x * p0 + b.y * p1 + b.z * p2;\n"
-	"    vec3 q0 = P - n0 * dot(n0, P - p0);\n"
-	"    vec3 q1 = P - n1 * dot(n1, P - p1);\n"
-	"    vec3 q2 = P - n2 * dot(n2, P - p2);\n"
-	"    vec3 Pphong = b.x * q0 + b.y * q1 + b.z * q2;\n"
-	"    vec3 viewPos = mix(P, Pphong, uTessAlpha);\n"
-	"    vec2 uv = b.x * tcTexCoord[0] + b.y * tcTexCoord[1] + b.z * tcTexCoord[2];\n"
-	"    vec3 N = normalize(b.x * n0 + b.y * n1 + b.z * n2);\n"
-	"    if (uTessDisp != 0.0) {\n"
-	"        float h = dot(texture(uTexture, uv).rgb, vec3(0.299, 0.587, 0.114)) - 0.5;\n"
-	"        viewPos += N * (h * uTessDisp);\n"
-	"    }\n"
-	"    gl_Position = uProjection * vec4(viewPos, 1.0);\n"
-	"    gl_ClipDistance[0] = b.x * gl_in[0].gl_ClipDistance[0] + b.y * gl_in[1].gl_ClipDistance[0] + b.z * gl_in[2].gl_ClipDistance[0];\n"
-	"    vTexCoord = uv;\n"
-	"    vColor = b.x * tcColor[0] + b.y * tcColor[1] + b.z * tcColor[2];\n"
-	"    vViewPos = viewPos;\n"
-	"}\n";
-
 static const char* fragmentSource3D =
-	"#version 400 core\n"
+	"#version 330 core\n"
 	"in vec2 vTexCoord;\n"
 	"in vec4 vColor;\n"
 	"in vec3 vViewPos;\n"
@@ -208,11 +127,10 @@ static const char* fragmentSource3DColor =
 // --- 3D lightmapped shader (world surfaces: diffuse * lightmap) ---
 // Vertex layout: pos3 (loc 0) + tc2 (loc 1) + lmtc2 (loc 2) = VERTEXSIZE=7 floats, matching glpoly_t verts[i][0..6].
 static const char* vertexSource3DLM =
-	"#version 400 core\n"
+	"#version 330 core\n"
 	"layout(location = 0) in vec3 aPos;\n"
 	"layout(location = 1) in vec2 aTexCoord;\n"
 	"layout(location = 2) in vec2 aLMCoord;\n"
-	"layout(location = 3) in vec3 aNormal;\n"
 	"uniform mat4 uProjection;\n"
 	"uniform mat4 uModelview;\n"
 	"uniform vec4 uClipPlane;\n"
@@ -221,7 +139,6 @@ static const char* vertexSource3DLM =
 	"out vec2 vLMCoord;\n"
 	"out vec3 vViewPos;\n"
 	"out vec3 vWorldPos;\n"
-	"out vec3 vNormal;\n"
 	"void main() {\n"
 	"    vec4 viewPos = uModelview * vec4(aPos, 1.0);\n"
 	"    gl_Position = uProjection * viewPos;\n"
@@ -232,91 +149,11 @@ static const char* vertexSource3DLM =
 	"    vWorldPos = (uWorldSpace != 0) ? aPos : vec3(aPos.xy, 1.0e9);\n"
 	"    vTexCoord = aTexCoord;\n"
 	"    vLMCoord = aLMCoord;\n"
-	"    vNormal = mat3(uModelview) * aNormal;\n"
 	"    gl_ClipDistance[0] = dot(viewPos.xyz, uClipPlane.xyz) + uClipPlane.w;\n"
 	"}\n";
 
-// Tessellation control stage for shader3DLightmap (passthrough + tess levels).
-static const char* tessControlSource3DLM =
-	"#version 400 core\n"
-	"layout(vertices = 3) out;\n"
-	"in vec2 vTexCoord[];\n"
-	"in vec2 vLMCoord[];\n"
-	"in vec3 vViewPos[];\n"
-	"in vec3 vWorldPos[];\n"
-	"in vec3 vNormal[];\n"
-	"out vec2 tcTexCoord[];\n"
-	"out vec2 tcLMCoord[];\n"
-	"out vec3 tcViewPos[];\n"
-	"out vec3 tcWorldPos[];\n"
-	"out vec3 tcNormal[];\n"
-	"uniform float uTessLevel;\n"
-	"uniform vec2 uTessDistance;\n"
-	"void main() {\n"
-	"    tcTexCoord[gl_InvocationID] = vTexCoord[gl_InvocationID];\n"
-	"    tcLMCoord[gl_InvocationID]  = vLMCoord[gl_InvocationID];\n"
-	"    tcViewPos[gl_InvocationID]  = vViewPos[gl_InvocationID];\n"
-	"    tcWorldPos[gl_InvocationID] = vWorldPos[gl_InvocationID];\n"
-	"    tcNormal[gl_InvocationID]   = vNormal[gl_InvocationID];\n"
-	"    gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;\n"
-	"    gl_out[gl_InvocationID].gl_ClipDistance[0] = gl_in[gl_InvocationID].gl_ClipDistance[0];\n"
-	"    if (gl_InvocationID == 0) {\n"
-	"        float d = (gl_in[0].gl_Position.w + gl_in[1].gl_Position.w + gl_in[2].gl_Position.w) / 3.0;\n"
-	"        float fade = clamp((uTessDistance.y - d) / max(uTessDistance.y - uTessDistance.x, 0.001), 0.0, 1.0);\n"
-	"        float lod = max(1.0, uTessLevel * fade);\n"
-	"        gl_TessLevelOuter[0] = lod;\n"
-	"        gl_TessLevelOuter[1] = lod;\n"
-	"        gl_TessLevelOuter[2] = lod;\n"
-	"        gl_TessLevelInner[0] = lod;\n"
-	"    }\n"
-	"}\n";
-
-// Tessellation evaluation stage for shader3DLightmap: Phong tessellation +
-// optional luminance-driven displacement (same scheme as shader3D).
-static const char* tessEvalSource3DLM =
-	"#version 400 core\n"
-	"layout(triangles, fractional_even_spacing, cw) in;\n"
-	"in vec2 tcTexCoord[];\n"
-	"in vec2 tcLMCoord[];\n"
-	"in vec3 tcViewPos[];\n"
-	"in vec3 tcWorldPos[];\n"
-	"in vec3 tcNormal[];\n"
-	"out vec2 vTexCoord;\n"
-	"out vec2 vLMCoord;\n"
-	"out vec3 vViewPos;\n"
-	"out vec3 vWorldPos;\n"
-	"uniform mat4 uProjection;\n"
-	"uniform float uTessAlpha;\n"
-	"uniform float uTessDisp;\n"
-	"uniform sampler2D uDiffuse;\n"
-	"void main() {\n"
-	"    vec3 b = gl_TessCoord.xyz;\n"
-	"    vec3 p0 = tcViewPos[0], p1 = tcViewPos[1], p2 = tcViewPos[2];\n"
-	"    vec3 n0 = normalize(tcNormal[0]);\n"
-	"    vec3 n1 = normalize(tcNormal[1]);\n"
-	"    vec3 n2 = normalize(tcNormal[2]);\n"
-	"    vec3 P = b.x * p0 + b.y * p1 + b.z * p2;\n"
-	"    vec3 q0 = P - n0 * dot(n0, P - p0);\n"
-	"    vec3 q1 = P - n1 * dot(n1, P - p1);\n"
-	"    vec3 q2 = P - n2 * dot(n2, P - p2);\n"
-	"    vec3 Pphong = b.x * q0 + b.y * q1 + b.z * q2;\n"
-	"    vec3 viewPos = mix(P, Pphong, uTessAlpha);\n"
-	"    vec2 uv = b.x * tcTexCoord[0] + b.y * tcTexCoord[1] + b.z * tcTexCoord[2];\n"
-	"    vec3 N = normalize(b.x * n0 + b.y * n1 + b.z * n2);\n"
-	"    if (uTessDisp != 0.0) {\n"
-	"        float h = dot(texture(uDiffuse, uv).rgb, vec3(0.299, 0.587, 0.114)) - 0.5;\n"
-	"        viewPos += N * (h * uTessDisp);\n"
-	"    }\n"
-	"    gl_Position = uProjection * vec4(viewPos, 1.0);\n"
-	"    gl_ClipDistance[0] = b.x * gl_in[0].gl_ClipDistance[0] + b.y * gl_in[1].gl_ClipDistance[0] + b.z * gl_in[2].gl_ClipDistance[0];\n"
-	"    vTexCoord = uv;\n"
-	"    vLMCoord = b.x * tcLMCoord[0] + b.y * tcLMCoord[1] + b.z * tcLMCoord[2];\n"
-	"    vViewPos = viewPos;\n"
-	"    vWorldPos = b.x * tcWorldPos[0] + b.y * tcWorldPos[1] + b.z * tcWorldPos[2];\n"
-	"}\n";
-
 static const char* fragmentSource3DLM =
-	"#version 400 core\n"
+	"#version 330 core\n"
 	"in vec2 vTexCoord;\n"
 	"in vec2 vLMCoord;\n"
 	"in vec3 vViewPos;\n"
@@ -686,53 +523,6 @@ static GLuint CreateProgram(const char* vert_src, const char* frag_src)
 	return program;
 }
 
-// Link a program that includes tessellation control + evaluation stages.
-static GLuint CreateProgramTess(const char* vert_src, const char* tesc_src, const char* tese_src, const char* frag_src)
-{
-	GLuint stages[4] = { 0, 0, 0, 0 };
-	const GLenum types[4] = { GL_VERTEX_SHADER, GL_TESS_CONTROL_SHADER, GL_TESS_EVALUATION_SHADER, GL_FRAGMENT_SHADER };
-	const char* sources[4] = { vert_src, tesc_src, tese_src, frag_src };
-
-	GLuint program = glCreateProgram();
-
-	for (int i = 0; i < 4; i++)
-	{
-		stages[i] = CompileShader(types[i], sources[i]);
-		if (stages[i] == 0)
-		{
-			for (int j = 0; j < 4; j++)
-				if (stages[j] != 0)
-					glDeleteShader(stages[j]);
-			glDeleteProgram(program);
-			return 0;
-		}
-		glAttachShader(program, stages[i]);
-	}
-
-	glLinkProgram(program);
-
-	GLint success;
-	glGetProgramiv(program, GL_LINK_STATUS, &success);
-
-	if (!success)
-	{
-		char info_log[512];
-		glGetProgramInfoLog(program, sizeof(info_log), NULL, info_log);
-		ri.Con_Printf(PRINT_ALL, "GL3 Tess program link error: %s\n", info_log);
-		glDeleteProgram(program);
-		program = 0;
-	}
-
-	// Shaders can be detached/deleted after linking.
-	for (int i = 0; i < 4; i++)
-	{
-		glDetachShader(program, stages[i]);
-		glDeleteShader(stages[i]);
-	}
-
-	return program;
-}
-
 // ============================================================
 // Public API.
 // ============================================================
@@ -762,7 +552,7 @@ qboolean GL3_InitShaders(void)
 	gl3state.uni2D_texture = glGetUniformLocation(gl3state.shader2D, "uTexture");
 	gl3state.uni2D_color = glGetUniformLocation(gl3state.shader2D, "uColor");
 
-	// --- 3D textured shader (no tessellation; all non-patch draws) ---
+	// --- 3D textured shader ---
 	gl3state.shader3D = CreateProgram(vertexSource3D, fragmentSource3D);
 	if (gl3state.shader3D == 0)
 	{
@@ -781,28 +571,6 @@ qboolean GL3_InitShaders(void)
 	gl3state.uni3D_clipPlane    = glGetUniformLocation(gl3state.shader3D, "uClipPlane");
 	gl3state.uni3D_bumpScale    = glGetUniformLocation(gl3state.shader3D, "uBumpScale");
 
-	// --- 3D textured shader WITH tessellation stages (drawn as GL_PATCHES). ---
-	gl3state.shader3DTess = CreateProgramTess(vertexSource3D, tessControlSource3D, tessEvalSource3D, fragmentSource3D);
-	if (gl3state.shader3DTess == 0)
-		ri.Con_Printf(PRINT_ALL, "GL3_InitShaders: failed to create 3D tessellation shader program\n");
-
-	if (gl3state.shader3DTess != 0)
-	{
-		gl3state.uni3DT_projection   = glGetUniformLocation(gl3state.shader3DTess, "uProjection");
-		gl3state.uni3DT_modelview    = glGetUniformLocation(gl3state.shader3DTess, "uModelview");
-		gl3state.uni3DT_texture      = glGetUniformLocation(gl3state.shader3DTess, "uTexture");
-		gl3state.uni3DT_color        = glGetUniformLocation(gl3state.shader3DTess, "uColor");
-		gl3state.uni3DT_numDlights   = glGetUniformLocation(gl3state.shader3DTess, "uNumDlights");
-		gl3state.uni3DT_dlightPosRad = glGetUniformLocation(gl3state.shader3DTess, "uDlightPosRad");
-		gl3state.uni3DT_dlightColor  = glGetUniformLocation(gl3state.shader3DTess, "uDlightColor");
-		gl3state.uni3DT_clipPlane    = glGetUniformLocation(gl3state.shader3DTess, "uClipPlane");
-		gl3state.uni3DT_bumpScale    = glGetUniformLocation(gl3state.shader3DTess, "uBumpScale");
-		gl3state.uni3DT_tessLevel    = glGetUniformLocation(gl3state.shader3DTess, "uTessLevel");
-		gl3state.uni3DT_tessAlpha    = glGetUniformLocation(gl3state.shader3DTess, "uTessAlpha");
-		gl3state.uni3DT_tessDisp     = glGetUniformLocation(gl3state.shader3DTess, "uTessDisp");
-		gl3state.uni3DT_tessDistance = glGetUniformLocation(gl3state.shader3DTess, "uTessDistance");
-	}
-
 	// --- 3D color-only shader ---
 	gl3state.shader3DColor = CreateProgram(vertexSource3DColor, fragmentSource3DColor);
 	if (gl3state.shader3DColor == 0)
@@ -816,7 +584,7 @@ qboolean GL3_InitShaders(void)
 	gl3state.uni3DColor_color = glGetUniformLocation(gl3state.shader3DColor, "uColor");
 	gl3state.uni3DColor_clipPlane = glGetUniformLocation(gl3state.shader3DColor, "uClipPlane");
 
-	// --- 3D lightmapped shader (no tessellation; world surfaces) ---
+	// --- 3D lightmapped shader ---
 	gl3state.shader3DLightmap = CreateProgram(vertexSource3DLM, fragmentSource3DLM);
 	if (gl3state.shader3DLightmap == 0)
 	{
@@ -836,30 +604,6 @@ qboolean GL3_InitShaders(void)
 	gl3state.uni3DLM_caustic    = glGetUniformLocation(gl3state.shader3DLightmap, "uCausticStrength");
 	gl3state.uni3DLM_time       = glGetUniformLocation(gl3state.shader3DLightmap, "uTime");
 
-	// --- 3D lightmapped shader WITH tessellation stages (drawn as GL_PATCHES). ---
-	gl3state.shader3DLMTess = CreateProgramTess(vertexSource3DLM, tessControlSource3DLM, tessEvalSource3DLM, fragmentSource3DLM);
-	if (gl3state.shader3DLMTess == 0)
-		ri.Con_Printf(PRINT_ALL, "GL3_InitShaders: failed to create 3D lightmap tessellation shader program\n");
-
-	if (gl3state.shader3DLMTess != 0)
-	{
-		gl3state.uni3DLMT_projection   = glGetUniformLocation(gl3state.shader3DLMTess, "uProjection");
-		gl3state.uni3DLMT_modelview    = glGetUniformLocation(gl3state.shader3DLMTess, "uModelview");
-		gl3state.uni3DLMT_diffuse      = glGetUniformLocation(gl3state.shader3DLMTess, "uDiffuse");
-		gl3state.uni3DLMT_lightmap     = glGetUniformLocation(gl3state.shader3DLMTess, "uLightmap");
-		gl3state.uni3DLMT_color        = glGetUniformLocation(gl3state.shader3DLMTess, "uColor");
-		gl3state.uni3DLMT_clipPlane    = glGetUniformLocation(gl3state.shader3DLMTess, "uClipPlane");
-		gl3state.uni3DLMT_bumpScale    = glGetUniformLocation(gl3state.shader3DLMTess, "uBumpScale");
-		gl3state.uni3DLMT_worldSpace   = glGetUniformLocation(gl3state.shader3DLMTess, "uWorldSpace");
-		gl3state.uni3DLMT_waterZ       = glGetUniformLocation(gl3state.shader3DLMTess, "uWaterZ");
-		gl3state.uni3DLMT_caustic      = glGetUniformLocation(gl3state.shader3DLMTess, "uCausticStrength");
-		gl3state.uni3DLMT_time         = glGetUniformLocation(gl3state.shader3DLMTess, "uTime");
-		gl3state.uni3DLMT_tessLevel    = glGetUniformLocation(gl3state.shader3DLMTess, "uTessLevel");
-		gl3state.uni3DLMT_tessAlpha    = glGetUniformLocation(gl3state.shader3DLMTess, "uTessAlpha");
-		gl3state.uni3DLMT_tessDisp     = glGetUniformLocation(gl3state.shader3DLMTess, "uTessDisp");
-		gl3state.uni3DLMT_tessDistance = glGetUniformLocation(gl3state.shader3DLMTess, "uTessDistance");
-	}
-
 	// Bind sampler units once
 	GL3_UseShader(gl3state.shader2D);
 	glUniform1i(gl3state.uni2D_texture, 0);
@@ -870,18 +614,6 @@ qboolean GL3_InitShaders(void)
 	glUniform4f(gl3state.uni3D_color, 1.0f, 1.0f, 1.0f, 1.0f);
 	glUniform1i(gl3state.uni3D_numDlights, 0);
 
-	if (gl3state.shader3DTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DTess);
-		glUniform1i(gl3state.uni3DT_texture, 0);
-		glUniform4f(gl3state.uni3DT_color, 1.0f, 1.0f, 1.0f, 1.0f);
-		glUniform1i(gl3state.uni3DT_numDlights, 0);
-		glUniform1f(gl3state.uni3DT_tessLevel, 1.0f);
-		glUniform1f(gl3state.uni3DT_tessAlpha, 0.75f);
-		glUniform1f(gl3state.uni3DT_tessDisp, 0.0f);
-		glUniform2f(gl3state.uni3DT_tessDistance, 768.0f, 3072.0f);
-	}
-
 	GL3_UseShader(gl3state.shader3DLightmap);
 	glUniform1i(gl3state.uni3DLM_diffuse, 0);
 	glUniform1i(gl3state.uni3DLM_lightmap, 1);
@@ -890,22 +622,6 @@ qboolean GL3_InitShaders(void)
 	glUniform1f(gl3state.uni3DLM_waterZ, -1.0e9f);
 	glUniform1f(gl3state.uni3DLM_caustic, 0.0f);
 	glUniform1f(gl3state.uni3DLM_time, 0.0f);
-
-	if (gl3state.shader3DLMTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DLMTess);
-		glUniform1i(gl3state.uni3DLMT_diffuse, 0);
-		glUniform1i(gl3state.uni3DLMT_lightmap, 1);
-		glUniform4f(gl3state.uni3DLMT_color, 1.0f, 1.0f, 1.0f, 1.0f);
-		glUniform1i(gl3state.uni3DLMT_worldSpace, 1);
-		glUniform1f(gl3state.uni3DLMT_waterZ, -1.0e9f);
-		glUniform1f(gl3state.uni3DLMT_caustic, 0.0f);
-		glUniform1f(gl3state.uni3DLMT_time, 0.0f);
-		glUniform1f(gl3state.uni3DLMT_tessLevel, 1.0f);
-		glUniform1f(gl3state.uni3DLMT_tessAlpha, 0.75f);
-		glUniform1f(gl3state.uni3DLMT_tessDisp, 0.0f);
-		glUniform2f(gl3state.uni3DLMT_tessDistance, 768.0f, 3072.0f);
-	}
 
 	// --- Create shared 2D VAO/VBO ---
 	glGenVertexArrays(1, &gl3state.vao2D);
@@ -973,56 +689,6 @@ qboolean GL3_InitShaders(void)
 	glEnableVertexAttribArray(2);
 
 	glBindVertexArray(0);
-
-	// --- Create tessellation-ready 3D VAO/VBO (12 floats/vert: pos3+tc2+col4+nrm3) ---
-	// Used only when r_tessellation is enabled; keeps the 9-float path untouched.
-	glGenVertexArrays(1, &gl3state.vao3DT);
-	glGenBuffers(1, &gl3state.vbo3DT);
-
-	glBindVertexArray(gl3state.vao3DT);
-	glBindBuffer(GL_ARRAY_BUFFER, gl3state.vbo3DT);
-
-	const GLsizei stride3DT = 12 * sizeof(float);
-
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, stride3DT, (void*)0);
-	glEnableVertexAttribArray(0);
-
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, stride3DT, (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-
-	glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, stride3DT, (void*)(5 * sizeof(float)));
-	glEnableVertexAttribArray(2);
-
-	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, stride3DT, (void*)(9 * sizeof(float)));
-	glEnableVertexAttribArray(3);
-
-	glBindVertexArray(0);
-
-	// --- Create tessellation-ready lightmap VAO/VBO (10 floats/vert: pos3+tc2+lmtc2+nrm3) ---
-	glGenVertexArrays(1, &gl3state.vao3DLMT);
-	glGenBuffers(1, &gl3state.vbo3DLMT);
-
-	glBindVertexArray(gl3state.vao3DLMT);
-	glBindBuffer(GL_ARRAY_BUFFER, gl3state.vbo3DLMT);
-
-	const GLsizei strideLMT = 10 * sizeof(float);
-
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, strideLMT, (void*)0);
-	glEnableVertexAttribArray(0);
-
-	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, strideLMT, (void*)(3 * sizeof(float)));
-	glEnableVertexAttribArray(1);
-
-	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, strideLMT, (void*)(5 * sizeof(float)));
-	glEnableVertexAttribArray(2);
-
-	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, strideLMT, (void*)(7 * sizeof(float)));
-	glEnableVertexAttribArray(3);
-
-	glBindVertexArray(0);
-
-	// Tessellation operates on triangle patches.
-	glPatchParameteri(GL_PATCH_VERTICES, 3);
 
 	// --- Create full-screen quad VAO/VBO (4 floats/vert: NDC pos2 + tc2) ---
 	{
@@ -1151,21 +817,13 @@ void GL3_ShutdownShaders(void)
 	if (gl3state.vao3D != 0) { glDeleteVertexArrays(1, &gl3state.vao3D); gl3state.vao3D = 0; }
 	if (gl3state.vbo3D != 0) { glDeleteBuffers(1, &gl3state.vbo3D); gl3state.vbo3D = 0; }
 
-	if (gl3state.vao3DT != 0) { glDeleteVertexArrays(1, &gl3state.vao3DT); gl3state.vao3DT = 0; }
-	if (gl3state.vbo3DT != 0) { glDeleteBuffers(1, &gl3state.vbo3DT); gl3state.vbo3DT = 0; }
-
-	if (gl3state.vao3DLMT != 0) { glDeleteVertexArrays(1, &gl3state.vao3DLMT); gl3state.vao3DLMT = 0; }
-	if (gl3state.vbo3DLMT != 0) { glDeleteBuffers(1, &gl3state.vbo3DLMT); gl3state.vbo3DLMT = 0; }
-
 	if (gl3state.vaoFSQ != 0) { glDeleteVertexArrays(1, &gl3state.vaoFSQ); gl3state.vaoFSQ = 0; }
 	if (gl3state.vboFSQ != 0) { glDeleteBuffers(1, &gl3state.vboFSQ); gl3state.vboFSQ = 0; }
 
 	if (gl3state.shader2D != 0) { glDeleteProgram(gl3state.shader2D); gl3state.shader2D = 0; }
 	if (gl3state.shader3D != 0) { glDeleteProgram(gl3state.shader3D); gl3state.shader3D = 0; }
-	if (gl3state.shader3DTess != 0) { glDeleteProgram(gl3state.shader3DTess); gl3state.shader3DTess = 0; }
 	if (gl3state.shader3DColor != 0) { glDeleteProgram(gl3state.shader3DColor); gl3state.shader3DColor = 0; }
 	if (gl3state.shader3DLightmap != 0) { glDeleteProgram(gl3state.shader3DLightmap); gl3state.shader3DLightmap = 0; }
-	if (gl3state.shader3DLMTess != 0) { glDeleteProgram(gl3state.shader3DLMTess); gl3state.shader3DLMTess = 0; }
 
 	if (gl3state.shaderPost != 0) { glDeleteProgram(gl3state.shaderPost); gl3state.shaderPost = 0; }
 	if (gl3state.shaderWater != 0) { glDeleteProgram(gl3state.shaderWater); gl3state.shaderWater = 0; }
@@ -1214,23 +872,11 @@ void GL3_UpdateProjection3D(const float fov_y, const float aspect, const float z
 	GL3_UseShader(gl3state.shader3D);
 	glUniformMatrix4fv(gl3state.uni3D_projection, 1, GL_FALSE, proj);
 
-	if (gl3state.shader3DTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DTess);
-		glUniformMatrix4fv(gl3state.uni3DT_projection, 1, GL_FALSE, proj);
-	}
-
 	GL3_UseShader(gl3state.shader3DColor);
 	glUniformMatrix4fv(gl3state.uni3DColor_projection, 1, GL_FALSE, proj);
 
 	GL3_UseShader(gl3state.shader3DLightmap);
 	glUniformMatrix4fv(gl3state.uni3DLM_projection, 1, GL_FALSE, proj);
-
-	if (gl3state.shader3DLMTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DLMTess);
-		glUniformMatrix4fv(gl3state.uni3DLMT_projection, 1, GL_FALSE, proj);
-	}
 
 	if (gl3state.shaderWater != 0)
 	{
@@ -1253,23 +899,11 @@ void GL3_UpdateModelview3D(const float* matrix4x4)
 	GL3_UseShader(gl3state.shader3D);
 	glUniformMatrix4fv(gl3state.uni3D_modelview, 1, GL_FALSE, matrix4x4);
 
-	if (gl3state.shader3DTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DTess);
-		glUniformMatrix4fv(gl3state.uni3DT_modelview, 1, GL_FALSE, matrix4x4);
-	}
-
 	GL3_UseShader(gl3state.shader3DColor);
 	glUniformMatrix4fv(gl3state.uni3DColor_modelview, 1, GL_FALSE, matrix4x4);
 
 	GL3_UseShader(gl3state.shader3DLightmap);
 	glUniformMatrix4fv(gl3state.uni3DLM_modelview, 1, GL_FALSE, matrix4x4);
-
-	if (gl3state.shader3DLMTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DLMTess);
-		glUniformMatrix4fv(gl3state.uni3DLMT_modelview, 1, GL_FALSE, matrix4x4);
-	}
 
 	if (gl3state.shaderWater != 0)
 	{
@@ -1282,36 +916,18 @@ void GL3_UpdateModelviewLM(const float* matrix4x4)
 {
 	GL3_UseShader(gl3state.shader3DLightmap);
 	glUniformMatrix4fv(gl3state.uni3DLM_modelview, 1, GL_FALSE, matrix4x4);
-
-	if (gl3state.shader3DLMTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DLMTess);
-		glUniformMatrix4fv(gl3state.uni3DLMT_modelview, 1, GL_FALSE, matrix4x4);
-	}
 }
 
 void GL3_SetLMColor(const float r, const float g, const float b, const float a)
 {
 	GL3_UseShader(gl3state.shader3DLightmap);
 	glUniform4f(gl3state.uni3DLM_color, r, g, b, a);
-
-	if (gl3state.shader3DLMTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DLMTess);
-		glUniform4f(gl3state.uni3DLMT_color, r, g, b, a);
-	}
 }
 
 void GL3_Set3DColor(const float r, const float g, const float b, const float a)
 {
 	GL3_UseShader(gl3state.shader3D);
 	glUniform4f(gl3state.uni3D_color, r, g, b, a);
-
-	if (gl3state.shader3DTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DTess);
-		glUniform4f(gl3state.uni3DT_color, r, g, b, a);
-	}
 
 	if (gl3state.shaderWater != 0)
 	{
@@ -1327,23 +943,11 @@ void GL3_UpdateClipPlane(const float plane[4])
 	GL3_UseShader(gl3state.shader3D);
 	glUniform4fv(gl3state.uni3D_clipPlane, 1, plane);
 
-	if (gl3state.shader3DTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DTess);
-		glUniform4fv(gl3state.uni3DT_clipPlane, 1, plane);
-	}
-
 	GL3_UseShader(gl3state.shader3DColor);
 	glUniform4fv(gl3state.uni3DColor_clipPlane, 1, plane);
 
 	GL3_UseShader(gl3state.shader3DLightmap);
 	glUniform4fv(gl3state.uni3DLM_clipPlane, 1, plane);
-
-	if (gl3state.shader3DLMTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DLMTess);
-		glUniform4fv(gl3state.uni3DLMT_clipPlane, 1, plane);
-	}
 
 	if (gl3state.shaderWater != 0)
 	{
@@ -1360,20 +964,8 @@ void GL3_UpdateBumpScale(const float world_scale, const float water_scale)
 	GL3_UseShader(gl3state.shader3D);
 	glUniform1f(gl3state.uni3D_bumpScale, world_scale);
 
-	if (gl3state.shader3DTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DTess);
-		glUniform1f(gl3state.uni3DT_bumpScale, world_scale);
-	}
-
 	GL3_UseShader(gl3state.shader3DLightmap);
 	glUniform1f(gl3state.uni3DLM_bumpScale, world_scale);
-
-	if (gl3state.shader3DLMTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DLMTess);
-		glUniform1f(gl3state.uni3DLMT_bumpScale, world_scale);
-	}
 
 	if (gl3state.shaderWater != 0)
 	{
@@ -1388,12 +980,6 @@ void GL3_SetWorldSpace(const int world_space)
 {
 	GL3_UseShader(gl3state.shader3DLightmap);
 	glUniform1i(gl3state.uni3DLM_worldSpace, world_space ? 1 : 0);
-
-	if (gl3state.shader3DLMTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DLMTess);
-		glUniform1i(gl3state.uni3DLMT_worldSpace, world_space ? 1 : 0);
-	}
 }
 
 // Configure underwater caustics for world surfaces. `water_z` is the world-space
@@ -1404,217 +990,30 @@ void GL3_UpdateCaustics(const float water_z, const float strength, const float t
 	glUniform1f(gl3state.uni3DLM_waterZ, water_z);
 	glUniform1f(gl3state.uni3DLM_caustic, strength);
 	glUniform1f(gl3state.uni3DLM_time, time);
-
-	if (gl3state.shader3DLMTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DLMTess);
-		glUniform1f(gl3state.uni3DLMT_waterZ, water_z);
-		glUniform1f(gl3state.uni3DLMT_caustic, strength);
-		glUniform1f(gl3state.uni3DLMT_time, time);
-	}
 }
 
 // ============================================================
 // Dynamic polygon drawing helpers.
 // ============================================================
 
-// Growable scratch buffer used to expand primitives into tessellated patch
-// vertices. Only touched when tessellation is enabled.
-static float* s_tess_scratch = NULL;
-static int    s_tess_scratch_cap = 0;
-
-static float* TessScratch(const int floats_needed)
-{
-	if (floats_needed > s_tess_scratch_cap)
-	{
-		int cap = 4096;
-		while (cap < floats_needed)
-			cap *= 2;
-
-		float* p = (float*)realloc(s_tess_scratch, cap * sizeof(float));
-		if (p == NULL)
-			return NULL;
-
-		s_tess_scratch = p;
-		s_tess_scratch_cap = cap;
-	}
-
-	return s_tess_scratch;
-}
-
-static int TessEnabled(void)
-{
-	return (r_tessellation != NULL && (int)r_tessellation->value > 0);
-}
-
-static int TessFactor(void)
-{
-	const int v = (int)r_tessellation->value;
-	return (v < 1) ? 1 : (v + 1);
-}
-
-static qboolean IsTriangleMode(const GLenum mode)
-{
-	return (mode == GL_TRIANGLES || mode == GL_TRIANGLE_STRIP || mode == GL_TRIANGLE_FAN);
-}
-
-// Compute a normalized face normal for triangle (a,b,c). Points are 9-float
-// (3D) or 7-float (LM) vertices, so we read the leading position only.
-static void FaceNormal(const float* a, const float* b, const float* c, float* out)
-{
-	const float ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
-	const float vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
-	float nx = uy * vz - uz * vy;
-	float ny = uz * vx - ux * vz;
-	float nz = ux * vy - uy * vx;
-	const float len = sqrtf(nx * nx + ny * ny + nz * nz);
-
-	if (len > 1.0e-8f)
-	{
-		nx /= len; ny /= len; nz /= len;
-	}
-	else
-	{
-		nx = 0.0f; ny = 0.0f; nz = 1.0f;
-	}
-
-	out[0] = nx; out[1] = ny; out[2] = nz;
-}
-
 // Draw a polygon using shader3DLightmap (VERTEXSIZE=7 floats/vert: pos3+tc2+lmtc2).
-// When tessellation is enabled, the fan is expanded into triangle patches with
-// per-face normals and drawn as GL_PATCHES.
 void GL3_DrawLMPoly(const float* verts, const int numverts)
 {
-	if (!TessEnabled() || gl3state.shader3DLMTess == 0 || numverts < 3)
-	{
-		GL3_UseShader(gl3state.shader3DLightmap);
-		glBindVertexArray(gl3state.vao3DLM);
-		glBindBuffer(GL_ARRAY_BUFFER, gl3state.vbo3DLM);
-		glBufferData(GL_ARRAY_BUFFER, numverts * 7 * sizeof(float), verts, GL_STREAM_DRAW);
-		glDrawArrays(GL_TRIANGLE_FAN, 0, numverts);
-		return;
-	}
-
-	const int num_tris = numverts - 2;
-	const int out_verts = num_tris * 3;
-	float* out = TessScratch(out_verts * 10);
-
-	if (out == NULL)
-	{
-		GL3_UseShader(gl3state.shader3DLightmap);
-		glBindVertexArray(gl3state.vao3DLM);
-		glBindBuffer(GL_ARRAY_BUFFER, gl3state.vbo3DLM);
-		glBufferData(GL_ARRAY_BUFFER, numverts * 7 * sizeof(float), verts, GL_STREAM_DRAW);
-		glDrawArrays(GL_TRIANGLE_FAN, 0, numverts);
-		return;
-	}
-
-	for (int t = 0; t < num_tris; t++)
-	{
-		const int i0 = 0, i1 = t + 1, i2 = t + 2;
-		const float* a = &verts[i0 * 7];
-		const float* b = &verts[i1 * 7];
-		const float* c = &verts[i2 * 7];
-
-		float fn[3];
-		FaceNormal(a, b, c, fn);
-
-		float* o = out + t * 3 * 10;
-
-		memcpy(o + 0, a, 7 * sizeof(float)); memcpy(o + 7, fn, 3 * sizeof(float));
-		memcpy(o + 10, b, 7 * sizeof(float)); memcpy(o + 17, fn, 3 * sizeof(float));
-		memcpy(o + 20, c, 7 * sizeof(float)); memcpy(o + 27, fn, 3 * sizeof(float));
-	}
-
-	GL3_UseShader(gl3state.shader3DLMTess);
-	glUniform1f(gl3state.uni3DLMT_tessLevel, (float)TessFactor());
-	glUniform1f(gl3state.uni3DLMT_tessDisp, r_tessellation_disp->value);
-	glBindVertexArray(gl3state.vao3DLMT);
-	glBindBuffer(GL_ARRAY_BUFFER, gl3state.vbo3DLMT);
-	glBufferData(GL_ARRAY_BUFFER, out_verts * 10 * sizeof(float), out, GL_STREAM_DRAW);
-	glDrawArrays(GL_PATCHES, 0, out_verts);
+	GL3_UseShader(gl3state.shader3DLightmap);
+	glBindVertexArray(gl3state.vao3DLM);
+	glBindBuffer(GL_ARRAY_BUFFER, gl3state.vbo3DLM);
+	glBufferData(GL_ARRAY_BUFFER, numverts * 7 * sizeof(float), verts, GL_STREAM_DRAW);
+	glDrawArrays(GL_TRIANGLE_FAN, 0, numverts);
 }
 
 // Draw a polygon using shader3D (9 floats/vert: pos3+tc2+col4).
 void GL3_Draw3DPoly(const GLenum mode, const float* verts, const int numverts)
 {
-	GL3_Draw3DPolyN(mode, verts, NULL, numverts);
-}
-
-// Same as GL3_Draw3DPoly but with an optional per-vertex normal array (3
-// floats/vert) used when tessellation is enabled. Only honored for GL_TRIANGLES.
-void GL3_Draw3DPolyN(const GLenum mode, const float* verts, const float* normals, const int numverts)
-{
-	if (!TessEnabled() || gl3state.shader3DTess == 0 || !IsTriangleMode(mode) || numverts < 3)
-	{
-		GL3_UseShader(gl3state.shader3D);
-		glBindVertexArray(gl3state.vao3D);
-		glBindBuffer(GL_ARRAY_BUFFER, gl3state.vbo3D);
-		glBufferData(GL_ARRAY_BUFFER, numverts * 9 * sizeof(float), verts, GL_STREAM_DRAW);
-		glDrawArrays(mode, 0, numverts);
-		return;
-	}
-
-	const int num_tris = (mode == GL_TRIANGLES) ? (numverts / 3) : (numverts - 2);
-	const int out_verts = num_tris * 3;
-	float* out = TessScratch(out_verts * 12);
-
-	if (out == NULL)
-	{
-		GL3_UseShader(gl3state.shader3D);
-		glBindVertexArray(gl3state.vao3D);
-		glBindBuffer(GL_ARRAY_BUFFER, gl3state.vbo3D);
-		glBufferData(GL_ARRAY_BUFFER, numverts * 9 * sizeof(float), verts, GL_STREAM_DRAW);
-		glDrawArrays(mode, 0, numverts);
-		return;
-	}
-
-	const qboolean use_supplied = (normals != NULL && mode == GL_TRIANGLES);
-
-	for (int t = 0; t < num_tris; t++)
-	{
-		int i0, i1, i2;
-
-		if (mode == GL_TRIANGLES)
-		{
-			i0 = t * 3; i1 = t * 3 + 1; i2 = t * 3 + 2;
-		}
-		else if (mode == GL_TRIANGLE_FAN)
-		{
-			i0 = 0; i1 = t + 1; i2 = t + 2;
-		}
-		else
-		{
-			if (t % 2 == 0) { i0 = t; i1 = t + 1; i2 = t + 2; }
-			else            { i0 = t + 1; i1 = t; i2 = t + 2; }
-		}
-
-		const float* a = &verts[i0 * 9];
-		const float* b = &verts[i1 * 9];
-		const float* c = &verts[i2 * 9];
-
-		float fn[3];
-		FaceNormal(a, b, c, fn);
-
-		const float* n0 = use_supplied ? &normals[i0 * 3] : fn;
-		const float* n1 = use_supplied ? &normals[i1 * 3] : fn;
-		const float* n2 = use_supplied ? &normals[i2 * 3] : fn;
-
-		float* o = out + t * 3 * 12;
-
-		memcpy(o + 0, a, 9 * sizeof(float));  memcpy(o + 9, n0, 3 * sizeof(float));
-		memcpy(o + 12, b, 9 * sizeof(float)); memcpy(o + 21, n1, 3 * sizeof(float));
-		memcpy(o + 24, c, 9 * sizeof(float)); memcpy(o + 33, n2, 3 * sizeof(float));
-	}
-
-	GL3_UseShader(gl3state.shader3DTess);
-	glUniform1f(gl3state.uni3DT_tessLevel, (float)TessFactor());
-	glUniform1f(gl3state.uni3DT_tessDisp, r_tessellation_disp->value);
-	glBindVertexArray(gl3state.vao3DT);
-	glBindBuffer(GL_ARRAY_BUFFER, gl3state.vbo3DT);
-	glBufferData(GL_ARRAY_BUFFER, out_verts * 12 * sizeof(float), out, GL_STREAM_DRAW);
-	glDrawArrays(GL_PATCHES, 0, out_verts);
+	GL3_UseShader(gl3state.shader3D);
+	glBindVertexArray(gl3state.vao3D);
+	glBindBuffer(GL_ARRAY_BUFFER, gl3state.vbo3D);
+	glBufferData(GL_ARRAY_BUFFER, numverts * 9 * sizeof(float), verts, GL_STREAM_DRAW);
+	glDrawArrays(mode, 0, numverts);
 }
 
 // Copy the current scene color into the refraction FBO.
@@ -2102,12 +1501,6 @@ void GL3_UpdateDlights(void)
 	GL3_UseShader(gl3state.shader3D);
 	glUniform1i(gl3state.uni3D_numDlights, n);
 
-	if (gl3state.shader3DTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DTess);
-		glUniform1i(gl3state.uni3DT_numDlights, n);
-	}
-
 	if (n == 0)
 		return;
 
@@ -2138,13 +1531,6 @@ void GL3_UpdateDlights(void)
 
 	glUniform4fv(gl3state.uni3D_dlightPosRad, n, pos_rad);
 	glUniform4fv(gl3state.uni3D_dlightColor,  n, colors);
-
-	if (gl3state.shader3DTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DTess);
-		glUniform4fv(gl3state.uni3DT_dlightPosRad, n, pos_rad);
-		glUniform4fv(gl3state.uni3DT_dlightColor,  n, colors);
-	}
 }
 
 // Set only the model-shader dynamic-light count (used to disable dynamic
@@ -2154,12 +1540,6 @@ void GL3_SetNumDlights(const int n)
 {
 	GL3_UseShader(gl3state.shader3D);
 	glUniform1i(gl3state.uni3D_numDlights, n);
-
-	if (gl3state.shader3DTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DTess);
-		glUniform1i(gl3state.uni3DT_numDlights, n);
-	}
 }
 
 // ============================================================

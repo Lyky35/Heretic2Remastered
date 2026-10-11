@@ -199,12 +199,6 @@ static void R_ProjectEntityShadow(const entity_t* ent, const fmdl_t* fmdl,
 	GL3_UseShader(gl3state.shader3D);
 	glUniformMatrix4fv(gl3state.uni3D_modelview, 1, GL_FALSE, shadow_mv);
 
-	if (gl3state.shader3DTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DTess);
-		glUniformMatrix4fv(gl3state.uni3DT_modelview, 1, GL_FALSE, shadow_mv);
-	}
-
 	static float vbuf[MAX_FM_VERTS * 9];
 
 	for (int i = 0; i < fmdl->header.num_mesh_nodes; i++)
@@ -328,15 +322,6 @@ void R_DrawEntityShadows(void)
 	glUniform1i(gl3state.uni3D_numDlights, 0);
 	glUniform4f(gl3state.uni3D_color, 0.0f, 0.0f, 0.0f, 1.0f);
 
-	// Mirror the shadow uniforms on the tessellation variant so that
-	// tessellated shadow geometry (r_tessellation) shades identically.
-	if (gl3state.shader3DTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DTess);
-		glUniform1i(gl3state.uni3DT_numDlights, 0);
-		glUniform4f(gl3state.uni3DT_color, 0.0f, 0.0f, 0.0f, 1.0f);
-	}
-
 	// Depth-read, no depth write, alpha blend, polygon offset to prevent z-fighting.
 	glEnable(GL_DEPTH_TEST);
 	glDepthMask(GL_FALSE);
@@ -374,11 +359,5 @@ void R_DrawEntityShadows(void)
 
 	GL3_UseShader(gl3state.shader3D);
 	glUniform4f(gl3state.uni3D_color, 1.0f, 1.0f, 1.0f, 1.0f);
-
-	if (gl3state.shader3DTess != 0)
-	{
-		GL3_UseShader(gl3state.shader3DTess);
-		glUniform4f(gl3state.uni3DT_color, 1.0f, 1.0f, 1.0f, 1.0f);
-	}
 	GL3_UpdateModelview3D(r_world_matrix);
 }

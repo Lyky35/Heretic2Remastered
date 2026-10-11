@@ -72,8 +72,6 @@ extern cvar_t* r_caustics_strength;
 extern cvar_t* r_hd_textures;
 extern cvar_t* r_antialiasing;
 extern cvar_t* r_shadows;
-extern cvar_t* r_tessellation;		// 0 = off, 1..4 = subdivision level.
-extern cvar_t* r_tessellation_disp;	// displacement height scale (world units).
 
 extern cvar_t* gl_noartifacts;
 
@@ -222,8 +220,6 @@ typedef struct
 	GLuint shader3D;			// 3D generic (textured + per-vertex color, e.g. sprites, particles).
 	GLuint shader3DColor;		// 3D colored, no texture.
 	GLuint shader3DLightmap;	// 3D world surfaces: diffuse texture * lightmap texture.
-	GLuint shader3DTess;		// shader3D WITH tessellation stages (drawn as GL_PATCHES only).
-	GLuint shader3DLMTess;		// shader3DLightmap WITH tessellation stages (drawn as GL_PATCHES only).
 
 	// Uniform locations for shader2D.
 	GLint uni2D_projection;
@@ -242,22 +238,6 @@ typedef struct
 	GLint uni3D_dlightColor;	// vec4[GL3_MAX_DLIGHTS]: xyz=rgb (0..1), w=unused.
 	GLint uni3D_clipPlane;		// vec4 view-space water plane (reflection clipping).
 	GLint uni3D_bumpScale;		// bump/normal-map strength.
-
-	// Uniform locations for shader3DTess (tessellation variant; same shader3D
-	// uniforms, plus the tessellation controls).
-	GLint uni3DT_projection;
-	GLint uni3DT_modelview;
-	GLint uni3DT_texture;
-	GLint uni3DT_color;
-	GLint uni3DT_numDlights;
-	GLint uni3DT_dlightPosRad;	// vec4[GL3_MAX_DLIGHTS]: xyz=view-space pos, w=intensity.
-	GLint uni3DT_dlightColor;	// vec4[GL3_MAX_DLIGHTS]: xyz=rgb (0..1), w=unused.
-	GLint uni3DT_clipPlane;		// vec4 view-space water plane (reflection clipping).
-	GLint uni3DT_bumpScale;		// bump/normal-map strength.
-	GLint uni3DT_tessLevel;		// float: base tessellation factor.
-	GLint uni3DT_tessAlpha;		// float: Phong smoothing blend (0=linear, 1=fully curved).
-	GLint uni3DT_tessDisp;		// float: displacement height scale.
-	GLint uni3DT_tessDistance;	// vec2: (full-detail distance, fade-out distance).
 
 	// Uniform locations for shader3DColor.
 	GLint uni3DColor_projection;
@@ -278,24 +258,6 @@ typedef struct
 	GLint uni3DLM_caustic;		// float: underwater caustics strength (0 disables).
 	GLint uni3DLM_time;			// float: animation time for caustics.
 
-	// Uniform locations for shader3DLMTess (tessellation variant; same
-	// shader3DLightmap uniforms, plus the tessellation controls).
-	GLint uni3DLMT_projection;
-	GLint uni3DLMT_modelview;
-	GLint uni3DLMT_diffuse;
-	GLint uni3DLMT_lightmap;
-	GLint uni3DLMT_color;
-	GLint uni3DLMT_clipPlane;	// vec4 view-space water plane (reflection clipping).
-	GLint uni3DLMT_bumpScale;	// bump/normal-map strength.
-	GLint uni3DLMT_worldSpace;	// int: 1 = vertices are world-space (caustics eligible).
-	GLint uni3DLMT_waterZ;		// float: world-space Z of the nearest water plane.
-	GLint uni3DLMT_caustic;		// float: underwater caustics strength (0 disables).
-	GLint uni3DLMT_time;		// float: animation time for caustics.
-	GLint uni3DLMT_tessLevel;	// float: base tessellation factor.
-	GLint uni3DLMT_tessAlpha;	// float: Phong smoothing blend.
-	GLint uni3DLMT_tessDisp;	// float: displacement height scale.
-	GLint uni3DLMT_tessDistance;// vec2: (full-detail distance, fade-out distance).
-
 	// VAO/VBO for 2D drawing
 	GLuint vao2D;
 	GLuint vbo2D;
@@ -307,13 +269,6 @@ typedef struct
 	// VAO/VBO for generic 3D drawing (9 floats/vert: pos3 + tc2 + col4).
 	GLuint vao3D;
 	GLuint vbo3D;
-
-	// Tessellation-ready VAO/VBOs (only used when r_tessellation is enabled):
-	// vao3DT: 12 floats/vert (pos3+tc2+col4+nrm3), vao3DLMT: 10 floats/vert (pos3+tc2+lmtc2+nrm3).
-	GLuint vao3DT;
-	GLuint vbo3DT;
-	GLuint vao3DLMT;
-	GLuint vbo3DLMT;
 
 	// 1x1 white texture for color-only 2D drawing (Draw_Fill, Draw_FadeScreen).
 	GLuint whiteTexture;

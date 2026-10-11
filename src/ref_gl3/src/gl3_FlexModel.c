@@ -492,71 +492,6 @@ static image_t* R_GetSkinFromNode(const entity_t* ent, const int skin_index)
     return r_notexture;
 }
 
-// Per-model smoooth vertex normals (indexed by flex model vertex index),
-// computed from the deformed mesh (s_lerped) and used for tessellation.
-static vec3_t s_fm_normals[MAX_FM_VERTS];
-
-static void R_ComputeFlexNormals(const fmdl_t* fmdl)
-{
-    const int nv_total = fmdl->header.num_xyz;
-    if (nv_total < 1 || nv_total > MAX_FM_VERTS)
-        return;
-
-    for (int i = 0; i < nv_total; i++)
-        VectorClear(s_fm_normals[i]);
-
-    for (int n = 0; n < fmdl->header.num_mesh_nodes; n++)
-    {
-        int* order = &fmdl->glcmds[fmdl->mesh_nodes[n].start_glcmds];
-
-        while (true)
-        {
-            int nv = *order++;
-            if (nv == 0)
-                break;
-
-            qboolean is_fan;
-            if (nv < 0) { nv = -nv; is_fan = true; }
-            else        { is_fan = false; }
-
-            for (int c = 0; c < nv - 2; c++)
-            {
-                int a, b, d;
-                if (is_fan)          { a = 0; b = c + 1; d = c + 2; }
-                else if (c % 2 == 0) { a = c; b = c + 1; d = c + 2; }
-                else                 { a = c + 1; b = c; d = c + 2; }
-
-                const int ia = order[a * 3 + 2];
-                const int ib = order[b * 3 + 2];
-                const int ic = order[d * 3 + 2];
-
-                if (ia < 0 || ia >= nv_total || ib < 0 || ib >= nv_total || ic < 0 || ic >= nv_total)
-                    continue;
-
-                vec3_t e1, e2, fn;
-                VectorSubtract(s_lerped[ib], s_lerped[ia], e1);
-                VectorSubtract(s_lerped[ic], s_lerped[ia], e2);
-                CrossProduct(e1, e2, fn);
-
-                VectorAdd(s_fm_normals[ia], fn, s_fm_normals[ia]);
-                VectorAdd(s_fm_normals[ib], fn, s_fm_normals[ib]);
-                VectorAdd(s_fm_normals[ic], fn, s_fm_normals[ic]);
-            }
-
-            order += nv * 3;
-        }
-    }
-
-    for (int i = 0; i < nv_total; i++)
-    {
-        const float len = VectorLength(s_fm_normals[i]);
-        if (len > 1.0e-8f)
-            VectorScale(s_fm_normals[i], 1.0f / len, s_fm_normals[i]);
-        else
-            VectorSet(s_fm_normals[i], 0.0f, 0.0f, 1.0f);
-    }
-}
-
 static void R_DrawFlexFrameLerp(const fmdl_t* fmdl, entity_t* e, vec3_t shadelight)
 {
     const image_t* skin = R_GetSkin(e);
@@ -576,10 +511,6 @@ static void R_DrawFlexFrameLerp(const fmdl_t* fmdl, entity_t* e, vec3_t shadelig
         e->swapFrame = NO_SWAP_FRAME;
 
     FrameLerp(fmdl, e);
-
-    const qboolean use_tess = (r_tessellation != NULL && (int)r_tessellation->value > 0);
-    if (use_tess)
-        R_ComputeFlexNormals(fmdl);
 
     fmnodeinfo_t* nodeinfo = &e->fmnodeinfo[0];
     for (int i = 0; i < fmdl->header.num_mesh_nodes; i++, nodeinfo++)
@@ -627,14 +558,12 @@ static void R_DrawFlexFrameLerp(const fmdl_t* fmdl, entity_t* e, vec3_t shadelig
             }
 
             float vbuf[MAX_FM_VERTS * 9];
-            static int vbuf_idx[MAX_FM_VERTS];
 
             for (int c = 0; c < num_verts; c++)
             {
                 const int index_xyz = order[2];
                 float* v = &vbuf[c * 9];
 
-                vbuf_idx[c] = index_xyz;
                 v[0] = s_lerped[index_xyz][0];
                 v[1] = s_lerped[index_xyz][1];
                 v[2] = s_lerped[index_xyz][2];
@@ -684,43 +613,35 @@ static void R_DrawFlexFrameLerp(const fmdl_t* fmdl, entity_t* e, vec3_t shadelig
             const int num_tris = num_verts - 2;
             const int tri_verts = num_tris * 3;
             static float tribuf[MAX_FM_VERTS * 3 * 9];
-            static float tribuf_n[MAX_FM_VERTS * 3 * 3];
 
             for (int t = 0; t < num_tris; t++)
             {
                 float* dst = &tribuf[t * 3 * 9];
-                int s0, s1, s2;
 
                 if (is_fan)
                 {
-                    s0 = 0; s1 = t + 1; s2 = t + 2;
-                }
-                else if (t % 2 == 0)
-                {
-                    s0 = t + 0; s1 = t + 1; s2 = t + 2;
+                    memcpy(dst + 0 * 9, &vbuf[0 * 9], 9 * sizeof(float));
+                    memcpy(dst + 1 * 9, &vbuf[(t + 1) * 9], 9 * sizeof(float));
+                    memcpy(dst + 2 * 9, &vbuf[(t + 2) * 9], 9 * sizeof(float));
                 }
                 else
                 {
-                    s0 = t + 1; s1 = t + 0; s2 = t + 2;
-                }
-
-                memcpy(dst + 0 * 9, &vbuf[s0 * 9], 9 * sizeof(float));
-                memcpy(dst + 1 * 9, &vbuf[s1 * 9], 9 * sizeof(float));
-                memcpy(dst + 2 * 9, &vbuf[s2 * 9], 9 * sizeof(float));
-
-                if (use_tess)
-                {
-                    float* dn = &tribuf_n[t * 3 * 3];
-                    memcpy(dn + 0, s_fm_normals[vbuf_idx[s0]], 3 * sizeof(float));
-                    memcpy(dn + 3, s_fm_normals[vbuf_idx[s1]], 3 * sizeof(float));
-                    memcpy(dn + 6, s_fm_normals[vbuf_idx[s2]], 3 * sizeof(float));
+                    if (t % 2 == 0)
+                    {
+                        memcpy(dst + 0 * 9, &vbuf[(t + 0) * 9], 9 * sizeof(float));
+                        memcpy(dst + 1 * 9, &vbuf[(t + 1) * 9], 9 * sizeof(float));
+                        memcpy(dst + 2 * 9, &vbuf[(t + 2) * 9], 9 * sizeof(float));
+                    }
+                    else
+                    {
+                        memcpy(dst + 0 * 9, &vbuf[(t + 1) * 9], 9 * sizeof(float));
+                        memcpy(dst + 1 * 9, &vbuf[(t + 0) * 9], 9 * sizeof(float));
+                        memcpy(dst + 2 * 9, &vbuf[(t + 2) * 9], 9 * sizeof(float));
+                    }
                 }
             }
 
-            if (use_tess)
-                GL3_Draw3DPolyN(GL_TRIANGLES, tribuf, tribuf_n, tri_verts);
-            else
-                GL3_Draw3DPoly(GL_TRIANGLES, tribuf, tri_verts);
+            GL3_Draw3DPoly(GL_TRIANGLES, tribuf, tri_verts);
         }
 
         if (use_skin)

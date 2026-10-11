@@ -101,8 +101,6 @@ cvar_t* r_shadows;
 cvar_t* r_reflections;
 cvar_t* r_reflections_res;
 cvar_t* gl_dlight_scale;
-cvar_t* r_tessellation;
-cvar_t* r_tessellation_disp;
 
 cvar_t* gl_noartifacts;
 
@@ -679,8 +677,6 @@ static void R_Register(void)
 	r_reflections = ri.Cvar_Get("r_reflections", "1", CVAR_ARCHIVE);
 	r_reflections_res = ri.Cvar_Get("r_reflections_res", "0", CVAR_ARCHIVE);
 	gl_dlight_scale = ri.Cvar_Get("gl_dlight_scale", "2", CVAR_ARCHIVE);
-	r_tessellation = ri.Cvar_Get("r_tessellation", "0", CVAR_ARCHIVE);
-	r_tessellation_disp = ri.Cvar_Get("r_tessellation_disp", "0", CVAR_ARCHIVE);
 
 	gl_noartifacts = ri.Cvar_Get("gl_noartifacts", "0", 0); // H2
 

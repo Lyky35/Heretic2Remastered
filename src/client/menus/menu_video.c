@@ -25,8 +25,6 @@ cvar_t* m_item_water_reflections;
 cvar_t* m_item_water_reflection_res;
 cvar_t* m_item_light_emission;
 cvar_t* m_item_shadows;
-cvar_t* m_item_tessellation;
-cvar_t* m_item_tessellation_disp;
 
 static float m_gamma;
 static float m_brightness;
@@ -53,8 +51,6 @@ static menulist_t s_water_reflections_list;
 static menulist_t s_water_reflection_res_list;
 static menulist_t s_light_emission_list;
 static menulist_t s_shadows_list;
-static menulist_t s_tessellation_list;
-static menulist_t s_tessellation_disp_list;
 
 static const char* ref_list_titles[MAX_REFLIBS];
 static int initial_reflib_index; // vid_ref index when entering menu.
@@ -139,17 +135,6 @@ static void UpdateShadowsFunc(void* self)
 	Cvar_SetValue("r_shadows", (float)(s_shadows_list.curvalue == 0));
 }
 
-static void UpdateTessellationFunc(void* self)
-{
-	Cvar_SetValue("r_tessellation", (float)s_tessellation_list.curvalue);
-}
-
-static void UpdateTessellationDispFunc(void* self)
-{
-	static const float disp_values[] = { 0.0f, 1.0f, 2.0f, 4.0f, 6.0f, 8.0f };
-	Cvar_SetValue("r_tessellation_disp", disp_values[s_tessellation_disp_list.curvalue]);
-}
-
 static void ApplyChanges(const qboolean close_menu) //mxd. +close_menu arg.
 {
 	if (initial_vid_mode != s_mode_list.curvalue)
@@ -224,8 +209,6 @@ static void VID_MenuInit(void)
 	static const char* on_off_names[] = { "On", "Off", NULL };
 	static const char* reflection_res_names[] = { "Native", "Half", NULL };
 	static const char* light_emission_names[] = { "0", "1", "2", "3", "4", "5", "6", NULL };
-	static const char* tessellation_names[] = { "Off", "Low", "Medium", "High", "Ultra", NULL };
-	static const char* tessellation_disp_names[] = { "0", "1", "2", "4", "6", "8", NULL };
 
 	static char name_driver[MAX_QPATH];
 	static char name_vidmode[MAX_QPATH];
@@ -242,8 +225,6 @@ static void VID_MenuInit(void)
 	static char name_water_reflection_res[MAX_QPATH];
 	static char name_light_emission[MAX_QPATH];
 	static char name_shadows[MAX_QPATH];
-	static char name_tessellation[MAX_QPATH];
-	static char name_tessellation_disp[MAX_QPATH];
 
 	VID_PreMenuInit();
 
@@ -266,8 +247,6 @@ static void VID_MenuInit(void)
 	Cvar_SetValue("r_reflections_res", Clamp(Cvar_VariableValue("r_reflections_res"), 0.0f, 1.0f));
 	Cvar_SetValue("gl_dlight_scale", Clamp((float)(int)(Cvar_VariableValue("gl_dlight_scale") + 0.5f), 0.0f, 6.0f));
 	Cvar_SetValue("r_shadows", (Cvar_VariableValue("r_shadows") != 0.0f) ? 1.0f : 0.0f);
-	Cvar_SetValue("r_tessellation", Clamp((float)(int)(Cvar_VariableValue("r_tessellation") + 0.5f), 0.0f, 4.0f));
-	Cvar_SetValue("r_tessellation_disp", Clamp(Cvar_VariableValue("r_tessellation_disp"), 0.0f, 8.0f));
 
 	Com_sprintf(name_color_profile, sizeof(name_color_profile), "\x02%s", m_item_color_profile->string);
 	s_color_profile_list.generic.type = MTYPE_SPINCONTROL;
@@ -324,40 +303,6 @@ static void VID_MenuInit(void)
 	s_shadows_list.curvalue = (Cvar_VariableValue("r_shadows") != 0.0f) ? 0 : 1;
 	s_shadows_list.itemnames = on_off_names;
 
-	Com_sprintf(name_tessellation, sizeof(name_tessellation), "\x02%s", m_item_tessellation->string);
-	s_tessellation_list.generic.type = MTYPE_SPINCONTROL;
-	s_tessellation_list.generic.x = 0;
-	s_tessellation_list.generic.y = 140;
-	s_tessellation_list.generic.name = name_tessellation;
-	s_tessellation_list.generic.width = re.BF_Strlen(name_tessellation);
-	s_tessellation_list.generic.flags = QMF_SINGLELINE;
-	s_tessellation_list.generic.callback = UpdateTessellationFunc;
-	s_tessellation_list.curvalue = (int)Clamp((float)(int)(Cvar_VariableValue("r_tessellation") + 0.5f), 0.0f, 4.0f);
-	s_tessellation_list.itemnames = tessellation_names;
-
-	Com_sprintf(name_tessellation_disp, sizeof(name_tessellation_disp), "\x02%s", m_item_tessellation_disp->string);
-	s_tessellation_disp_list.generic.type = MTYPE_SPINCONTROL;
-	s_tessellation_disp_list.generic.x = 0;
-	s_tessellation_disp_list.generic.y = 160;
-	s_tessellation_disp_list.generic.name = name_tessellation_disp;
-	s_tessellation_disp_list.generic.width = re.BF_Strlen(name_tessellation_disp);
-	s_tessellation_disp_list.generic.flags = QMF_SINGLELINE;
-	s_tessellation_disp_list.generic.callback = UpdateTessellationDispFunc;
-	{
-		static const float disp_values[] = { 0.0f, 1.0f, 2.0f, 4.0f, 6.0f, 8.0f };
-		const float v = Cvar_VariableValue("r_tessellation_disp");
-		int best = 0;
-		float best_d = 1.0e9f;
-		for (int i = 0; i < 6; i++)
-		{
-			float d = v - disp_values[i];
-			if (d < 0.0f) d = -d;
-			if (d < best_d) { best_d = d; best = i; }
-		}
-		s_tessellation_disp_list.curvalue = best;
-	}
-	s_tessellation_disp_list.itemnames = tessellation_disp_names;
-
 	Com_sprintf(name_hd_mode, sizeof(name_hd_mode), "\x02%s", m_item_hd_mode->string);
 	s_hd_mode_list.generic.type = MTYPE_SPINCONTROL;
 	s_hd_mode_list.generic.x = 0;
@@ -392,7 +337,7 @@ static void VID_MenuInit(void)
 	Com_sprintf(name_vidmode, sizeof(name_vidmode), "\x02%s", m_item_vidmode->string);
 	s_mode_list.generic.type = MTYPE_SPINCONTROL;
 	s_mode_list.generic.x = 0;
-	s_mode_list.generic.y = 200;
+	s_mode_list.generic.y = 160;
 	s_mode_list.generic.name = name_vidmode;
 	s_mode_list.generic.width = re.BF_Strlen(name_vidmode);
 	s_mode_list.curvalue = initial_vid_mode;
@@ -401,7 +346,7 @@ static void VID_MenuInit(void)
 	Com_sprintf(name_target_fps, sizeof(name_target_fps), "\x02%s", m_item_target_fps->string);
 	s_target_fps_list.generic.type = MTYPE_SPINCONTROL;
 	s_target_fps_list.generic.x = 0;
-	s_target_fps_list.generic.y = 240;
+	s_target_fps_list.generic.y = 200;
 	s_target_fps_list.generic.name = name_target_fps;
 	s_target_fps_list.generic.width = re.BF_Strlen(name_target_fps);
 	s_target_fps_list.generic.flags = QMF_SINGLELINE;
@@ -423,7 +368,7 @@ static void VID_MenuInit(void)
 	s_gamma_slider.generic.type = MTYPE_SLIDER;
 	s_gamma_slider.generic.flags = QMF_SELECT_SOUND;
 	s_gamma_slider.generic.x = 0;
-	s_gamma_slider.generic.y = 260;
+	s_gamma_slider.generic.y = 220;
 	s_gamma_slider.generic.name = name_gamma;
 	s_gamma_slider.generic.width = re.BF_Strlen(name_gamma);
 	s_gamma_slider.generic.callback = UpdateGammaFunc;
@@ -435,7 +380,7 @@ static void VID_MenuInit(void)
 	s_brightness_slider.generic.type = MTYPE_SLIDER;
 	s_brightness_slider.generic.flags = QMF_SELECT_SOUND;
 	s_brightness_slider.generic.x = 0;
-	s_brightness_slider.generic.y = 300;
+	s_brightness_slider.generic.y = 260;
 	s_brightness_slider.generic.name = name_brightness;
 	s_brightness_slider.generic.width = re.BF_Strlen(name_brightness);
 	s_brightness_slider.generic.callback = UpdateBrightnessFunc;
@@ -447,7 +392,7 @@ static void VID_MenuInit(void)
 	s_contrast_slider.generic.type = MTYPE_SLIDER;
 	s_contrast_slider.generic.flags = QMF_SELECT_SOUND;
 	s_contrast_slider.generic.x = 0;
-	s_contrast_slider.generic.y = 340;
+	s_contrast_slider.generic.y = 300;
 	s_contrast_slider.generic.name = name_contrast;
 	s_contrast_slider.generic.width = re.BF_Strlen(name_contrast);
 	s_contrast_slider.generic.callback = UpdateContrastFunc;
@@ -460,7 +405,7 @@ static void VID_MenuInit(void)
 	s_minlight_slider.generic.type = MTYPE_SLIDER;
 	s_minlight_slider.generic.flags = QMF_SELECT_SOUND;
 	s_minlight_slider.generic.x = 0;
-	s_minlight_slider.generic.y = 380;
+	s_minlight_slider.generic.y = 340;
 	s_minlight_slider.generic.name = name_minlight;
 	s_minlight_slider.generic.width = re.BF_Strlen(name_minlight);
 	s_minlight_slider.generic.callback = UpdateMinlightFunc;
@@ -472,7 +417,7 @@ static void VID_MenuInit(void)
 	s_detail_slider.generic.type = MTYPE_SLIDER;
 	s_detail_slider.generic.flags = QMF_SELECT_SOUND; //mxd. QMF_SELECT_SOUND flag was missing in original version.
 	s_detail_slider.generic.x = 0;
-	s_detail_slider.generic.y = 420;
+	s_detail_slider.generic.y = 380;
 	s_detail_slider.generic.name = name_detail;
 	s_detail_slider.generic.width = re.BF_Strlen(name_detail);
 	s_detail_slider.generic.callback = UpdateDetailFunc;
@@ -487,8 +432,6 @@ static void VID_MenuInit(void)
 	Menu_AddItem(&s_video_menu, &s_water_reflection_res_list);
 	Menu_AddItem(&s_video_menu, &s_light_emission_list);
 	Menu_AddItem(&s_video_menu, &s_shadows_list);
-	Menu_AddItem(&s_video_menu, &s_tessellation_list);
-	Menu_AddItem(&s_video_menu, &s_tessellation_disp_list);
 	Menu_AddItem(&s_video_menu, &s_mode_list);
 	Menu_AddItem(&s_video_menu, &s_target_fps_list); //mxd
 	Menu_AddItem(&s_video_menu, &s_gamma_slider);
