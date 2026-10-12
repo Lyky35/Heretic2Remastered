@@ -1297,7 +1297,7 @@ static void CL_InitLocal(void)
 	cl_fx_dll = Cvar_Get("cl_fx_dll", "Client Effects", 0);
 	cl_cinematicfreeze = Cvar_Get("cl_cinematicfreeze", "0", 0);
 	sc_framerate = Cvar_Get("sc_framerate", "20", CVAR_ARCHIVE); // H2_1.07: "20" -> "60".
-	show_splash_movies = Cvar_Get("show_splash_movies", "1", CVAR_ARCHIVE); //mxd
+	show_splash_movies = Cvar_Get("show_splash_movies", "0", CVAR_ARCHIVE); //mxd
 	screenshot_format = Cvar_Get("screenshot_format", "jpg", CVAR_ARCHIVE); //mxd
 
 	// userinfo
