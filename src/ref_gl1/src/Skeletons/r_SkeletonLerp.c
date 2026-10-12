@@ -154,7 +154,7 @@ static void LerpReferences(const fmdl_t* fmdl, const entity_t* e) //mxd. Origina
 		Placement_t* old_placement = &fmdl_referenceInfo->oldReferences[i].placement;
 		qboolean update_placement = false;
 
-		if (delta <= 1.0f)
+		if (delta > 0.0f && delta <= 1.0f)
 			memcpy(old_placement, cur_placement, sizeof(Placement_t));
 
 		if (fmdl->frames == NULL) //TODO: can't happen? There's fmodel->frames NULL-check in FrameLerp().
