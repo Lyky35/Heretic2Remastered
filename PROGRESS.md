@@ -113,3 +113,21 @@ Steps:
    - Reason: complete "commit and push after each portion" for this Phase 1 portion.
 
 Result: `0050c1ac` pushed to `origin/Beta`. Manual test on Windows still needed: `r_dynsky 1`, `r_sky_preset 0/1/2`, check gradient + sun disc, `r_dynsky 0` regression, Silverpring aurora/stars on top. Suggested next portion: Phase 2 compute + 3D-texture infrastructure.
+
+## 2026-10-13 — R8.7 Beta test package (Windows x64, Beta branch)
+
+Steps:
+1. Checked release conventions: tags `R8_6` etc, `gh release list` (latest R8.6), `pack_release.bat` (zips LICENSE/README/build exe+DLLs), `qcommon.h` version strings still `R8_00` (not bumped per release — followed same practice, no version-code change).
+   - Reason: name/package the Beta consistently with official releases without touching version logic.
+2. Downloaded R8.6 asset + `unzip -l`: layout is root folder `HereticIIRemastered_R8_6/` with flat binaries + `base/` (gamex86/Client Effects/Player/Default_H2R.cfg) + `OpenAL32.dll` + hand-written `README.txt` (stale R8_1 header).
+   - Reason: Beta zip must drop into a game install exactly like the official one; `OpenAL32.dll` is not in repo `lib/` (only the .lib), so reuse the redist DLL from R8.6.
+3. Full Beta-branch build: `cmake --build /tmp/opencode/h2-build -j` (all targets, HEAD `930176b4`) — 100%, no errors. Verified `strings build/ref_gl3.dll` contains `r_dynsky/r_volclouds/r_sky_preset` + Tier-A messages, and `Heretic2R.exe` is a valid x64 PE.
+   - Reason: prove every binary in the package is current Beta code (esp. `ref_gl3.dll` with Phase 0+1), not a stale MSVC build.
+4. Staged `/tmp/opencode/R87Beta/HereticIIRemastered_R8_7_Beta/` mirroring R8.6 (fresh Beta exe+DLLs, R8.6's OpenAL32.dll, Beta `Default_H2R.cfg`) + new `README.txt` (R8.7 Beta header + Tier-A console test steps + report checklist).
+   - Reason: tester needs exact install layout plus Beta-specific instructions in one file.
+5. Zipped to `release/HereticIIRemastered_R8_7_Beta.zip` (15 files, same structure as R8.6; `release/` is gitignored per `.gitignore:2`, `build/` per line 1 — neither committed).
+   - Reason: keep binaries out of git; package is a local artifact until a GitHub prerelease is requested.
+6. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion" for this packaging portion.
+
+Result: pending push (see next entry update after push).
