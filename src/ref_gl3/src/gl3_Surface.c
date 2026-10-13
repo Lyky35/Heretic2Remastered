@@ -46,6 +46,7 @@ static qboolean s_water_drawn      = false;  // True when any water surface was 
 static qboolean s_reflect_valid    = false;  // True when the reflection texture was rendered for the current frame.
 
 void R_SetReflectionPass(const qboolean on) { r_reflection_pass = on; }
+qboolean R_IsReflectionPass(void) { return r_reflection_pass; }
 msurface_t* R_GetAlphaSurfaces(void)                        { return r_alpha_surfaces; }
 void        R_SetAlphaSurfaces(msurface_t* s)               { r_alpha_surfaces = s; }
 qboolean    R_GetLastWaterPlaneZ(float* out_z)

@@ -18,6 +18,7 @@ extern void R_MarkLeaves(void);
 extern void R_SortAndDrawAlphaSurfaces(void);
 
 extern void R_SetReflectionPass(qboolean active);
+extern qboolean R_IsReflectionPass(void); // True while rendering the reflection FBO.
 extern msurface_t* R_GetAlphaSurfaces(void);
 extern void R_SetAlphaSurfaces(msurface_t* surf);
 extern qboolean R_GetLastWaterPlaneZ(float* out_z);

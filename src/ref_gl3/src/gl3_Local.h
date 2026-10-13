@@ -87,6 +87,8 @@ extern cvar_t* r_cloud_curl;     // Curliness (erosion).
 extern cvar_t* r_cloud_absorb;   // Light absorption.
 extern cvar_t* r_cloud_seed;     // Weather-map seed.
 extern cvar_t* r_cloud_freq;     // Weather-map Perlin frequency (source default 0.8).
+extern cvar_t* r_cloud_base;     // Cloud-base height above ground (dome inner radius).
+extern cvar_t* r_cloud_thick;    // Cloud-layer thickness (dome outer = base + thick).
 extern cvar_t* r_cloud_debug;    // Debug views (noise slice, etc.).
 extern cvar_t* r_cloud_blur;     // Post blur on/off.
 extern cvar_t* r_cloud_godrays;  // God-rays on/off (default off).

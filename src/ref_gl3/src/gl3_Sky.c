@@ -1211,6 +1211,11 @@ void R_DrawSkyBox(void)
 		GL3_Draw3DPoly(GL_TRIANGLE_FAN, quad, 4);
 	}
 
+	// Tier-B volumetric clouds (Phase 4): raymarch at r_cloud_res scale, then
+	// alpha-blend over the sky above. No-op unless r_dynsky + r_volclouds
+	// (+ GL 4.3, resources, main pass). Cull/clip still off, depth writes off.
+	GL3_SkyDyn_DrawClouds();
+
 	if (cull_was_enabled)
 		glEnable(GL_CULL_FACE);
 

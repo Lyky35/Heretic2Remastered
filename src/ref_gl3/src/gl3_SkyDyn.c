@@ -14,6 +14,7 @@
 
 #include "gl3_SkyDyn.h"
 #include "gl3_Shaders.h"
+#include "gl3_Surface.h"
 #include "vid.h"
 
 #include <SDL3/SDL.h>
@@ -44,6 +45,8 @@ void GL3_SkyDyn_RegisterCvars(void)
 	r_cloud_absorb = ri.Cvar_Get("r_cloud_absorb", "0.35", CVAR_ARCHIVE);
 	r_cloud_seed = ri.Cvar_Get("r_cloud_seed", "0", CVAR_ARCHIVE);
 	r_cloud_freq = ri.Cvar_Get("r_cloud_freq", "0.8", CVAR_ARCHIVE);
+	r_cloud_base = ri.Cvar_Get("r_cloud_base", "1500.0", CVAR_ARCHIVE);
+	r_cloud_thick = ri.Cvar_Get("r_cloud_thick", "4500.0", CVAR_ARCHIVE);
 	r_cloud_debug = ri.Cvar_Get("r_cloud_debug", "0", 0);
 	r_cloud_blur = ri.Cvar_Get("r_cloud_blur", "1", CVAR_ARCHIVE);
 	r_cloud_godrays = ri.Cvar_Get("r_cloud_godrays", "0", CVAR_ARCHIVE);
@@ -1200,6 +1203,367 @@ qboolean GL3_SkyDyn_DrawDebug(void)
 	return true;
 }
 
+// ============================================================
+// Phase 4: Tier-B volumetric clouds.
+//
+// Adapted from TerrainEngine-OpenGL shaders/volumetric_clouds.comp (MIT,
+// (c) 2018 Federico Vaccaro; raymarch approach via NadirRoGue/WFP/reinder/
+// rikardolajos/clayjohn — see DYNAMIC_SKY_PLAN.md). Differences from source:
+// - Single rgba16f output (cloud rgb + alpha). The background stays in the
+//   framebuffer (Tier-A/legacy sky is already drawn) and the composite
+//   alpha-blends over it — no sky/depth texture inputs needed.
+// - Occlusion comes free from the far-depth composite (opaque geometry wins
+//   via LEQUAL). Low clouds correctly covering nearby terrain needs per-pixel
+//   distance (Phase 5); high clouds — the common case — are already right.
+// - Dome rescaled to H2 units: r_cloud_base (inner height) + r_cloud_thick.
+// ============================================================
+
+static const char* computeSourceClouds =
+	"#version 430 core\n"
+	"layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;\n"
+	"layout(rgba16f, binding = 0) uniform image2D outClouds;\n"
+	"uniform vec2 iResolution;\n"
+	"uniform float iTime;\n"
+	"uniform mat4 inv_view;\n"
+	"uniform mat4 inv_proj;\n"
+	"uniform vec3 lightColor;\n"
+	"uniform sampler3D cloud;\n"
+	"uniform sampler3D worley32;\n"
+	"uniform sampler2D weatherTex;\n"
+	"uniform vec3 lightDirection;\n"
+	"uniform float coverage_multiplier;\n"
+	"uniform float cloudSpeed;\n"
+	"uniform float crispiness;\n"
+	"uniform vec3 cameraPosition;\n"
+	"uniform vec3 cloudColorTop;\n"
+	"uniform vec3 cloudColorBottom;\n"
+	"uniform vec3 skyColorTop;\n"
+	"uniform vec3 skyColorBottom;\n"
+	"uniform vec3 noiseKernel[6u] = vec3[](\n"
+	"	vec3(0.38051305, 0.92453449, -0.02111345),\n"
+	"	vec3(-0.50625799, -0.03590792, -0.86163418),\n"
+	"	vec3(-0.32509218, -0.94557439, 0.01428793),\n"
+	"	vec3(0.09026238, -0.27376545, 0.95755165),\n"
+	"	vec3(0.28128598, 0.42443639, -0.86065785),\n"
+	"	vec3(-0.16852403, 0.14748697, 0.97460106));\n"
+	"#define STRATUS_GRADIENT vec4(0.0, 0.1, 0.2, 0.3)\n"
+	"#define STRATOCUMULUS_GRADIENT vec4(0.02, 0.2, 0.48, 0.625)\n"
+	"#define CUMULUS_GRADIENT vec4(0.00, 0.1625, 0.88, 0.98)\n"
+	"uniform float earthRadius;\n"
+	"uniform float sphereInnerRadius;\n"
+	"uniform float sphereOuterRadius;\n"
+	"#define EARTH_RADIUS earthRadius\n"
+	"#define SPHERE_INNER_RADIUS (EARTH_RADIUS + sphereInnerRadius)\n"
+	"#define SPHERE_OUTER_RADIUS (SPHERE_INNER_RADIUS + sphereOuterRadius)\n"
+	"#define SPHERE_DELTA float(SPHERE_OUTER_RADIUS - SPHERE_INNER_RADIUS)\n"
+	"#define CLOUDS_MIN_TRANSMITTANCE 1e-1\n"
+	"#define CLOUDS_TRANSMITTANCE_THRESHOLD 1.0 - CLOUDS_MIN_TRANSMITTANCE\n"
+	"#define SUN_DIR lightDirection\n"
+	"#define SUN_COLOR lightColor*vec3(1.1,1.1,0.95)\n"
+	"#define CLOUDS_AMBIENT_COLOR_TOP cloudColorTop\n"
+	"#define CLOUDS_AMBIENT_COLOR_BOTTOM cloudColorBottom\n"
+	"vec3 sphereCenter = vec3(0.0, -EARTH_RADIUS, 0.0);\n"
+	"float HG(float sundotrd, float g) {\n"
+	"	float gg = g * g;\n"
+	"	return (1. - gg) / pow(1. + gg - 2. * g * sundotrd, 1.5);\n"
+	"}\n"
+	"bool raySphereintersectionSkyMap(vec3 rd, float radius, out vec3 startPos) {\n"
+	"	float t;\n"
+	"	vec3 sphereCenter_ = vec3(0.0);\n"
+	"	float radius2 = radius*radius;\n"
+	"	vec3 L = -sphereCenter_;\n"
+	"	float a = dot(rd, rd);\n"
+	"	float b = 2.0 * dot(rd, L);\n"
+	"	float c = dot(L,L) - radius2;\n"
+	"	float discr = b*b - 4.0 * a * c;\n"
+	"	t = max(0.0, (-b + sqrt(discr))/2);\n"
+	"	startPos = rd*t;\n"
+	"	return true;\n"
+	"}\n"
+	"bool raySphereintersection(vec3 ro, vec3 rd, float radius, out vec3 startPos) {\n"
+	"	float t;\n"
+	"	sphereCenter.xz = cameraPosition.xz;\n"
+	"	float radius2 = radius*radius;\n"
+	"	vec3 L = ro - sphereCenter;\n"
+	"	float a = dot(rd, rd);\n"
+	"	float b = 2.0 * dot(rd, L);\n"
+	"	float c = dot(L,L) - radius2;\n"
+	"	float discr = b*b - 4.0 * a * c;\n"
+	"	if (discr < 0.0) return false;\n"
+	"	t = max(0.0, (-b + sqrt(discr))/2);\n"
+	"	if (t == 0.0) return false;\n"
+	"	startPos = ro + rd*t;\n"
+	"	return true;\n"
+	"}\n"
+	"bool raySphereintersection2(vec3 ro, vec3 rd, float radius, out vec3 startPos) {\n"
+	"	float t;\n"
+	"	sphereCenter.xz = cameraPosition.xz;\n"
+	"	float radius2 = radius*radius;\n"
+	"	vec3 L = ro - sphereCenter;\n"
+	"	float a = dot(rd, rd);\n"
+	"	float b = 2.0 * dot(rd, L);\n"
+	"	float c = dot(L,L) - radius2;\n"
+	"	float discr = b*b - 4.0 * a * c;\n"
+	"	if (discr < 0.0) return false;\n"
+	"	t = max(0.0, (-b + sqrt(discr))/2);\n"
+	"	if (t == 0.0) return false;\n"
+	"	startPos = ro + rd*t;\n"
+	"	return true;\n"
+	"}\n"
+	"vec3 getSun(const vec3 d, float powExp) {\n"
+	"	float sun = clamp(dot(SUN_DIR, d), 0.0, 1.0);\n"
+	"	vec3 col = 0.8*vec3(1.0,.6,0.1)*pow(sun, powExp);\n"
+	"	return col;\n"
+	"}\n"
+	"float getHeightFraction(vec3 inPos) {\n"
+	"	return (length(inPos - sphereCenter) - SPHERE_INNER_RADIUS)/(SPHERE_OUTER_RADIUS - SPHERE_INNER_RADIUS);\n"
+	"}\n"
+	"float remap(float originalValue, float originalMin, float originalMax, float newMin, float newMax) {\n"
+	"	return newMin + (((originalValue - originalMin) / (originalMax - originalMin)) * (newMax - newMin));\n"
+	"}\n"
+	"float getDensityForCloud(float heightFraction, float cloudType) {\n"
+	"	float stratusFactor = 1.0 - clamp(cloudType * 2.0, 0.0, 1.0);\n"
+	"	float stratoCumulusFactor = 1.0 - abs(cloudType - 0.5) * 2.0;\n"
+	"	float cumulusFactor = clamp(cloudType - 0.5, 0.0, 1.0) * 2.0;\n"
+	"	vec4 baseGradient = stratusFactor * STRATUS_GRADIENT + stratoCumulusFactor * STRATOCUMULUS_GRADIENT + cumulusFactor * CUMULUS_GRADIENT;\n"
+	"	return smoothstep(baseGradient.x, baseGradient.y, heightFraction) - smoothstep(baseGradient.z, baseGradient.w, heightFraction);\n"
+	"}\n"
+	"float threshold(const float v, const float t) {\n"
+	"	return v > t ? v : 0.0;\n"
+	"}\n"
+	"const vec3 windDirection = normalize(vec3(0.5, 0.0, 0.1));\n"
+	"vec2 getUVProjection(vec3 p) {\n"
+	"	return p.xz/SPHERE_INNER_RADIUS + 0.5;\n"
+	"}\n"
+	"#define CLOUD_TOP_OFFSET 750.0\n"
+	"#define SATURATE(x) clamp(x, 0.0, 1.0)\n"
+	"#define CLOUD_SCALE crispiness\n"
+	"#define CLOUD_SPEED cloudSpeed\n"
+	"uniform float curliness;\n"
+	"float sampleCloudDensity(vec3 p, bool expensive, float lod) {\n"
+	"	float heightFraction = getHeightFraction(p);\n"
+	"	vec3 animation = heightFraction * windDirection * CLOUD_TOP_OFFSET + windDirection * iTime * CLOUD_SPEED;\n"
+	"	vec2 uv = getUVProjection(p);\n"
+	"	vec2 moving_uv = getUVProjection(p + animation);\n"
+	"	if (heightFraction < 0.0 || heightFraction > 1.0) return 0.0;\n"
+	"	vec4 low_frequency_noise = textureLod(cloud, vec3(uv*CLOUD_SCALE, heightFraction), lod);\n"
+	"	float lowFreqFBM = dot(low_frequency_noise.gba, vec3(0.625, 0.25, 0.125));\n"
+	"	float base_cloud = remap(low_frequency_noise.r, -(1.0 - lowFreqFBM), 1., 0.0, 1.0);\n"
+	"	float density = getDensityForCloud(heightFraction, 1.0);\n"
+	"	base_cloud *= (density/heightFraction);\n"
+	"	vec3 weather_data = texture(weatherTex, moving_uv).rgb;\n"
+	"	float cloud_coverage = weather_data.r*coverage_multiplier;\n"
+	"	float base_cloud_with_coverage = remap(base_cloud, cloud_coverage, 1.0, 0.0, 1.0);\n"
+	"	base_cloud_with_coverage *= cloud_coverage;\n"
+	"	if (expensive) {\n"
+	"		vec3 erodeCloudNoise = textureLod(worley32, vec3(moving_uv*CLOUD_SCALE, heightFraction)*curliness, lod).rgb;\n"
+	"		float highFreqFBM = dot(erodeCloudNoise.rgb, vec3(0.625, 0.25, 0.125));\n"
+	"		float highFreqNoiseModifier = mix(highFreqFBM, 1.0 - highFreqFBM, clamp(heightFraction * 10.0, 0.0, 1.0));\n"
+	"		base_cloud_with_coverage = base_cloud_with_coverage - highFreqNoiseModifier * (1.0 - base_cloud_with_coverage);\n"
+	"		base_cloud_with_coverage = remap(base_cloud_with_coverage*2.0, highFreqNoiseModifier * 0.2, 1.0, 0.0, 1.0);\n"
+	"	}\n"
+	"	return clamp(base_cloud_with_coverage, 0.0, 1.0);\n"
+	"}\n"
+	"float beer(float d) {\n"
+	"	return exp(-d);\n"
+	"}\n"
+	"float powder(float d) {\n"
+	"	return (1. - exp(-2.*d));\n"
+	"}\n"
+	"float phase(vec3 inLightVec, vec3 inViewVec, float g) {\n"
+	"	float costheta = dot(inLightVec, inViewVec) / length(inLightVec) / length(inViewVec);\n"
+	"	return HG(costheta, g);\n"
+	"}\n"
+	"uniform float absorption = 0.0035;\n"
+	"float raymarchToLight(vec3 o, float stepSize, vec3 lightDir, float originalDensity, float lightDotEye) {\n"
+	"	vec3 startPos = o;\n"
+	"	float ds = stepSize * 6.0;\n"
+	"	vec3 rayStep = lightDir * ds;\n"
+	"	const float CONE_STEP = 1.0/6.0;\n"
+	"	float coneRadius = 1.0;\n"
+	"	float density = 0.0;\n"
+	"	float coneDensity = 0.0;\n"
+	"	float invDepth = 1.0/ds;\n"
+	"	float sigma_ds = -ds*absorption;\n"
+	"	vec3 pos;\n"
+	"	float T = 1.0;\n"
+	"	for (int i = 0; i < 6; i++) {\n"
+	"		pos = startPos + coneRadius*noiseKernel[i]*float(i);\n"
+	"		float heightFraction = getHeightFraction(pos);\n"
+	"		if (heightFraction >= 0.0) {\n"
+	"			float cloudDensity = sampleCloudDensity(pos, density > 0.3, i/16);\n"
+	"			if (cloudDensity > 0.0) {\n"
+	"				float Ti = exp(cloudDensity*sigma_ds);\n"
+	"				T *= Ti;\n"
+	"				density += cloudDensity;\n"
+	"			}\n"
+	"		}\n"
+	"		startPos += rayStep;\n"
+	"		coneRadius += CONE_STEP;\n"
+	"	}\n"
+	"	return T;\n"
+	"}\n"
+	"uniform bool enablePowder = false;\n"
+	"uniform float densityFactor = 0.02;\n"
+	"#define BAYER_FACTOR 1.0/16.0\n"
+	"uniform float bayerFilter[16u] = float[](\n"
+	"	0.0*BAYER_FACTOR, 8.0*BAYER_FACTOR, 2.0*BAYER_FACTOR, 10.0*BAYER_FACTOR,\n"
+	"	12.0*BAYER_FACTOR, 4.0*BAYER_FACTOR, 14.0*BAYER_FACTOR, 6.0*BAYER_FACTOR,\n"
+	"	3.0*BAYER_FACTOR, 11.0*BAYER_FACTOR, 1.0*BAYER_FACTOR, 9.0*BAYER_FACTOR,\n"
+	"	15.0*BAYER_FACTOR, 7.0*BAYER_FACTOR, 13.0*BAYER_FACTOR, 5.0*BAYER_FACTOR);\n"
+	"vec4 raymarchToCloud(vec3 startPos, vec3 endPos, vec3 bg, out vec4 cloudPos) {\n"
+	"	vec3 path = endPos - startPos;\n"
+	"	float len = length(path);\n"
+	"	const int nSteps = 64;\n"
+	"	float ds = len/nSteps;\n"
+	"	vec3 dir = path/len;\n"
+	"	dir *= ds;\n"
+	"	vec4 col = vec4(0.0);\n"
+	"	uvec2 fragCoord = gl_GlobalInvocationID.xy;\n"
+	"	int a = int(fragCoord.x) % 4;\n"
+	"	int b = int(fragCoord.y) % 4;\n"
+	"	startPos += dir * bayerFilter[a * 4 + b];\n"
+	"	vec3 pos = startPos;\n"
+	"	float density = 0.0;\n"
+	"	float lightDotEye = dot(normalize(SUN_DIR), normalize(dir));\n"
+	"	float T = 1.0;\n"
+	"	float sigma_ds = -ds*densityFactor;\n"
+	"	bool expensive = true;\n"
+	"	bool entered = false;\n"
+	"	for (int i = 0; i < nSteps; ++i) {\n"
+	"		float density_sample = sampleCloudDensity(pos, true, i/16);\n"
+	"		if (density_sample > 0.0) {\n"
+	"			if (!entered) { cloudPos = vec4(pos, 1.0); entered = true; }\n"
+	"			float height = getHeightFraction(pos);\n"
+	"			vec3 ambientLight = CLOUDS_AMBIENT_COLOR_BOTTOM;\n"
+	"			float light_density = raymarchToLight(pos, ds*0.1, SUN_DIR, density_sample, lightDotEye);\n"
+	"			float scattering = mix(HG(lightDotEye, -0.08), HG(lightDotEye, 0.08), clamp(lightDotEye*0.5 + 0.5, 0.0, 1.0));\n"
+	"			scattering = max(scattering, 1.0);\n"
+	"			float powderTerm = powder(density_sample);\n"
+	"			if (!enablePowder) powderTerm = 1.0;\n"
+	"			vec3 S = 0.6*(mix(mix(ambientLight*1.8, bg, 0.2), scattering*SUN_COLOR, powderTerm*light_density)) * density_sample;\n"
+	"			float dTrans = exp(density_sample*sigma_ds);\n"
+	"			vec3 Sint = (S - S * dTrans) * (1. / density_sample);\n"
+	"			col.rgb += T * Sint;\n"
+	"			T *= dTrans;\n"
+	"		}\n"
+	"		if (T <= CLOUDS_MIN_TRANSMITTANCE) break;\n"
+	"		pos += dir;\n"
+	"	}\n"
+	"	col.a = 1.0 - T;\n"
+	"	return col;\n"
+	"}\n"
+	"vec3 computeClipSpaceCoord(uvec2 fragCoord) {\n"
+	"	vec2 ray_nds = 2.0*vec2(fragCoord.xy)/iResolution.xy - 1.0;\n"
+	"	return vec3(ray_nds, 1.0);\n"
+	"}\n"
+	"float computeFogAmount(in vec3 startPos, in float factor) {\n"
+	"	float dist = length(startPos - cameraPosition);\n"
+	"	float radius = (cameraPosition.y - sphereCenter.y) * 0.3;\n"
+	"	float alpha = (dist / radius);\n"
+	"	return (1.-exp(-dist*alpha*factor));\n"
+	"}\n"
+	"void main() {\n"
+	"	ivec2 fragCoord = ivec2(gl_GlobalInvocationID.xy);\n"
+	"	if (fragCoord.x >= int(iResolution.x) || fragCoord.y >= int(iResolution.y)) return;\n"
+	"	vec4 ray_clip = vec4(computeClipSpaceCoord(fragCoord), 1.0);\n"
+	"	vec4 ray_view = inv_proj * ray_clip;\n"
+	"	ray_view = vec4(ray_view.xy, -1.0, 0.0);\n"
+	"	vec3 worldDir = normalize((inv_view * ray_view).xyz);\n"
+	"	vec3 startPos, endPos;\n"
+	"	vec3 cubeMapEndPos;\n"
+	"	raySphereintersectionSkyMap(worldDir, 0.5, cubeMapEndPos);\n"
+	"	vec4 bg = vec4(mix(skyColorBottom, skyColorTop, clamp(1.0 - exp(8.5 - 17.0*clamp(worldDir.y*0.5 + 0.5, 0.0, 1.0)), 0.0, 1.0)), 1.0);\n"
+	"	vec3 red = vec3(1.0);\n"
+	"	bg = mix(mix(red.rgbr, vec4(1.0), SUN_DIR.y), bg, pow(max(cubeMapEndPos.y+0.1, .0), 0.2));\n"
+	"	vec3 fogRay;\n"
+	"	bool hitInner, hitOuter;\n"
+	"	if (cameraPosition.y < SPHERE_INNER_RADIUS - EARTH_RADIUS) {\n"
+	"		hitInner = raySphereintersection(cameraPosition, worldDir, SPHERE_INNER_RADIUS, startPos);\n"
+	"		hitOuter = raySphereintersection(cameraPosition, worldDir, SPHERE_OUTER_RADIUS, endPos);\n"
+	"		if (!hitInner || !hitOuter) { imageStore(outClouds, fragCoord, vec4(0.0)); return; }\n"
+	"		fogRay = startPos;\n"
+	"	} else if (cameraPosition.y > SPHERE_INNER_RADIUS - EARTH_RADIUS && cameraPosition.y < SPHERE_OUTER_RADIUS - EARTH_RADIUS) {\n"
+	"		startPos = cameraPosition;\n"
+	"		hitOuter = raySphereintersection(cameraPosition, worldDir, SPHERE_OUTER_RADIUS, endPos);\n"
+	"		if (!hitOuter) { imageStore(outClouds, fragCoord, vec4(0.0)); return; }\n"
+	"		bool h = raySphereintersection(cameraPosition, worldDir, SPHERE_INNER_RADIUS, fogRay);\n"
+	"		if (!h) fogRay = startPos;\n"
+	"	} else {\n"
+	"		hitOuter = raySphereintersection2(cameraPosition, worldDir, SPHERE_OUTER_RADIUS, startPos);\n"
+	"		bool h2 = raySphereintersection2(cameraPosition, worldDir, SPHERE_INNER_RADIUS, endPos);\n"
+	"		hitInner = h2;\n"
+	"		if (!hitOuter || !hitInner) { imageStore(outClouds, fragCoord, vec4(0.0)); return; }\n"
+	"		hitOuter = raySphereintersection(cameraPosition, worldDir, SPHERE_OUTER_RADIUS, fogRay);\n"
+	"	}\n"
+	"	float fogAmount = computeFogAmount(fogRay, 0.00006);\n"
+	"	if (fogAmount > 0.965) { imageStore(outClouds, fragCoord, vec4(0.0)); return; }\n"
+	"	vec4 cloudPos;\n"
+	"	vec4 v = raymarchToCloud(startPos, endPos, bg.rgb, cloudPos);\n"
+	"	float cloudAlphaness = threshold(v.a, 0.2);\n"
+	"	v.rgb = v.rgb*1.8 - 0.1;\n"
+	"	v.rgb = mix(v.rgb, bg.rgb*v.a, clamp(fogAmount, 0., 1.));\n"
+	"	float sun = clamp(dot(SUN_DIR, normalize(endPos - startPos)), 0.0, 1.0);\n"
+	"	vec3 s = 0.8*vec3(1.0,0.4,0.2)*pow(sun, 256.0);\n"
+	"	v.rgb += s*v.a;\n"
+	"	imageStore(outClouds, fragCoord, vec4(v.rgb, cloudAlphaness));\n"
+	"}\n";
+
+// Fullscreen textured vertex shader (far depth, like Tier-A) for the composite.
+static const char* vertexSourceSkyDynTextured =
+	"#version 330 core\n"
+	"layout(location = 0) in vec2 aPos;\n"
+	"layout(location = 1) in vec2 aTexCoord;\n"
+	"out vec2 vTexCoord;\n"
+	"void main() {\n"
+	"    gl_Position = vec4(aPos, 1.0, 1.0);\n"
+	"    vTexCoord = aTexCoord;\n"
+	"}\n";
+
+// Composite: cloud buffer (rgb + alpha) over the framebuffer sky.
+static const char* fragmentSourceSkyDynComposite =
+	"#version 330 core\n"
+	"in vec2 vTexCoord;\n"
+	"uniform sampler2D uClouds;\n"
+	"out vec4 FragColor;\n"
+	"void main() {\n"
+	"    vec4 c = texture(uClouds, vTexCoord);\n"
+	"    FragColor = vec4(c.rgb, c.a);\n"
+	"}\n";
+
+static GLuint s_progClouds = 0;
+static GLint s_clRes = -1;
+static GLint s_clTime = -1;
+static GLint s_clInvProj = -1;
+static GLint s_clInvView = -1;
+static GLint s_clCamPos = -1;
+static GLint s_clLightDir = -1;
+static GLint s_clLightColor = -1;
+static GLint s_clSkyTop = -1;
+static GLint s_clSkyBottom = -1;
+static GLint s_clCloudTop = -1;
+static GLint s_clCloudBottom = -1;
+static GLint s_clSampCloud = -1;
+static GLint s_clSampWorley = -1;
+static GLint s_clSampWeather = -1;
+static GLint s_clCoverage = -1;
+static GLint s_clSpeed = -1;
+static GLint s_clCrisp = -1;
+static GLint s_clCurl = -1;
+static GLint s_clAbsorb = -1;
+static GLint s_clDensity = -1;
+static GLint s_clEarthR = -1;
+static GLint s_clInnerR = -1;
+static GLint s_clOuterR = -1;
+
+static GLuint s_compProg = 0;
+static GLint s_cpClouds = -1;
+
+static GLuint s_cloudTex = 0;
+static int s_cloudW = 0;
+static int s_cloudH = 0;
+static qboolean s_cloudAnnounced = false;
+
 qboolean GL3_SkyDyn_Init(void)
 {
 	// Probe compute-shader support. Context is 4.6 Core (gl3_SDL.c), but
@@ -1297,6 +1661,82 @@ qboolean GL3_SkyDyn_Init(void)
 		}
 	}
 
+	// Phase 4: volumetric cloud raymarch + composite programs.
+	if (GLAD_GL_VERSION_4_3)
+	{
+		s_progClouds = GL3_CreateComputeProgram(computeSourceClouds);
+		if (s_progClouds == 0)
+		{
+			ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: cloud raymarch program failed — r_volclouds unavailable.\n");
+		}
+		else
+		{
+			s_clRes = glGetUniformLocation(s_progClouds, "iResolution");
+			s_clTime = glGetUniformLocation(s_progClouds, "iTime");
+			s_clInvProj = glGetUniformLocation(s_progClouds, "inv_proj");
+			s_clInvView = glGetUniformLocation(s_progClouds, "inv_view");
+			s_clCamPos = glGetUniformLocation(s_progClouds, "cameraPosition");
+			s_clLightDir = glGetUniformLocation(s_progClouds, "lightDirection");
+			s_clLightColor = glGetUniformLocation(s_progClouds, "lightColor");
+			s_clSkyTop = glGetUniformLocation(s_progClouds, "skyColorTop");
+			s_clSkyBottom = glGetUniformLocation(s_progClouds, "skyColorBottom");
+			s_clCloudTop = glGetUniformLocation(s_progClouds, "cloudColorTop");
+			s_clCloudBottom = glGetUniformLocation(s_progClouds, "cloudColorBottom");
+			s_clSampCloud = glGetUniformLocation(s_progClouds, "cloud");
+			s_clSampWorley = glGetUniformLocation(s_progClouds, "worley32");
+			s_clSampWeather = glGetUniformLocation(s_progClouds, "weatherTex");
+			s_clCoverage = glGetUniformLocation(s_progClouds, "coverage_multiplier");
+			s_clSpeed = glGetUniformLocation(s_progClouds, "cloudSpeed");
+			s_clCrisp = glGetUniformLocation(s_progClouds, "crispiness");
+			s_clCurl = glGetUniformLocation(s_progClouds, "curliness");
+			s_clAbsorb = glGetUniformLocation(s_progClouds, "absorption");
+			s_clDensity = glGetUniformLocation(s_progClouds, "densityFactor");
+			s_clEarthR = glGetUniformLocation(s_progClouds, "earthRadius");
+			s_clInnerR = glGetUniformLocation(s_progClouds, "sphereInnerRadius");
+			s_clOuterR = glGetUniformLocation(s_progClouds, "sphereOuterRadius");
+		}
+
+		// Composite program (textured FSQ vertex + cloud blend fragment).
+		{
+			const GLuint vert = SkyDyn_CompileShader(GL_VERTEX_SHADER, vertexSourceSkyDynTextured);
+			const GLuint frag = SkyDyn_CompileShader(GL_FRAGMENT_SHADER, fragmentSourceSkyDynComposite);
+			if (vert != 0 && frag != 0)
+			{
+				const GLuint prog = glCreateProgram();
+				glAttachShader(prog, vert);
+				glAttachShader(prog, frag);
+				glLinkProgram(prog);
+				{
+					GLint ok = 0;
+					glGetProgramiv(prog, GL_LINK_STATUS, &ok);
+					if (!ok)
+					{
+						char info_log[512];
+						glGetProgramInfoLog(prog, sizeof(info_log), NULL, info_log);
+						ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: composite program link error: %s\n", info_log);
+						glDeleteProgram(prog);
+					}
+					else
+					{
+						s_compProg = prog;
+						glDetachShader(s_compProg, vert);
+						glDetachShader(s_compProg, frag);
+					}
+				}
+			}
+			if (vert != 0)
+				glDeleteShader(vert);
+			if (frag != 0)
+				glDeleteShader(frag);
+		}
+
+		if (s_compProg != 0)
+			s_cpClouds = glGetUniformLocation(s_compProg, "uClouds");
+
+		if (s_progClouds != 0 && s_compProg != 0)
+			ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: Tier-B volumetric clouds ready (r_volclouds to enable).\n");
+	}
+
 	return true;
 }
 
@@ -1342,13 +1782,37 @@ void GL3_SkyDyn_Shutdown(void)
 	s_dbgAnnounced = false;
 	s_lastSeed = s_lastFreq = -1.0e30f;
 
+	if (s_progClouds != 0)
+	{
+		glDeleteProgram(s_progClouds);
+		s_progClouds = 0;
+	}
+	if (s_compProg != 0)
+	{
+		glDeleteProgram(s_compProg);
+		s_compProg = 0;
+	}
+	if (s_cloudTex != 0)
+	{
+		glDeleteTextures(1, &s_cloudTex);
+		s_cloudTex = 0;
+	}
+	s_cloudW = s_cloudH = 0;
+	s_cloudAnnounced = false;
+	s_clRes = s_clTime = s_clInvProj = s_clInvView = s_clCamPos = -1;
+	s_clLightDir = s_clLightColor = s_clSkyTop = s_clSkyBottom = -1;
+	s_clCloudTop = s_clCloudBottom = -1;
+	s_clSampCloud = s_clSampWorley = s_clSampWeather = -1;
+	s_clCoverage = s_clSpeed = s_clCrisp = s_clCurl = s_clAbsorb = s_clDensity = -1;
+	s_clEarthR = s_clInnerR = s_clOuterR = -1;
+	s_cpClouds = -1;
+
 	if (s_skyProg != 0)
 	{
 		glDeleteProgram(s_skyProg);
 		s_skyProg = 0;
 	}
 	s_uResolution = s_uInvProj = s_uInvView = s_uLightDir = s_uSkyTop = s_uSkyBottom = -1;
-	// Phase 4 will delete cloud FBOs here.
 }
 
 qboolean GL3_SkyDyn_Enabled(void)
@@ -1408,4 +1872,139 @@ void GL3_SkyDyn_DrawTierA(void)
 	// depth loses to all opaque geometry via LEQUAL, like legacy sky quads.
 	glBindVertexArray(gl3state.vaoFSQ);
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+}
+
+void GL3_SkyDyn_DrawClouds(void)
+{
+	float top[3], bottom[3], sunDir[3];
+	float invProj[16], invView[16];
+	float fw, fh, res;
+	int cw, ch, preset;
+	GLboolean blend_was_enabled;
+	GLint blend_src, blend_dst;
+
+	// Gates: cvars + GL 4.3 + programs + noise + main pass only.
+	if (!GL3_SkyDyn_VolumetricEnabled())
+		return;
+	if (!GLAD_GL_VERSION_4_3 || s_progClouds == 0 || s_compProg == 0)
+		return;
+	if (s_perlinTex == 0 || s_worleyTex == 0 || s_weatherTex == 0)
+		return;
+	if (R_IsReflectionPass())
+		return; // Half the cost: reflection reuses the main-pass framebuffer result.
+
+	// Cloud buffer size follows the framebuffer, scaled by r_cloud_res.
+	fw = (gl3state.fbo_width > 0) ? (float)gl3state.fbo_width : (float)viddef.width;
+	fh = (gl3state.fbo_height > 0) ? (float)gl3state.fbo_height : (float)viddef.height;
+	res = (r_cloud_res != NULL) ? r_cloud_res->value : 0.5f;
+	if (res < 0.1f)
+		res = 0.1f;
+	if (res > 1.0f)
+		res = 1.0f;
+	cw = (int)(fw * res);
+	ch = (int)(fh * res);
+	if (cw < 1)
+		cw = 1;
+	if (ch < 1)
+		ch = 1;
+
+	if (s_cloudTex == 0 || cw != s_cloudW || ch != s_cloudH)
+	{
+		if (s_cloudTex != 0)
+			glDeleteTextures(1, &s_cloudTex);
+		s_cloudTex = 0;
+		s_cloudW = s_cloudH = 0;
+		glGenTextures(1, &s_cloudTex);
+		glBindTexture(GL_TEXTURE_2D, s_cloudTex);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, cw, ch, 0, GL_RGBA, GL_FLOAT, NULL);
+		glBindTexture(GL_TEXTURE_2D, 0);
+		s_cloudW = cw;
+		s_cloudH = ch;
+		s_cloudAnnounced = false;
+	}
+
+	preset = (r_sky_preset != NULL) ? (int)r_sky_preset->value : 2;
+	if (preset < 0 || preset > 2)
+		preset = 2;
+	if (preset == 2)
+		preset = 0; // auto tracks day until Phase 6 sun-cycle
+	SkyDyn_Preset(preset, top, bottom, sunDir);
+
+	if (!SkyDyn_InvertMatrix(r_projection_matrix, invProj))
+		return;
+	if (!SkyDyn_InvertMatrix(r_world_matrix, invView))
+		return;
+
+	// --- Raymarch (compute) ---
+	GL3_UseShader(s_progClouds);
+	glUniform2f(s_clRes, (float)cw, (float)ch);
+	glUniform1f(s_clTime, r_newrefdef.time);
+	glUniformMatrix4fv(s_clInvProj, 1, GL_FALSE, invProj);
+	glUniformMatrix4fv(s_clInvView, 1, GL_FALSE, invView);
+	glUniform3f(s_clCamPos, r_origin[0], r_origin[1], r_origin[2]);
+	glUniform3f(s_clLightDir, sunDir[0], sunDir[1], sunDir[2]);
+	glUniform3f(s_clLightColor, 1.0f, 1.0f, 230.0f / 255.0f);
+	glUniform3f(s_clSkyTop, top[0], top[1], top[2]);
+	glUniform3f(s_clSkyBottom, bottom[0], bottom[1], bottom[2]);
+	glUniform3f(s_clCloudTop, 169.0f * 1.5f / 255.0f, 149.0f * 1.5f / 255.0f, 149.0f * 1.5f / 255.0f);
+	glUniform3f(s_clCloudBottom, 65.0f * 1.5f / 255.0f, 70.0f * 1.5f / 255.0f, 80.0f * 1.5f / 255.0f);
+	glUniform1f(s_clCoverage, (r_cloud_coverage != NULL) ? r_cloud_coverage->value : 0.45f);
+	glUniform1f(s_clSpeed, (r_cloud_speed != NULL) ? r_cloud_speed->value : 450.0f);
+	glUniform1f(s_clCrisp, (r_cloud_crisp != NULL) ? r_cloud_crisp->value : 40.0f);
+	glUniform1f(s_clCurl, (r_cloud_curl != NULL) ? r_cloud_curl->value : 0.1f);
+	glUniform1f(s_clAbsorb, ((r_cloud_absorb != NULL) ? r_cloud_absorb->value : 0.35f) * 0.01f);
+	glUniform1f(s_clDensity, (r_cloud_density != NULL) ? r_cloud_density->value : 0.02f);
+	glUniform1f(s_clEarthR, 600000.0f);
+	glUniform1f(s_clInnerR, (r_cloud_base != NULL) ? r_cloud_base->value : 1500.0f);
+	glUniform1f(s_clOuterR, (r_cloud_thick != NULL) ? r_cloud_thick->value : 4500.0f);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_3D, s_perlinTex);
+	glUniform1i(s_clSampCloud, 0);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_3D, s_worleyTex);
+	glUniform1i(s_clSampWorley, 1);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, s_weatherTex);
+	glUniform1i(s_clSampWeather, 2);
+
+	GL3_BindImageTexture(0, s_cloudTex, GL_FALSE, GL_WRITE_ONLY, GL_RGBA16F);
+	glDispatchCompute((GLuint)((cw + 15) / 16), (GLuint)((ch + 15) / 16), 1);
+	GL3_MemoryBarrierCompute();
+
+	// --- Composite (graphics): cloud rgb+alpha over the framebuffer sky ---
+	GL3_UseShader(s_compProg);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, s_cloudTex);
+	glUniform1i(s_cpClouds, 0);
+
+	glGetBooleanv(GL_BLEND, &blend_was_enabled);
+	glGetIntegerv(GL_BLEND_SRC_RGB, &blend_src);
+	glGetIntegerv(GL_BLEND_DST_RGB, &blend_dst);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	// Caller state: depth test on + writes off + cull/clip off; FSQ at far
+	// depth loses to opaque geometry via LEQUAL (free occlusion).
+	glBindVertexArray(gl3state.vaoFSQ);
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	glBlendFunc((GLenum)blend_src, (GLenum)blend_dst);
+	if (!blend_was_enabled)
+		glDisable(GL_BLEND);
+
+	// Restore: unit 0 active, game-texture cache invalidated (raw binds above).
+	glActiveTexture(GL_TEXTURE0);
+	gl_state.currenttextures[0] = -1;
+	gl_state.currenttextures[1] = -1;
+
+	if (!s_cloudAnnounced)
+	{
+		s_cloudAnnounced = true;
+		ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: volumetric clouds on (%dx%d, res=%.2f)\n", cw, ch, res);
+	}
 }

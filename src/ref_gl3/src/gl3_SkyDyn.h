@@ -42,3 +42,9 @@ extern void GL3_SkyDyn_Update(void);
 // Fullscreen noise debug view (r_cloud_debug 1 = weather, 2 = perlin slice,
 // 3 = worley slice). Returns true when a view was drawn (caller skips sky).
 extern qboolean GL3_SkyDyn_DrawDebug(void);
+
+// Tier-B volumetric clouds (Phase 4): raymarch at r_cloud_res scale into an
+// offscreen buffer, then alpha-blend over the sky. Skipped in the reflection
+// pass (main-pass result is reused by water automatically since it lives in
+// the framebuffer). Caller must have depth writes off + cull off.
+extern void GL3_SkyDyn_DrawClouds(void);

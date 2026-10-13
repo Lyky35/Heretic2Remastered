@@ -139,6 +139,8 @@ cvar_t* r_cloud_curl;
 cvar_t* r_cloud_absorb;
 cvar_t* r_cloud_seed;
 cvar_t* r_cloud_freq;
+cvar_t* r_cloud_base;
+cvar_t* r_cloud_thick;
 cvar_t* r_cloud_debug;
 cvar_t* r_cloud_blur;
 cvar_t* r_cloud_godrays;

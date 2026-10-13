@@ -236,3 +236,19 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `7f020f90` pushed, R8.7 Beta asset refreshed. Retest ask: `r_cloud_debug 1/2/3` should now show noise.
+
+## 2026-10-13 — Phase 4 volumetric clouds (Tier-B raymarch + composite)
+
+Steps:
+1. Added `R_IsReflectionPass()` getter (`gl3_Surface.{h,c}`, next to the setter) for the reflection skip.
+   - Reason: cloud compute must not run twice per frame (main + reflection); reflection reuses the main-pass framebuffer result.
+2. Authored adapted `computeSourceClouds` (~330 GLSL lines, embedded directly): source raymarch core kept verbatim (dome intersect, 64-step march + Bayer jitter, 6-tap light march with Beer/HG/powder, height-gradient density, weather-gated coverage, worley erosion, fog, sun glare); changed: single `rgba16f` output (rgb+alpha, no bg baked in), no sky/depth inputs (bg used for lighting only, rebuilt from preset uniforms), dome via `r_cloud_base`/`r_cloud_thick`, miss/fog early-outs store alpha 0. Fixed two ordering hazards while writing (ambient defines + Bayer table before use). New `r_cloud_base` (1500) / `r_cloud_thick` (4500) cvars (extern Local.h, define Main.c, register SkyDyn.c).
+   - Reason: Option-B composite (blend over already-drawn Tier-A/legacy sky) avoids an extra sky FBO; H2-scale dome; soft-fail preserved.
+3. C plumbing in `gl3_SkyDyn.c`: cloud/composite program creation + ~25 uniform locations at init (`Tier-B ... ready` message); `GL3_SkyDyn_DrawClouds()` — gates (cvars, GL 4.3, programs, noise, main pass), cloud buffer (RGBA16F/LINEAR/CLAMP, follows framebuffer × `r_cloud_res`, recreated on resize), uniforms (matrices inverted, `r_newrefdef.time`, Tier-A sun/preset colors, all `r_cloud_*` knobs, absorption ×0.01 like source), samplers 0-2 + image 0 dispatch `(w+15)/16`, barrier, then composite FSQ (`vertexSourceSkyDynTextured` far-depth + blend SRC_ALPHA/ONE_MINUS_SRC_ALPHA with save/restore, cache invalidation, one-time announce). `Shutdown` deletes all. `gl3_Sky.c` hook after sky quads (cull/clip off, depth writes off — ideal FSQ state), before aurora/stars tail.
+   - Reason: far-depth composite gives free correct occlusion for high clouds via LEQUAL; documented Phase-5 limits (low-cloud overlap, stars-on-top).
+4. Rebuilt all targets (zero warnings/errors), verified `volumetric clouds on` string in staged DLL, updated in-zip README (Tier-B steps + tuning + known limits), repackaged Beta zip (gitignored, R8.6-compatible layout).
+   - Reason: tester needs new binaries + instructions in one drop.
+5. Next: commit + push, move `R8_7_Beta` tag, re-upload asset, rewrite release notes for Tier-B.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).
