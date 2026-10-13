@@ -155,7 +155,7 @@ Steps:
    - Reason: init-only verification per plan — proves the real Phase 3/4 shader path works on the user's driver at startup, with soft-fail (volumetrics disabled, Tier-A unaffected) instead of a crash.
 3. Build-checked: mingw `ref_gl3` rebuilt, zero warnings/errors.
    - Reason: verify helpers compile clean before committing; runtime probe output will be confirmed from the user's Windows test.
-4. Next: `git add` modified files, commit, `git push origin Beta`.
+4. Ran `git add` (gl3_Shaders.c/h, gl3_SkyDyn.c, PROGRESS.md), commit `e8525e50`, `git push origin Beta` — succeeded (`46039da0..e8525e50`).
    - Reason: complete "commit and push after each portion" for this Phase 2 portion.
 
-Result: pending push (see next entry update after push).
+Result: `e8525e50` pushed to `origin/Beta`. Suggested next portion: Phase 3 noise generation (perlinworley 128^3 + worley 32^3 + weather 1024^2 + `r_cloud_debug` slice view).
