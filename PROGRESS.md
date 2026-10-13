@@ -432,7 +432,7 @@ Steps:
    - Reason: verify, don't assume — link + format string checked explicitly.
 3. Rebuilt all (zero warnings/errors), repackaged, staged.
    - Reason: ship to tester.
-4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+4. Ran `git add` (gl3_SkyDyn.c/h, gl3_Shaders.c, PROGRESS.md), commit `9ac5eacd` (+51/-17), `git push origin Beta`; moved tag `R8_7_Beta`; `gh release upload --clobber` (6660184 bytes, updated 2026-10-13T23:47:26Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `9ac5eacd` pushed, R8.7 Beta asset refreshed. Darkmire water = your height x 0.05 (0.15 at default 3); console shows `waves x0.05`.
