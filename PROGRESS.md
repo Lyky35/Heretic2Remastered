@@ -91,7 +91,7 @@ Steps:
    - Reason: MSVC + mingw-CMake (which parses vcxproj) both pick up the new file with one edit.
 7. Build-checked: `cmake -B /tmp/opencode/h2-build -S . -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-toolchain.cmake` (configure OK) + `cmake --build /tmp/opencode/h2-build --target ref_gl3 -j8` — built 100%, including `gl3_SkyDyn.c.obj`, linked `build/ref_gl3.dll` (gitignored via `/build/**`).
    - Reason: verify no compile/link errors before committing; proves vcxproj wiring works for both toolchains.
-8. Next: `git add` new + modified files, commit, `git push origin Beta`.
+8. Ran `git add` (gl3_SkyDyn.c/h, gl3_Local.h, gl3_Main.c, ref_gl3.vcxproj, PROGRESS.md), commit `e575b6ad`, `git push origin Beta` — succeeded (`2a5f5efb..e575b6ad`).
    - Reason: complete "commit and push after each portion" for this Phase 0 portion.
 
-Result: pending push (see next entry update after push).
+Result: `e575b6ad` pushed to `origin/Beta`. Suggested next portion: Phase 1 Tier-A gradient sky + sun (`fragmentSourceSkyDyn` + FSQ + presets + `R_DrawSkyBox` hook).
