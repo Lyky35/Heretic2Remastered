@@ -252,3 +252,18 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `16be0b4c` pushed, R8.7 Beta asset refreshed with Tier-B. Retest ask: `r_dynsky 1` + `r_volclouds 1` cloud look, FPS at res 0.5/1.0, occlusion, stars-on-top.
+
+## 2026-10-13 — Fix Tier-B feedback: legacy bg + vertical panning (axis bug)
+
+Report: with `r_volclouds 1`, old textured skybox shows through; clouds look vertically panned. Volumetrics confirmed working.
+Steps:
+1. Legacy-bg cause (static): `dynSky = Enabled && !Volumetric && TierAReady` — leftover from the plan's "Tier B takes over" idea — forced the legacy 6-face path whenever volumetrics were on, while Phase 4 composites over the framebuffer (and lights clouds with preset colors). Changed to `Enabled && TierAReady` so Tier-A gradient is the backdrop under clouds (`gl3_Sky.c`).
+   - Reason: predictable, matching backdrop; legacy+clouds can return later as an explicit mode if wanted.
+2. Vertical-pan cause: H2 world is Z-up, ported shaders are Y-up. Tier-A gradient/sun used `worldDir.y` + Y-up sun (sideways gradient, sun stuck at horizon); Tier-B dome math (center snap, height fraction, UV projection, height-case branches) ran on wrong axes (deck placed sideways, case logic driven by a horizontal coord). Fixed: Tier-A frag gradient now `worldDir.z`, sun swizzled (x,z,y) at upload; Tier-B ray dirs swizzled `worldDir.xzy` in-shader + camera passed (x,z,y); presets documented as Y-up canonical. Tier-B lighting bg already uses post-swizzle `.y` — correct as-is.
+   - Reason: single conversion point per path; note Tier-A look changes too (gradient now vertical, day sun overhead — correct).
+3. Rebuilt all targets (zero warnings/errors), repackaged Beta zip (gitignored), staged fresh binaries.
+   - Reason: ship both fixes together (cloud placement can't be judged with wrong bg/axes).
+4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

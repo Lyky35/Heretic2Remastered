@@ -67,9 +67,10 @@ static const char* vertexSourceSkyDyn =
 	"    gl_Position = vec4(aPos, 1.0, 1.0);\n"
 	"}\n";
 
-// Fragment shader: gradient mix(bottom, top, 1-exp(...)) by view-Y + sun disc,
-// i.e. TerrainEngine colorCubeMap() + getSun(d, 350). Ray reconstructed from
-// gl_FragCoord via inverse proj/view, exactly like the source.
+// Fragment shader: gradient mix(bottom, top, 1-exp(...)) by view-Z (H2 is Z-up)
+// + sun disc, i.e. TerrainEngine colorCubeMap() + getSun(d, 350) adapted from
+// Y-up to Z-up. Ray reconstructed from gl_FragCoord via inverse proj/view,
+// exactly like the source.
 static const char* fragmentSourceSkyDyn =
 	"#version 330 core\n"
 	"uniform vec2 uResolution;\n"
@@ -90,7 +91,7 @@ static const char* fragmentSourceSkyDyn =
 	"    ray_view = vec4(ray_view.xy, -1.0, 0.0);\n"
 	"    vec3 worldDir = normalize((uInvView * ray_view).xyz);\n"
 	"    vec3 col = mix(uSkyBottom, uSkyTop,\n"
-	"        clamp(1.0 - exp(8.5 - 17.0 * clamp(worldDir.y * 0.5 + 0.5, 0.0, 1.0)), 0.0, 1.0));\n"
+	"        clamp(1.0 - exp(8.5 - 17.0 * clamp(worldDir.z * 0.5 + 0.5, 0.0, 1.0)), 0.0, 1.0));\n"
 	"    col += getSun(worldDir, 350.0);\n"
 	"    FragColor = vec4(col, 1.0);\n"
 	"}\n";
@@ -214,6 +215,8 @@ static qboolean SkyDyn_InvertMatrix(const float* m, float* out)
 }
 
 // TerrainEngine Skybox presets (DefaultPreset / SunsetPreset1), flattened.
+// Canonical form is Y-up (high sunDir.y = overhead): Tier-B consumes it as-is
+// (its shader converts rays to Y-up); Tier-A swizzles to H2 Z-up at upload.
 static void SkyDyn_Preset(int preset, float* top, float* bottom, float* sunDir)
 {
 	if (preset == 1) // sunset: low warm sun
@@ -1470,6 +1473,7 @@ static const char* computeSourceClouds =
 	"	vec4 ray_view = inv_proj * ray_clip;\n"
 	"	ray_view = vec4(ray_view.xy, -1.0, 0.0);\n"
 	"	vec3 worldDir = normalize((inv_view * ray_view).xyz);\n"
+	"	worldDir = worldDir.xzy; // H2 world is Z-up; dome math below is Y-up.\n"
 	"	vec3 startPos, endPos;\n"
 	"	vec3 cubeMapEndPos;\n"
 	"	raySphereintersectionSkyMap(worldDir, 0.5, cubeMapEndPos);\n"
@@ -1864,7 +1868,8 @@ void GL3_SkyDyn_DrawTierA(void)
 	glUniform2f(s_uResolution, width, height);
 	glUniformMatrix4fv(s_uInvProj, 1, GL_FALSE, invProj);
 	glUniformMatrix4fv(s_uInvView, 1, GL_FALSE, invView);
-	glUniform3f(s_uLightDir, sunDir[0], sunDir[1], sunDir[2]);
+	// Preset sun is Y-up canonical; H2 world is Z-up: swizzle (x, z, y).
+	glUniform3f(s_uLightDir, sunDir[0], sunDir[2], sunDir[1]);
 	glUniform3f(s_uSkyTop, top[0], top[1], top[2]);
 	glUniform3f(s_uSkyBottom, bottom[0], bottom[1], bottom[2]);
 
@@ -1945,7 +1950,9 @@ void GL3_SkyDyn_DrawClouds(void)
 	glUniform1f(s_clTime, r_newrefdef.time);
 	glUniformMatrix4fv(s_clInvProj, 1, GL_FALSE, invProj);
 	glUniformMatrix4fv(s_clInvView, 1, GL_FALSE, invView);
-	glUniform3f(s_clCamPos, r_origin[0], r_origin[1], r_origin[2]);
+	// H2 world is Z-up; shader dome math is Y-up: swizzle camera (x, z, y).
+	// (Ray dirs are swizzled in-shader; sun/preset stays Y-up canonical.)
+	glUniform3f(s_clCamPos, r_origin[0], r_origin[2], r_origin[1]);
 	glUniform3f(s_clLightDir, sunDir[0], sunDir[1], sunDir[2]);
 	glUniform3f(s_clLightColor, 1.0f, 1.0f, 230.0f / 255.0f);
 	glUniform3f(s_clSkyTop, top[0], top[1], top[2]);
