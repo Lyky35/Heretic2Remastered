@@ -130,6 +130,7 @@ cvar_t* r_antialiasing;
 cvar_t* r_dynsky;
 cvar_t* r_volclouds;
 cvar_t* r_sky_preset;
+cvar_t* r_sky_levels;
 cvar_t* r_cloud_res;
 cvar_t* r_cloud_coverage;
 cvar_t* r_cloud_speed;

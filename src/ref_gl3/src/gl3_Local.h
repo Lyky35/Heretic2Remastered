@@ -78,6 +78,7 @@ extern cvar_t* r_shadows;
 extern cvar_t* r_dynsky;         // Tier A master switch (gradient sky). 0 = off (legacy 6-face sky).
 extern cvar_t* r_volclouds;      // Tier B master switch (volumetric clouds). Requires r_dynsky + GL 4.3+.
 extern cvar_t* r_sky_preset;     // 0 = day, 1 = sunset, 2 = auto (day), 3 = night + moon.
+extern cvar_t* r_sky_levels;      // 1 = auto-apply per-level sky look on map load.
 extern cvar_t* r_cloud_res;      // Cloud buffer scale (0.5 = half-res).
 extern cvar_t* r_cloud_coverage;
 extern cvar_t* r_cloud_speed;

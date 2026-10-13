@@ -331,3 +331,20 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `0a862ef6` pushed, R8.7 Beta asset refreshed with new water defaults.
+
+## 2026-10-13 — Cloud defaults + per-level sky presets
+
+Requests: `r_cloud_res 1`, `r_cloud_base 3500`, `r_cloud_thick 2500`; can `r_dynsky` be pre-defined per level?
+Steps:
+1. Defaults set exactly as asked (`gl3_SkyDyn.c` register + matching fallbacks in `DrawClouds`): res 1, base 3500, thick 2500.
+   - Reason: as requested, no extras. Same archived-vars.rc caveat as water: existing installs keep old values until reset.
+2. Explored level identity: renderer already keys maps off `r_worldmodel->name` substrings (`R_IsSilverpringMap`: ssdocks/sswarehouse/sstown/sspalace; `R_IsDarkmireSwampMap`: dmireswamp, `gl3_Sky.c:189-208`). Cvar API supports the mechanism: `cvar_t.modified` (`q_shared.h:244`) + `ri.Cvar_Set` (`ref.h:294`).
+   - Reason: reuse the established convention instead of inventing identification.
+3. Implemented `skylevels[]` table + `SkyDyn_ApplyLevelSky()` (`gl3_SkyDyn.c`), called from `GL3_SkyDyn_Update()` (runs every `R_DrawSkyBox`, so ordering vs map load doesn't matter): ss->day/0.35, dmire->sunset/0.70, default->auto/0.45. Applies once per map and only to never-touched cvars (own sets clear `modified` again, so next map re-applies; console/vars.rc touches set `modified` and are respected forever). Skipped entirely when `r_dynsky 0` or new `r_sky_levels 0` (master switch, default 1, archived). One console line per map load states what happened.
+   - Reason: level art direction by default, user settings always win, kill-switch included.
+4. In-zip README: per-level paragraph. Rebuilt all (zero warnings/errors), repackaged, staged.
+   - Reason: ship to tester with docs.
+5. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

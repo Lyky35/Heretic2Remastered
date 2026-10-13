@@ -19,6 +19,7 @@
 
 #include <SDL3/SDL.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <math.h>
 #include <string.h>
@@ -34,9 +35,11 @@ void GL3_SkyDyn_RegisterCvars(void)
 
 	// Tier A: gradient-sky preset. 0 = day, 1 = sunset, 2 = auto (day), 3 = night + moon.
 	r_sky_preset = ri.Cvar_Get("r_sky_preset", "2", CVAR_ARCHIVE);
+	// Per-level auto look (table in SkyDyn_ApplyLevelSky, applied on map change).
+	r_sky_levels = ri.Cvar_Get("r_sky_levels", "1", CVAR_ARCHIVE);
 
 	// Tier B tuning (TerrainEngine defaults; rescaled later in Phase 4).
-	r_cloud_res = ri.Cvar_Get("r_cloud_res", "0.5", CVAR_ARCHIVE); // render scale
+	r_cloud_res = ri.Cvar_Get("r_cloud_res", "1", CVAR_ARCHIVE); // render scale
 	r_cloud_coverage = ri.Cvar_Get("r_cloud_coverage", "0.45", CVAR_ARCHIVE);
 	r_cloud_speed = ri.Cvar_Get("r_cloud_speed", "450.0", CVAR_ARCHIVE);
 	r_cloud_density = ri.Cvar_Get("r_cloud_density", "0.02", CVAR_ARCHIVE);
@@ -45,8 +48,8 @@ void GL3_SkyDyn_RegisterCvars(void)
 	r_cloud_absorb = ri.Cvar_Get("r_cloud_absorb", "0.35", CVAR_ARCHIVE);
 	r_cloud_seed = ri.Cvar_Get("r_cloud_seed", "0", CVAR_ARCHIVE);
 	r_cloud_freq = ri.Cvar_Get("r_cloud_freq", "0.8", CVAR_ARCHIVE);
-	r_cloud_base = ri.Cvar_Get("r_cloud_base", "1500.0", CVAR_ARCHIVE);
-	r_cloud_thick = ri.Cvar_Get("r_cloud_thick", "4500.0", CVAR_ARCHIVE);
+	r_cloud_base = ri.Cvar_Get("r_cloud_base", "3500.0", CVAR_ARCHIVE);
+	r_cloud_thick = ri.Cvar_Get("r_cloud_thick", "2500.0", CVAR_ARCHIVE);
 	r_cloud_debug = ri.Cvar_Get("r_cloud_debug", "0", 0);
 	r_cloud_blur = ri.Cvar_Get("r_cloud_blur", "1", CVAR_ARCHIVE);
 	r_cloud_godrays = ri.Cvar_Get("r_cloud_godrays", "0", CVAR_ARCHIVE);
@@ -1189,10 +1192,93 @@ static void SkyDyn_GenNoise(qboolean force)
 	SkyDyn_LogTexStats("weather", GL_TEXTURE_2D, s_weatherTex, SKYDYN_WEATHER_SIZE, SKYDYN_WEATHER_SIZE, 1);
 }
 
+// Per-level dynamic-sky look (r_sky_levels master switch).
+// Level identity = r_worldmodel->name substring, same convention as
+// R_IsSilverpringMap / R_IsDarkmireSwampMap in gl3_Sky.c. Applied once per
+// map, and only to cvars the user never touched (cvar->modified): user tweaks
+// (console or archived vars.rc) always win; untouched cvars follow the table.
+typedef struct
+{
+	const char* match; // strstr on the map name; NULL = default row (must be last)
+	int preset;        // r_sky_preset
+	float coverage;    // r_cloud_coverage
+} skylevel_t;
+
+static const skylevel_t skylevels[] = {
+	{ "ss", 0, 0.35f },    // Silverspring (ssdocks/sswarehouse/sstown/sspalace): bright day
+	{ "dmire", 1, 0.70f }, // Darkmire swamp: low warm sun, heavy cover
+	{ NULL, 2, 0.45f },    // everything else: auto day, medium cover
+};
+
+static char s_appliedMap[64] = { 0 };
+
+static void SkyDyn_ApplyLevelSky(void)
+{
+	const char* mapname;
+	const skylevel_t* row;
+	char val[32];
+	qboolean userTouched;
+
+	if (r_sky_levels == NULL || (int)r_sky_levels->value == 0)
+		return;
+	if (r_dynsky == NULL || (int)r_dynsky->value == 0)
+		return; // dynamic sky off: leave every cvar alone
+	if (r_worldmodel == NULL || r_worldmodel->name[0] == '\0')
+	{
+		s_appliedMap[0] = '\0';
+		return;
+	}
+
+	mapname = r_worldmodel->name;
+	if (strcmp(mapname, s_appliedMap) == 0)
+		return;
+
+	row = &skylevels[sizeof(skylevels) / sizeof(skylevels[0]) - 1];
+	for (size_t i = 0; i < sizeof(skylevels) / sizeof(skylevels[0]); i++)
+	{
+		if (skylevels[i].match != NULL && strstr(mapname, skylevels[i].match) != NULL)
+		{
+			row = &skylevels[i];
+			break;
+		}
+	}
+
+	strncpy(s_appliedMap, mapname, sizeof(s_appliedMap) - 1);
+	s_appliedMap[sizeof(s_appliedMap) - 1] = '\0';
+
+	userTouched = false;
+	if (r_sky_preset != NULL && !r_sky_preset->modified)
+	{
+		snprintf(val, sizeof(val), "%d", row->preset);
+		ri.Cvar_Set("r_sky_preset", val);
+		r_sky_preset->modified = false; // ours, not the user's: re-apply next map
+	}
+	else
+		userTouched = true;
+	if (r_cloud_coverage != NULL && !r_cloud_coverage->modified)
+	{
+		snprintf(val, sizeof(val), "%.2f", (double)row->coverage);
+		ri.Cvar_Set("r_cloud_coverage", val);
+		r_cloud_coverage->modified = false;
+	}
+	else
+		userTouched = true;
+
+	if (userTouched)
+		ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: level sky %s keeps your settings (preset=%d coverage=%.2f)\n",
+			mapname, (r_sky_preset != NULL) ? (int)r_sky_preset->value : 2,
+			(r_cloud_coverage != NULL) ? r_cloud_coverage->value : 0.45f);
+	else
+		ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: level sky %s -> preset %d, coverage %.2f\n",
+			mapname, row->preset, row->coverage);
+}
+
 void GL3_SkyDyn_Update(void)
 {
 	// Regen check is two float compares when nothing changed.
 	SkyDyn_GenNoise(false);
+	// Per-level look, applied once per map (cheap name compare afterwards).
+	SkyDyn_ApplyLevelSky();
 }
 
 qboolean GL3_SkyDyn_DrawDebug(void)
@@ -1968,7 +2054,7 @@ void GL3_SkyDyn_DrawClouds(void)
 	// Cloud buffer size follows the framebuffer, scaled by r_cloud_res.
 	fw = (gl3state.fbo_width > 0) ? (float)gl3state.fbo_width : (float)viddef.width;
 	fh = (gl3state.fbo_height > 0) ? (float)gl3state.fbo_height : (float)viddef.height;
-	res = (r_cloud_res != NULL) ? r_cloud_res->value : 0.5f;
+	res = (r_cloud_res != NULL) ? r_cloud_res->value : 1.0f;
 	if (res < 0.1f)
 		res = 0.1f;
 	if (res > 1.0f)
@@ -2052,8 +2138,8 @@ void GL3_SkyDyn_DrawClouds(void)
 	glUniform1f(s_clAbsorb, ((r_cloud_absorb != NULL) ? r_cloud_absorb->value : 0.35f) * 0.01f);
 	glUniform1f(s_clDensity, (r_cloud_density != NULL) ? r_cloud_density->value : 0.02f);
 	glUniform1f(s_clEarthR, 600000.0f);
-	glUniform1f(s_clInnerR, (r_cloud_base != NULL) ? r_cloud_base->value : 1500.0f);
-	glUniform1f(s_clOuterR, (r_cloud_thick != NULL) ? r_cloud_thick->value : 4500.0f);
+	glUniform1f(s_clInnerR, (r_cloud_base != NULL) ? r_cloud_base->value : 3500.0f);
+	glUniform1f(s_clOuterR, (r_cloud_thick != NULL) ? r_cloud_thick->value : 2500.0f);
 
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_3D, s_perlinTex);
