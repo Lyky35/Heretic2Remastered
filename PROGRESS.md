@@ -109,7 +109,7 @@ Steps:
    - Reason: minimal diff; aurora/stars still get sky-space modelview; `r_dynsky 0` path is byte-identical logic to before.
 5. Build-checked: mingw `ref_gl3` rebuilt 100% linked; forced recompile of `gl3_SkyDyn.c` + `gl3_Sky.c` shows zero warnings/errors.
    - Reason: verify Tier-A compiles clean before committing; no runtime test available on this Linux host (Windows game).
-6. Next: `git add` modified files, commit, `git push origin Beta`.
+6. Ran `git add` (gl3_SkyDyn.c/h, gl3_Sky.c, PROGRESS.md), commit `0050c1ac`, `git push origin Beta` — succeeded (`3a17c5aa..0050c1ac`).
    - Reason: complete "commit and push after each portion" for this Phase 1 portion.
 
-Result: pending push (see next entry update after push).
+Result: `0050c1ac` pushed to `origin/Beta`. Manual test on Windows still needed: `r_dynsky 1`, `r_sky_preset 0/1/2`, check gradient + sun disc, `r_dynsky 0` regression, Silverpring aurora/stars on top. Suggested next portion: Phase 2 compute + 3D-texture infrastructure.
