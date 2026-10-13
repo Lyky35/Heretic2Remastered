@@ -327,7 +327,7 @@ Steps:
    - Reason: as requested. Note: height 3 with summed wave amps ~3.9 gives swells up to ~11 units — watch for clipping through docks/geometry; sharp 0 removes crest bite entirely.
 2. Rebuilt, repackaged, staged.
    - Reason: ship to tester. Caveat: CVAR_ARCHIVE values persist in existing vars.rc — old installs keep prior values until reset/deleted; fresh installs get the new defaults.
-3. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+3. Ran `git add` (gl3_Main.c, gl3_Shaders.c, PROGRESS.md), commit `0a862ef6`, `git push origin Beta`; moved tag `R8_7_Beta`; `gh release upload --clobber` (6658206 bytes, updated 2026-10-13T22:53:28Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `0a862ef6` pushed, R8.7 Beta asset refreshed with new water defaults.
