@@ -41,3 +41,25 @@ Steps:
    - Reason: complete the "commit and push after each portion" portion for this workflow-setup change.
 
 Result: `PROGRESS.md` committed as `41e01e0f` and pushed to `origin/Beta`. Future changes will append to this file first, then commit+push per portion. Note: `fxstaff_debug.log` left untracked (not part of this change).
+
+## 2026-10-13 — Plan dynamic sky + clouds from TerrainEngine-OpenGL (no code yet)
+
+Steps:
+1. Cloned `fede-vaccaro/TerrainEngine-OpenGL` (shallow, to `/tmp/opencode/TerrainEngine-OpenGL`) via `gh repo clone`.
+   - Reason: need source sky/cloud implementation locally to read exact shaders and uniforms instead of guessing from web.
+2. Read source sky path: `DrawableObjects/Skybox.{h,cpp}`, `shaders/sky.frag`, `skyboxVert.vert`.
+   - Reason: understand Tier-A gradient+sun background and preset system (day/sunset lerp by sun height) that clouds composite over.
+3. Read source cloud path: `VolumetricClouds.{h,cpp}`, `CloudsModel.{h,cpp}`, `shaders/volumetric_clouds.comp` (571 lines, full read in 2 chunks), `weather.comp`, `clouds_post.frag`.
+   - Reason: capture dome model (earth 600k / inner 5k / outer 17k), 64-step + 6-tap light march, perlinworley 128^3 + worley 32^3 + weather 1024^2, uniforms, fog/god-ray/post flow for the plan.
+4. Measured shader sizes (`wc -l`) and dispatch sizes (`16x16` compute, `1024/8` weather).
+   - Reason: quantify port cost (compute + 3D textures + half-res composite) vs H2's current 2D-only pipeline.
+5. Delegated H2 sky research to explore subagent (Quake2 `ref_gl3`/`ref_gl1` sky, GL version, FBO/compute support, build).
+   - Reason: parallelize; subagent returned file:line-grounded findings (6-face skybox `gl3_Sky.c:1080`, GL 4.6 ctx + GLSL 330 strings, no 3D/compute, `MAX_TEXTURE_UNITS 2`, MSVC+mingw build).
+6. Verified key H2 facts directly: read `gl3_Sky.c:1080-1139 R_DrawSkyBox`, `grep` for `DispatchCompute/TexImage3D` (0 hits), `gl3_Shaders.c` `#version 330` + `CreateProgram`.
+   - Reason: confirm subagent claims before writing plan; avoids planning against wrong GL/shader assumptions.
+7. Wrote `DYNAMIC_SKY_PLAN.md` (source analysis + target analysis + 2-tier strategy + Phases 0-7 + files/risks/acceptance).
+   - Reason: user asked for a plan (not code yet); 2-tier (A: gradient sky, B: volumetric compute) keeps `ref_gl1` + old sky as fallback and isolates risk.
+8. Next: `git add DYNAMIC_SKY_PLAN.md PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion" for this planning portion.
+
+Result: pending push (see next entry update after push).
