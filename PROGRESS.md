@@ -417,7 +417,7 @@ Steps:
    - Reason: level-scoped ask gets a level-scoped change; personal knob untouched.
 2. Rebuilt, repackaged, staged.
    - Reason: ship to tester.
-3. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+3. Ran `git add` (gl3_SkyDyn.c, PROGRESS.md), commit `12eafb60`, `git push origin Beta`; moved tag `R8_7_Beta`; `gh release upload --clobber` (6660043 bytes, updated 2026-10-13T23:41:28Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `12eafb60` pushed, R8.7 Beta asset refreshed. Console shows `fog x0.25` on Darkmire load.
