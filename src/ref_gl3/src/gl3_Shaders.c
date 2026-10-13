@@ -611,7 +611,11 @@ void GL3_BindImageTexture(GLuint unit, GLuint tex, GLboolean layered, GLenum acc
 
 void GL3_MemoryBarrierCompute(void)
 {
-	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	// Image writes must be visible to everything that follows: further image
+	// access, glGenerateMipmap (reads the base level as a texture fetch), and
+	// sampler reads. SHADER_IMAGE_ACCESS alone is NOT enough — strict drivers
+	// (e.g. AMD RDNA) will otherwise sample stale/zero data (black noise).
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT | GL_TEXTURE_UPDATE_BARRIER_BIT);
 }
 
 // ============================================================

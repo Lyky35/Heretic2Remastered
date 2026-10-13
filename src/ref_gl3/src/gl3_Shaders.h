@@ -77,4 +77,7 @@ extern GLuint GL3_MakeTexture3D(int width, int height, int depth, GLenum interna
 extern GLuint GL3_MakeTexture2D(int width, int height, GLenum internalFormat);
 // Whole-level (level 0) image binding: layered=GL_TRUE for 3D noise, GL_FALSE for 2D.
 extern void GL3_BindImageTexture(GLuint unit, GLuint tex, GLboolean layered, GLenum access, GLenum format);
+// Full visibility barrier after compute writes: image access + texture fetch
+// (samplers, glGenerateMipmap) + texture update. Call again after
+// glGenerateMipmap so the new mip levels are visible to samplers.
 extern void GL3_MemoryBarrierCompute(void);

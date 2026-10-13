@@ -189,7 +189,22 @@ Steps:
    - Reason: tester gets one self-contained drop-in with instructions matching the new binaries.
 4. Moved tag: `git tag -f -a R8_7_Beta` (now Phase 1-3) + `git push -f origin R8_7_Beta` (forced update `d45dbe26..45bf3901`); `gh release upload R8_7_Beta <zip> --clobber` (asset now 6649863 bytes, updated 2026-10-13T21:41:44Z); `gh release edit` notes rewritten for Phases 1-3; release stays prerelease (R8.6 remains latest stable).
    - Reason: user asked to update R8.7 Beta in place; force-moving a Beta prerelease tag is safe and keeps one download URL.
-5. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+5. Ran `git add PROGRESS.md`, commit `15911df8`, `git push origin Beta` — succeeded.
    - Reason: complete "commit and push after each portion" for this release-update portion.
 
-Result: pending push (see next entry update after push).
+Result: `15911df8` pushed to `origin/Beta`. R8.7 Beta release updated to Phase 1-3 binaries (same URL).
+
+## 2026-10-13 — Fix black noise views: full memory barriers (AMD)
+
+Report: `r_cloud_debug 1-3` fullscreen black on 7900XTX / GL 4.6.0 (SilverSprings); no FAILED lines; Tier-A gradient + sun works; only sky area black.
+Steps:
+1. Diagnosed from report: Tier-A works -> FSQ/uniform/resolution path fine. No FAILED -> all programs linked, textures created (non-zero IDs). All 3 views black -> all noise samplers return zeros. Cause: after `imageStore` writes, only `GL_SHADER_IMAGE_ACCESS_BARRIER_BIT` was issued — visible to further image access but NOT to `glGenerateMipmap` (reads base as texture fetch) nor sampler reads (`GL_TEXTURE_FETCH_BARRIER_BIT`). NVIDIA coheres anyway (source project never hit it); AMD RDNA is strict -> mips/samples read stale zeros -> black. Tier-A uses no textures -> unaffected. Matches every reported symptom.
+   - Reason: fix the actual spec violation instead of guessing; also required for Phase 4 (same hazard in the cloud pass).
+2. `gl3_Shaders.c` `GL3_MemoryBarrierCompute()` now issues `SHADER_IMAGE_ACCESS | TEXTURE_FETCH | TEXTURE_UPDATE`; header comment updated (call again after mipmap gen). `gl3_SkyDyn.c` `SkyDyn_GenNoise()` issues the barrier after each of the 3 `glGenerateMipmap` calls.
+   - Reason: image writes -> visible to mipmap gen; mip writes -> visible to samplers; one helper keeps Phase 4 correct by default.
+3. Rebuilt all targets (no errors), repackaged `release/HereticIIRemastered_R8_7_Beta.zip` (gitignored, same R8.6-compatible layout), verified fresh `ref_gl3.dll` in stage.
+   - Reason: tester needs new binaries.
+4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset, verify.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

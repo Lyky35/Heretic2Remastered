@@ -1022,6 +1022,7 @@ static void SkyDyn_GenNoise(qboolean force)
 			glBindTexture(GL_TEXTURE_3D, s_perlinTex);
 			glGenerateMipmap(GL_TEXTURE_3D);
 			glBindTexture(GL_TEXTURE_3D, 0);
+			GL3_MemoryBarrierCompute(); // mip writes -> visible to samplers
 		}
 	}
 
@@ -1038,6 +1039,7 @@ static void SkyDyn_GenNoise(qboolean force)
 			glBindTexture(GL_TEXTURE_3D, s_worleyTex);
 			glGenerateMipmap(GL_TEXTURE_3D);
 			glBindTexture(GL_TEXTURE_3D, 0);
+			GL3_MemoryBarrierCompute(); // mip writes -> visible to samplers
 		}
 	}
 
@@ -1057,6 +1059,7 @@ static void SkyDyn_GenNoise(qboolean force)
 		glBindTexture(GL_TEXTURE_2D, s_weatherTex);
 		glGenerateMipmap(GL_TEXTURE_2D);
 		glBindTexture(GL_TEXTURE_2D, 0);
+		GL3_MemoryBarrierCompute(); // mip writes -> visible to samplers
 	}
 
 	s_lastSeed = seed;
