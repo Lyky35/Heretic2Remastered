@@ -280,7 +280,7 @@ Steps:
    - Reason: tester-facing docs stay accurate.
 4. Rebuilt all targets (zero warnings/errors), repackaged Beta zip (gitignored), staged fresh binaries.
    - Reason: ship to tester.
-5. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+5. Ran `git add` (gl3_SkyDyn.c/h, PROGRESS.md), commit `80a02f85`, `git push origin Beta`; moved tag `R8_7_Beta`; `gh release upload --clobber` (6656988 bytes, updated 2026-10-13T22:34:27Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `80a02f85` pushed, R8.7 Beta asset refreshed. Retest ask: clouds visible in water.
