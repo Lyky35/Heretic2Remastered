@@ -204,7 +204,7 @@ Steps:
    - Reason: image writes -> visible to mipmap gen; mip writes -> visible to samplers; one helper keeps Phase 4 correct by default.
 3. Rebuilt all targets (no errors), repackaged `release/HereticIIRemastered_R8_7_Beta.zip` (gitignored, same R8.6-compatible layout), verified fresh `ref_gl3.dll` in stage.
    - Reason: tester needs new binaries.
-4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset, verify.
+4. Ran `git add` (gl3_Shaders.c/h, gl3_SkyDyn.c, PROGRESS.md), commit `e3c2922f`, `git push origin Beta` (`15911df8..e3c2922f`); moved tag `R8_7_Beta` (`45bf3901..3440ed16`, forced); `gh release upload --clobber` (asset 6649865 bytes, updated 2026-10-13T21:55:57Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `e3c2922f` pushed to `origin/Beta`, R8.7 Beta asset refreshed. Retest ask: `r_cloud_debug 1/2/3` views + whether `noise generated` line changed.
