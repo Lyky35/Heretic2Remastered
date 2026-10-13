@@ -37,5 +37,7 @@ Steps:
    - Reason: align remote URL with working SSH auth (matches `gh` config `Git operations protocol: ssh`); preserves same repo, only changes transport.
 4. Created this `PROGRESS.md` file.
    - Reason: log every step + reason per instruction, starting now.
-5. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+5. Ran `git add PROGRESS.md`, `git commit -m "docs: add PROGRESS.md workflow log for Beta branch"`, `git push origin Beta` — succeeded (`d4495920..41e01e0f Beta -> Beta`).
    - Reason: complete the "commit and push after each portion" portion for this workflow-setup change.
+
+Result: `PROGRESS.md` committed as `41e01e0f` and pushed to `origin/Beta`. Future changes will append to this file first, then commit+push per portion. Note: `fxstaff_debug.log` left untracked (not part of this change).
