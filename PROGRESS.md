@@ -447,7 +447,7 @@ Steps:
    - Reason: one-time self-repair; real user settings (modified) untouched by construction.
 3. Rebuilt (zero warnings/errors), repackaged, staged.
    - Reason: ship to tester.
-4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+4. Ran `git add` (gl3_SkyDyn.c, PROGRESS.md), commit `b2e3219c` (+33), `git push origin Beta`; moved tag `R8_7_Beta`; `gh release upload --clobber` (6660252 bytes, updated 2026-10-13T23:51:59Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `b2e3219c` pushed, R8.7 Beta asset refreshed. Auto is now genuinely automatic, including for upgraders.
