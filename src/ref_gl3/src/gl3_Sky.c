@@ -8,6 +8,7 @@
 #include "gl3_Sky.h"
 #include "gl3_Image.h"
 #include "gl3_Shaders.h"
+#include "gl3_SkyDyn.h"
 #include "Vector.h"
 
 #include <math.h>
@@ -1081,7 +1082,12 @@ void R_DrawSkyBox(void)
 {
 	static const int skytexorder[] = { 0, 2, 1, 3, 4, 5 };
 
-	if (sky_images[0] == NULL)
+	// Tier-A dynamic sky (Phase 1): fullscreen gradient + sun, no textures needed.
+	// Falls back to the legacy 6-face path when disabled, when Tier B takes over
+	// (Phase 4), or when the Tier-A program failed to compile.
+	const qboolean dynSky = (GL3_SkyDyn_Enabled() && !GL3_SkyDyn_VolumetricEnabled() && GL3_SkyDyn_TierAReady()) ? true : false;
+
+	if (!dynSky && sky_images[0] == NULL)
 		return;
 
 	// Disable depth writes to ensure skybox is always drawn behind everything.
@@ -1152,6 +1158,14 @@ void R_DrawSkyBox(void)
 	glGetBooleanv(GL_CLIP_DISTANCE0, &clip_was_enabled);
 	glDisable(GL_CLIP_DISTANCE0);
 
+	if (dynSky)
+	{
+		// Tier-A: fullscreen gradient + sun at far depth. The sky modelview
+		// uploaded above is left in place for aurora/stars below (which use
+		// GL3_Draw3DPoly in sky space); the FSQ program ignores modelview.
+		GL3_SkyDyn_DrawTierA();
+	}
+	else
 	for (int i = 0; i < 6; i++)
 	{
 		// Always force full sky to draw to avoid culling artifacts.

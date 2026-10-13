@@ -95,3 +95,21 @@ Steps:
    - Reason: complete "commit and push after each portion" for this Phase 0 portion.
 
 Result: `e575b6ad` pushed to `origin/Beta`. Suggested next portion: Phase 1 Tier-A gradient sky + sun (`fragmentSourceSkyDyn` + FSQ + presets + `R_DrawSkyBox` hook).
+
+## 2026-10-13 — Phase 1 Tier-A gradient + sun sky
+
+Steps:
+1. Inspected Tier-A integration points: `gl3_Shaders.c` embedded GLSL pattern (`CreateProgram` vert+frag, `#version 330`), FSQ VAO (`vaoFSQ`, pos2+tc2, `TRIANGLE_STRIP`) + `GL3_UseShader` tracker, `gl3_Sky.c:1080-1235 R_DrawSkyBox` (depthmask off, sky_mv upload, cull/clip disable, 6 quads, aurora/stars tail, modelview restore), column-major `r_world_matrix`/`r_projection_matrix` (`GL_FALSE` upload), `gl3state.fbo_width/height`, `viddef` in `vid.h`.
+   - Reason: Tier-A must reuse FSQ + shader conventions, preserve aurora/stars/particles tail, and reconstruct rays from inverse matrices exactly like source `sky.frag`.
+2. Rewrote `gl3_SkyDyn.h`: added `GL3_SkyDyn_TierAReady()` + `GL3_SkyDyn_DrawTierA()` declarations.
+   - Reason: hook needs a readiness gate so shader-compile failure falls back to legacy sky instead of drawing nothing.
+3. Rewrote `gl3_SkyDyn.c`: embedded `vertexSourceSkyDyn` (FSQ layout, `gl_Position = vec4(aPos,1,1)` -> NDC far depth so LEQUAL keeps all opaque in front, like legacy clipdist quads) + `fragmentSourceSkyDyn` (port of TerrainEngine `colorCubeMap` gradient + `getSun(d,350)`, ray via `uInvProj/uInvView` + `gl_FragCoord/uResolution`); `SkyDyn_CompileShader` + `SkyDyn_InitTierA` (link, cache 6 uniform locations); `SkyDyn_InvertMatrix` (column-major 4x4 adjugate); `SkyDyn_Preset` (day top `0.525,0.735,0.84`/bottom `0.9,0.9,0.95`/sun `0.35,0.75,0.30`; sunset top `133,158,214`/bottom `241,161,161`/sun `0.85,0.14,0.25`; auto(2)->day until Phase 6 sun-cycle); `Init` now builds Tier-A (warn-and-continue on fail), `Shutdown` deletes program, `DrawTierA` inverts matrices, picks preset, sets uniforms, draws `vaoFSQ` strip. Added `#include "vid.h"` for `viddef` fallback size.
+   - Reason: keep GLSL 330 (no version bump needed for Tier-A); far-depth FSQ preserves depth behavior; presets match source `DefaultPreset/SunsetPreset1`; soft-fail keeps old sky on any error.
+4. Edited `gl3_Sky.c`: `#include "gl3_SkyDyn.h"`; `R_DrawSkyBox` computes `dynSky = Enabled && !Volumetric && TierAReady`, skips the `sky_images==NULL` early-out when Tier-A (no textures needed), and branches after cull/clip disable: Tier-A FSQ vs legacy 6-quad loop. Sky_mv upload + aurora/stars + clip/cull/modelview restore + swamp tail unchanged.
+   - Reason: minimal diff; aurora/stars still get sky-space modelview; `r_dynsky 0` path is byte-identical logic to before.
+5. Build-checked: mingw `ref_gl3` rebuilt 100% linked; forced recompile of `gl3_SkyDyn.c` + `gl3_Sky.c` shows zero warnings/errors.
+   - Reason: verify Tier-A compiles clean before committing; no runtime test available on this Linux host (Windows game).
+6. Next: `git add` modified files, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion" for this Phase 1 portion.
+
+Result: pending push (see next entry update after push).
