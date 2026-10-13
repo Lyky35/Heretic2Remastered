@@ -1085,6 +1085,9 @@ void R_DrawSkyBox(void)
 	// Tier-A dynamic sky (Phase 1): fullscreen gradient + sun, no textures needed.
 	// Falls back to the legacy 6-face path when disabled, when Tier B takes over
 	// (Phase 4), or when the Tier-A program failed to compile.
+	GL3_SkyDyn_Update(); // Phase 3: weather-map regen on r_cloud_seed/freq change.
+	if (GL3_SkyDyn_DrawDebug())
+		return; // Phase 3: fullscreen noise view (r_cloud_debug 1-3), replaces sky.
 	const qboolean dynSky = (GL3_SkyDyn_Enabled() && !GL3_SkyDyn_VolumetricEnabled() && GL3_SkyDyn_TierAReady()) ? true : false;
 
 	if (!dynSky && sky_images[0] == NULL)

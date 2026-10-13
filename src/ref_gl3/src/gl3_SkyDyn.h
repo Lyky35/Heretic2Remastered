@@ -33,3 +33,12 @@ extern qboolean GL3_SkyDyn_TierAReady(void);
 // uploaded for aurora/stars, and draws the particle tail afterwards.
 // No-op if Tier A is not ready.
 extern void GL3_SkyDyn_DrawTierA(void);
+
+// Per-frame maintenance: regenerates the weather map when r_cloud_seed /
+// r_cloud_freq changed (perlin/worley are generated once). Cheap (float compares).
+// Called at the top of R_DrawSkyBox.
+extern void GL3_SkyDyn_Update(void);
+
+// Fullscreen noise debug view (r_cloud_debug 1 = weather, 2 = perlin slice,
+// 3 = worley slice). Returns true when a view was drawn (caller skips sky).
+extern qboolean GL3_SkyDyn_DrawDebug(void);

@@ -159,3 +159,21 @@ Steps:
    - Reason: complete "commit and push after each portion" for this Phase 2 portion.
 
 Result: `e8525e50` pushed to `origin/Beta`. Suggested next portion: Phase 3 noise generation (perlinworley 128^3 + worley 32^3 + weather 1024^2 + `r_cloud_debug` slice view).
+
+## 2026-10-13 — Phase 3 noise generation + debug views
+
+Steps:
+1. Read source noise mains + dispatch setup: `perlinworley.comp`/`worley.comp` (local 4^3, `rgba8` image3D binding 0, mains use `gl_GlobalInvocationID` directly, hardcoded 128.0/32.0 divisors, no uniforms consumed), `weather.comp` (local 16x16, `rgba8` image2D binding 0, uniforms `seed`/`perlinFrequency=0.8`), `CloudsModel.cpp` dispatches. Found source over-dispatches weather (1024/8 groups of 16 = 2x coverage, OOB imageStores).
+   - Reason: exact port needs dispatch math + uniform names; OOB over-dispatch is not copied (exact 1024/16 used instead).
+2. Confirmed MIT license on TerrainEngine-OpenGL (attribution header added in `gl3_SkyDyn.c`), no usable ms-timer in `refimport_t` (used `SDL_GetTicks` via `<SDL3/SDL.h>`, already an include dir), texture-cache invalidation pattern (`gl_state.currenttextures[] = -1`, as in `gl3_Image.c:928`).
+   - Reason: embed shaders legally; time one-time gen cost; avoid stale-cache corruption from raw sampler binds in the debug view.
+3. C logic in `gl3_SkyDyn.c`: `SkyDyn_GenNoise(force)` (perlin 128^3 @32^3 groups once, worley 32^3 @8^3 groups once, weather 1024^2 @64x64 groups on `r_cloud_seed`/`r_cloud_freq` change; `GL3_UseShader` for compute programs so the program tracker never desyncs; barrier + mipmap regen; ms timing + `glGetError` report), `GL3_SkyDyn_Update()` (two-float early-out, called from `R_DrawSkyBox` top), `GL3_SkyDyn_DrawDebug()` (modes 1 weather / 2 perlin slice / 3 worley slice, FSQ, raw binds + cache invalidation + depth restore, returns drawn flag). New `r_cloud_freq` cvar (extern `gl3_Local.h`, define `gl3_Main.c`, register `gl3_SkyDyn.c`). `Init` creates 3 compute + 1 debug program, runs first gen; `Shutdown` deletes all. `gl3_Sky.c` hook: `Update()` + early `DrawDebug()` return (replaces sky, keeps depth state safe).
+   - Reason: one-time cost at init, weather-only regen afterwards; debug views validate noise before Phase 4 raymarch; all failures soft (Tier-A/legacy unaffected).
+4. Embedded the 3 shaders verbatim via `/tmp/opencode/embed_shaders.py` (placeholder markers replaced; only change: latin-1 `á`->`a` in a weather comment to keep the C file ASCII-clean). Verified: 696 literal lines (315+289+92), distinctive lines present, no `??`/`\`/`"` hazards.
+   - Reason: hand-transcribing ~700 GLSL lines risks typos; codegen guarantees byte fidelity (script is a local tool, not committed).
+5. Build-checked: mingw `ref_gl3` rebuilt 100%, linked, zero warnings/errors.
+   - Reason: verify before committing; runtime output (`noise generated in Xms`, `r_cloud_debug 1/2/3` views) needs Windows test.
+6. Next: `git add` modified files, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion" for this Phase 3 portion.
+
+Result: pending push (see next entry update after push).
