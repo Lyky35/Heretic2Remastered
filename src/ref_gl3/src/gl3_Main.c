@@ -210,7 +210,9 @@ static void R_Fog(void)
 	const float fog_g = r_fog_color_g->value;
 	const float fog_b = r_fog_color_b->value;
 
-	GL3_SetFog(1, mode, fog_r, fog_g, fog_b, r_fog_density->value, r_fog_startdist->value, r_farclipdist->value);
+	// Per-level fog scale (e.g. Darkmire thinned): the server owns the density
+	// cvar (per-frame lerp), so the level multiplier applies here instead.
+	GL3_SetFog(1, mode, fog_r, fog_g, fog_b, r_fog_density->value * GL3_SkyDyn_FogScale(), r_fog_startdist->value, r_farclipdist->value);
 
 	glClearColor(fog_r, fog_g, fog_b, r_fog_color_a->value);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

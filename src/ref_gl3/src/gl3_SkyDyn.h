@@ -43,6 +43,11 @@ extern void GL3_SkyDyn_Update(void);
 // 3 = worley slice). Returns true when a view was drawn (caller skips sky).
 extern qboolean GL3_SkyDyn_DrawDebug(void);
 
+// Fog-density multiplier for the current map (1.0 = untouched). The server
+// owns r_fog_density (per-frame lerp), so levels scale it at consumption time
+// in R_Fog() instead of latching the cvar.
+extern float GL3_SkyDyn_FogScale(void);
+
 // Tier-B volumetric clouds (Phase 4): raymarch at r_cloud_res scale into an
 // offscreen buffer, then alpha-blend over the sky. Runs in the reflection
 // pass too (mirrored camera state is current there), so water reflects clouds.

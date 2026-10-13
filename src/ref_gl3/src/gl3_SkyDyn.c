@@ -1222,25 +1222,29 @@ typedef struct
 	const char* match; // strstr on the map name; NULL = default row (must be last)
 	int preset;        // r_sky_preset
 	float coverage;    // r_cloud_coverage
+	float fogScale;    // multiplier on server-driven r_fog_density (map fog varies
+	                   // per area via trigger_fogdensity; a latch would lose to the
+	                   // per-frame client lerp, so this scales at consumption)
 } skylevel_t;
 
 static const skylevel_t skylevels[] = {
 	// NOTE: first match wins — "hive" precedes "ss" because hivepriestess
 	// contains "ss" ("...tess"). Both are night today, order keeps it robust.
-	{ "hive", 3, 0.55f },      // K'Chekrik hive 1/2, trial pit, priestess: night
-	{ "gauntlet", 3, 0.55f },  // The gauntlet: night
-	{ "ss", 3, 0.40f },        // Silverspring (docks/warehouse/town/palace): night
-	{ "dmire", 4, 0.55f },     // Darkmire swamp: morning mist
-	{ "and", 0, 0.35f },       // Andoria (healer/plaza/slums/academic): day
-	{ "kellcaves", 5, 0.50f }, // Kell caves: evening
-	{ "canyon", 5, 0.50f },    // Katlit'k canyon: evening
-	{ "oglemine", 0, 0.30f },  // Ogle mines 1/2: day
-	{ "dungeon", 0, 0.30f },   // Morcalavin's dungeon: day
-	{ "cloud", 0, 0.40f },     // Cloud fortress (hub/quarters/labs/sanctum): day
-	{ NULL, 0, 0.45f },        // tutorial + anything else: day
+	{ "hive", 3, 0.55f, 1.0f },      // K'Chekrik hive 1/2, trial pit, priestess: night
+	{ "gauntlet", 3, 0.55f, 1.0f },  // The gauntlet: night
+	{ "ss", 3, 0.40f, 1.0f },        // Silverspring (docks/warehouse/town/palace): night
+	{ "dmire", 4, 0.55f, 0.15f },    // Darkmire swamp: morning mist, fog barely there
+	{ "and", 0, 0.35f, 1.0f },       // Andoria (healer/plaza/slums/academic): day
+	{ "kellcaves", 5, 0.50f, 1.0f }, // Kell caves: evening
+	{ "canyon", 5, 0.50f, 1.0f },    // Katlit'k canyon: evening
+	{ "oglemine", 0, 0.30f, 1.0f },  // Ogle mines 1/2: day
+	{ "dungeon", 0, 0.30f, 1.0f },   // Morcalavin's dungeon: day
+	{ "cloud", 0, 0.40f, 1.0f },     // Cloud fortress (hub/quarters/labs/sanctum): day
+	{ NULL, 0, 0.45f, 1.0f },        // tutorial + anything else: day
 };
 
 static char s_appliedMap[64] = { 0 };
+static float s_fogScale = 1.0f;
 
 // Live lookup: this map's table preset (default row when unmapped/no map).
 // Used when r_sky_preset is auto (2); never writes cvars.
@@ -1269,13 +1273,10 @@ static void SkyDyn_ApplyLevelSky(void)
 	int effPreset;
 	float covVal;
 
-	if (r_sky_levels == NULL || (int)r_sky_levels->value == 0)
-		return;
-	if (r_dynsky == NULL || (int)r_dynsky->value == 0)
-		return; // dynamic sky off: leave every cvar alone
 	if (r_worldmodel == NULL || r_worldmodel->name[0] == '\0')
 	{
 		s_appliedMap[0] = '\0';
+		s_fogScale = 1.0f;
 		return;
 	}
 
@@ -1295,6 +1296,16 @@ static void SkyDyn_ApplyLevelSky(void)
 
 	strncpy(s_appliedMap, mapname, sizeof(s_appliedMap) - 1);
 	s_appliedMap[sizeof(s_appliedMap) - 1] = '\0';
+
+	// Fog scale follows the row whenever the levels system is on (even with
+	// r_dynsky off) — it can't latch (server lerp owns the cvar), so it can
+	// never go stale: every map change assigns it here.
+	s_fogScale = (r_sky_levels != NULL && (int)r_sky_levels->value != 0) ? row->fogScale : 1.0f;
+
+	if (r_sky_levels == NULL || (int)r_sky_levels->value == 0)
+		return;
+	if (r_dynsky == NULL || (int)r_dynsky->value == 0)
+		return; // dynamic sky off: no cvar writes, scale above still applies
 
 	// Preset is never latched: auto (2) resolves live via SkyDyn_LevelPreset,
 	// anything else is the user's fixed choice. Coverage still latches once
@@ -1324,8 +1335,16 @@ static void SkyDyn_ApplyLevelSky(void)
 		covVal = (r_cloud_coverage != NULL) ? r_cloud_coverage->value : 0.45f;
 	}
 
-	ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: level sky %s: preset %s %d, coverage %s %.2f\n",
-		mapname, presetSrc, effPreset, covSrc, (double)covVal);
+	ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: level sky %s: preset %s %d, coverage %s %.2f, fog x%.2f\n",
+		mapname, presetSrc, effPreset, covSrc, (double)covVal, (double)s_fogScale);
+}
+
+// Fog-density multiplier for the current map (1.0 = untouched). The server
+// owns r_fog_density (per-frame lerp in cl_screen.c), so levels scale it at
+// consumption time in R_Fog() instead of latching the cvar.
+float GL3_SkyDyn_FogScale(void)
+{
+	return s_fogScale;
 }
 
 void GL3_SkyDyn_Update(void)

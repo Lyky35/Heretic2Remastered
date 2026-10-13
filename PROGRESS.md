@@ -378,3 +378,18 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `d6198e89` pushed, R8.7 Beta asset refreshed. Note: previous build latched presets into vars.rc (e.g. dmire wrote 4) — set `r_sky_preset 2` once to return to live-auto.
+
+## 2026-10-13 — Darkmire fog thinned via per-level fog scale
+
+Request: Darkmire fog too thick, barely-there haze instead.
+Steps:
+1. Traced fog ownership: map `trigger_fogdensity` entities -> `ps.fog_density` -> per-frame client lerp writes `r_fog_density->value` directly (`cl_screen.c:1356-1364`), save/restore in `g_save.c`. A cvar latch would lose to that lerp within seconds — so levels scale at consumption, not storage.
+   - Reason: fight the ownership and the fog snaps back; scale where the renderer reads it.
+2. `skylevels[]` gained `fogScale` (dmire 0.15, everything else 1.0); `s_fogScale` assigned on every map change (never stale; follows `r_sky_levels` switch, independent of `r_dynsky`); new `GL3_SkyDyn_FogScale()` getter (header restored after an edit mishap, verified); `R_Fog()` (`gl3_Main.c`) multiplies density at the `GL3_SetFog` call. Underwater fog untouched; savegames keep raw map values.
+   - Reason: preserves the map's per-area fog variation, just thinned (0.01 -> ~0.0015 effective: light haze at 500 units). ref_gl1 untouched (tester is on ref_gl3).
+3. Console line now reports `fog x0.15`; README notes Darkmire haze. Rebuilt (zero warnings/errors), repackaged, staged.
+   - Reason: ship with visible proof + docs.
+4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).
