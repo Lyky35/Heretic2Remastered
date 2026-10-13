@@ -248,7 +248,7 @@ Steps:
    - Reason: far-depth composite gives free correct occlusion for high clouds via LEQUAL; documented Phase-5 limits (low-cloud overlap, stars-on-top).
 4. Rebuilt all targets (zero warnings/errors), verified `volumetric clouds on` string in staged DLL, updated in-zip README (Tier-B steps + tuning + known limits), repackaged Beta zip (gitignored, R8.6-compatible layout).
    - Reason: tester needs new binaries + instructions in one drop.
-5. Next: commit + push, move `R8_7_Beta` tag, re-upload asset, rewrite release notes for Tier-B.
+5. Ran `git add` (7 sources + PROGRESS.md), commit `16be0b4c` (+633), `git push origin Beta`; moved tag `R8_7_Beta`; `gh release upload --clobber` (6656938 bytes, updated 2026-10-13T22:21:30Z); rewrote release notes for Tier-B — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `16be0b4c` pushed, R8.7 Beta asset refreshed with Tier-B. Retest ask: `r_dynsky 1` + `r_volclouds 1` cloud look, FPS at res 0.5/1.0, occlusion, stars-on-top.
