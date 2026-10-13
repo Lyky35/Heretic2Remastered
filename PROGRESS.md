@@ -127,7 +127,21 @@ Steps:
    - Reason: tester needs exact install layout plus Beta-specific instructions in one file.
 5. Zipped to `release/HereticIIRemastered_R8_7_Beta.zip` (15 files, same structure as R8.6; `release/` is gitignored per `.gitignore:2`, `build/` per line 1 — neither committed).
    - Reason: keep binaries out of git; package is a local artifact until a GitHub prerelease is requested.
-6. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+6. Ran `git add PROGRESS.md`, commit, `git push origin Beta` — succeeded (log commit for packaging).
    - Reason: complete "commit and push after each portion" for this packaging portion.
+
+Result: `8b3dc133` pushed to `origin/Beta`. Test package is at `release/HereticIIRemastered_R8_7_Beta.zip` (gitignored local artifact).
+
+## 2026-10-13 — Published R8.7 Beta prerelease on GitHub
+
+Steps:
+1. Created annotated tag `R8_7_Beta` on Beta HEAD (`8b3dc133`, message "R8.7 Beta: Tier-A dynamic sky test package") + `git push origin R8_7_Beta` — succeeded (`[new tag]`).
+   - Reason: tag naming follows existing convention (`R8_6`, `R8_4`...); annotated tag records what the Beta contains.
+2. Ran `gh release create R8_7_Beta --target Beta --title "R8.7 Beta" --prerelease` with notes (Tier-A test steps, report checklist, r_volclouds not-yet note, install instructions) + asset `release/HereticIIRemastered_R8_7_Beta.zip` — succeeded.
+   - Reason: user asked to publish; prerelease (not latest) so R8.6 stays the stable download.
+3. Verified with `gh release view R8_7_Beta --json name,tagName,isPrerelease,assets`: name `R8.7 Beta`, tag `R8_7_Beta`, `isPrerelease true`, 1 asset `HereticIIRemastered_R8_7_Beta.zip`.
+   - Reason: confirm the release is live with the correct file before announcing.
+4. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion" for this publishing portion.
 
 Result: pending push (see next entry update after push).
