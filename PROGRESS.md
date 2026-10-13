@@ -408,3 +408,16 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `8d80af2c` pushed, R8.7 Beta asset refreshed. Use `r_fog_scale 0` for zero map fog (sticks, archived); tell me if haze remains — then it's clouds/mist, not post fog.
+
+## 2026-10-13 — Darkmire fog row 0.15 -> 0.25
+
+Request: `r_fog_scale` 0.25 as default for this level.
+Steps:
+1. Darkmire table row `fogScale` 0.15 -> 0.25 (`gl3_SkyDyn.c` one cell). Global `r_fog_scale` default stays 1.0 (that knob is the user's own; a cvar default can't be per-level, and 0.25 globally would dim every map for fresh installs).
+   - Reason: level-scoped ask gets a level-scoped change; personal knob untouched.
+2. Rebuilt, repackaged, staged.
+   - Reason: ship to tester.
+3. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

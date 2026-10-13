@@ -1233,7 +1233,7 @@ static const skylevel_t skylevels[] = {
 	{ "hive", 3, 0.55f, 1.0f },      // K'Chekrik hive 1/2, trial pit, priestess: night
 	{ "gauntlet", 3, 0.55f, 1.0f },  // The gauntlet: night
 	{ "ss", 3, 0.40f, 1.0f },        // Silverspring (docks/warehouse/town/palace): night
-	{ "dmire", 4, 0.55f, 0.15f },    // Darkmire swamp: morning mist, fog barely there
+	{ "dmire", 4, 0.55f, 0.25f },    // Darkmire swamp: morning mist, light fog
 	{ "and", 0, 0.35f, 1.0f },       // Andoria (healer/plaza/slums/academic): day
 	{ "kellcaves", 5, 0.50f, 1.0f }, // Kell caves: evening
 	{ "canyon", 5, 0.50f, 1.0f },    // Katlit'k canyon: evening
