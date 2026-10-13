@@ -263,7 +263,7 @@ Steps:
    - Reason: single conversion point per path; note Tier-A look changes too (gradient now vertical, day sun overhead — correct).
 3. Rebuilt all targets (zero warnings/errors), repackaged Beta zip (gitignored), staged fresh binaries.
    - Reason: ship both fixes together (cloud placement can't be judged with wrong bg/axes).
-4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+4. Ran `git add` (gl3_Sky.c, gl3_SkyDyn.c, PROGRESS.md), commit `4c3b95e6`, `git push origin Beta`; moved tag `R8_7_Beta`; `gh release upload --clobber` (6656966 bytes, updated 2026-10-13T22:28:30Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `4c3b95e6` pushed, R8.7 Beta asset refreshed. Retest ask: Tier-A gradient orientation/sun height, cloud placement/drift with `r_volclouds 1`, legacy sky gone under clouds.
