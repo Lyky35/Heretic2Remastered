@@ -393,3 +393,18 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `1b525c95` pushed, R8.7 Beta asset refreshed. Retest ask: Darkmire fog level (console shows `fog x0.15` on map load).
+
+## 2026-10-13 — `r_fog 0` doesn't stick: new `r_fog_scale` master knob
+
+Report: fog set to 0 still too foggy.
+Steps:
+1. Root-caused in `SCR_UpdateFogDensity` (`cl_screen.c:1351`): every frame it writes `r_fog_density->value` (lerp toward server `trigger_fogdensity` value) AND forces `r_fog->value = 1`. Any manual `r_fog 0` / `r_fog_density 0` is overwritten within frames — the knobs can't work by design.
+   - Reason: fix ownership, not symptoms; gating on `modified` was rejected (archived vars.rc values arrive modified, would silently kill map fog for everyone).
+2. Added archived `r_fog_scale` (default 1.0, `cl_screen.c` decl/register): server target multiplied by it, `0` takes the clean-zero branch (density 0 + `r_fog` 0). Composes with the Darkmire renderer scale (effective = map x 0.15 x yours). Default behavior bit-identical.
+   - Reason: one user-owned knob that sticks; map fog variation preserved at 1.0.
+3. README fog-control lines. Rebuilt all (one pre-existing `input.h:21` inline warning, unrelated file untouched), repackaged, staged.
+   - Reason: ship + docs.
+4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

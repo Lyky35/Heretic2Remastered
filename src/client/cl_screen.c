@@ -52,6 +52,7 @@ static cvar_t* scr_level_fade_in;  //mxd. Duration of level fade-in effect in se
 static cvar_t* scr_level_fade_out; //mxd. Duration of level fade-out effect in seconds.
 cvar_t* r_fog;
 cvar_t* r_fog_density;
+cvar_t* r_fog_scale; // User master scale on server-driven map fog (1 = map as-is, 0 = no fog). Sticks, unlike r_fog_density which the server lerp owns.
 
 // Level transition fade state.
 typedef enum
@@ -652,6 +653,7 @@ void SCR_Init(void)
 	scr_level_fade_out = Cvar_Get("scr_level_fade_out", "0.3", CVAR_ARCHIVE); //mxd. 300ms default level fade-out.
 	r_fog = Cvar_Get("r_fog", "0", 0);
 	r_fog_density = Cvar_Get("r_fog_density", "0", 0);
+	r_fog_scale = Cvar_Get("r_fog_scale", "1", CVAR_ARCHIVE);
 	//gl_lostfocus_broken = Cvar_Get("gl_lostfocus_broken", "0", 0); //mxd. Ignored
 
 	// Register our commands
@@ -1352,10 +1354,15 @@ static void SCR_UpdateFogDensity(void)
 {
 	static int old_time;
 	static float old_density;
+	const float scale = (r_fog_scale != NULL) ? r_fog_scale->value : 1.0f;
 
-	if (cl.frame.playerstate.fog_density > 0.0f) //TODO: != 0.0f in original logic. Can playerstate.fog_density be negative?
+	// NOTE: r_fog / r_fog_density are server-driven (rewritten here every
+	// frame), so manual console sets on them don't stick. Use r_fog_scale
+	// (0 = no map fog, 1 = map as-is) — that one is yours and persists.
+	if (cl.frame.playerstate.fog_density > 0.0f && scale > 0.0f) //TODO: != 0.0f in original logic. Can playerstate.fog_density be negative?
 	{
-		r_fog_density->value += (cl.frame.playerstate.fog_density - old_density) * (float)(curtime - old_time) * 0.0008f; //mxd. Sys_Milliseconds() -> curtime.
+		const float target = cl.frame.playerstate.fog_density * scale;
+		r_fog_density->value += (target - old_density) * (float)(curtime - old_time) * 0.0008f; //mxd. Sys_Milliseconds() -> curtime.
 		old_density = r_fog_density->value;
 		r_fog->value = 1.0f;
 	}
