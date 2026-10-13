@@ -344,7 +344,7 @@ Steps:
    - Reason: level art direction by default, user settings always win, kill-switch included.
 4. In-zip README: per-level paragraph. Rebuilt all (zero warnings/errors), repackaged, staged.
    - Reason: ship to tester with docs.
-5. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+5. Ran `git add` (gl3_SkyDyn.c, gl3_Local.h, gl3_Main.c, PROGRESS.md), commit `49f83f45` (+111), `git push origin Beta`; moved tag `R8_7_Beta`; `gh release upload --clobber` (6658947 bytes, updated 2026-10-13T23:06:41Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `49f83f45` pushed, R8.7 Beta asset refreshed. Note for tester: archived cvars keep old values — reset `r_cloud_res/base/thick` (or delete from vars.rc) to see new defaults; per-level rows apply on each map load until you touch the cvars.
