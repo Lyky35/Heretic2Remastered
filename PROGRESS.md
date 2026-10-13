@@ -374,7 +374,7 @@ Steps:
    - Reason: no cvar churn; semantics a tester can state in one sentence.
 3. README (auto description + per-level paragraph). Rebuilt (zero warnings/errors), repackaged, staged.
    - Reason: ship with accurate docs.
-4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+4. Ran `git add` (gl3_SkyDyn.c, gl3_Local.h, PROGRESS.md), commit `d6198e89` (+64/-24), `git push origin Beta`; moved tag `R8_7_Beta`; `gh release upload --clobber` (6659669 bytes, updated 2026-10-13T23:27:32Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `d6198e89` pushed, R8.7 Beta asset refreshed. Note: previous build latched presets into vars.rc (e.g. dmire wrote 4) — set `r_sky_preset 2` once to return to live-auto.
