@@ -1176,7 +1176,19 @@ qboolean GL3_SkyDyn_DrawDebug(void)
 	glUniform1i(s_dbgErode, 2);
 
 	glBindVertexArray(gl3state.vaoFSQ);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+
+	// The world pass culls FRONT faces (reflection pass: BACK) — the legacy sky
+	// path disables culling before drawing for exactly this reason. The debug
+	// view runs earlier (top of R_DrawSkyBox), so disable culling here too or
+	// the front-facing fullscreen strip is culled and nothing is drawn (black).
+	{
+		GLboolean cull_was_enabled;
+		glGetBooleanv(GL_CULL_FACE, &cull_was_enabled);
+		glDisable(GL_CULL_FACE);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		if (cull_was_enabled)
+			glEnable(GL_CULL_FACE);
+	}
 
 	// Restore: unit 0 active, game-texture cache invalidated so the next
 	// R_Bind/R_BindImage re-binds (it would otherwise skip on stale texnums).

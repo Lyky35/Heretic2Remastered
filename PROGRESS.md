@@ -221,3 +221,18 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `ad638520` pushed, R8.7 Beta asset refreshed. Awaiting: full `GL3_SkyDyn` console paste + legacy-sky status.
+
+## 2026-10-13 — Black views root cause: face culling (fix shipped)
+
+Report data: probe OK, Tier-A ready, `noise generated in 0ms (perlin=2 worley=3 weather=4)`; readback perlin R 3-248 all-nonzero, worley 80-248 all-nonzero, weather 0-106 ~all-nonzero; `debug draw mode=1` with all-valid IDs/locs; legacy textured sky fine at defaults.
+Steps:
+1. Diagnosed: textures FULL of valid noise + valid bindings + draw "runs" (announce is CPU-side, prints regardless) yet black. Missing piece: `GL3_SkyDyn_DrawDebug()` runs at the TOP of `R_DrawSkyBox`, before cull state is touched — and the world pass culls FRONT faces (reflection: BACK; legacy sky comment `gl3_Sky.c:1142` disables culling for exactly this). The front-facing FSQ strip was culled -> zero fragments -> cleared-black FBO shows through. Tier-A/legacy draw later with cull disabled -> unaffected. Barrier change was a red herring (kept: still spec-correct and needed for Phase 4). Matches every symptom including valid-readback-yet-black.
+   - Reason: announce proved the draw call happens; cull state was the only unconsumed difference between the working Tier-A path and the debug path.
+2. `gl3_SkyDyn.c` `GL3_SkyDyn_DrawDebug()`: save `GL_CULL_FACE`, `glDisable`, draw, restore — mirroring the legacy sky pattern.
+   - Reason: minimal, state-safe fix; no other state (clip/depth) affects this program.
+3. Rebuilt all targets (no warnings/errors), repackaged Beta zip (gitignored), staged fresh binaries.
+   - Reason: ship fix to tester.
+4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset, verify.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).
