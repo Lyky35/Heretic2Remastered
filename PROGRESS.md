@@ -63,3 +63,13 @@ Steps:
    - Reason: complete "commit and push after each portion" for this planning portion.
 
 Result: pending push (see next entry update after push).
+
+## 2026-10-13 — Pushed sky plan (follow-up)
+
+Steps:
+1. Ran `git add DYNAMIC_SKY_PLAN.md PROGRESS.md`, `git commit -m "docs: add dynamic sky + clouds integration plan from TerrainEngine-OpenGL"`, `git push origin Beta` — succeeded (`92c937d2..f63232a0 Beta -> Beta`).
+   - Reason: complete "commit and push after each portion" for the planning portion; keeps Beta remote in sync.
+2. Verified with `git log --oneline -4` + `git status --short` (only untracked `fxstaff_debug.log` remains).
+   - Reason: confirm push landed and working tree is clean except known untracked log.
+
+Result: `f63232a0` pushed to `origin/Beta`. Plan is in `DYNAMIC_SKY_PLAN.md`. No code changes yet; suggested next portion is Phase 0 scaffold (`gl3_SkyDyn` stub + cvars).
