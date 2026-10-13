@@ -173,7 +173,7 @@ Steps:
    - Reason: hand-transcribing ~700 GLSL lines risks typos; codegen guarantees byte fidelity (script is a local tool, not committed).
 5. Build-checked: mingw `ref_gl3` rebuilt 100%, linked, zero warnings/errors.
    - Reason: verify before committing; runtime output (`noise generated in Xms`, `r_cloud_debug 1/2/3` views) needs Windows test.
-6. Next: `git add` modified files, commit, `git push origin Beta`.
+6. Ran `git add` (gl3_SkyDyn.c/h, gl3_Sky.c, gl3_Local.h, gl3_Main.c, PROGRESS.md), commit `2e8cbeac` (+1018 lines, mostly embedded GLSL), `git push origin Beta` — succeeded (`4b71459e..2e8cbeac`).
    - Reason: complete "commit and push after each portion" for this Phase 3 portion.
 
-Result: pending push (see next entry update after push).
+Result: `2e8cbeac` pushed to `origin/Beta`. Windows test: console should show `noise generated in Xms (...)`, then `r_cloud_debug 1/2/3` fullscreen views. Suggested next portion: Phase 4 volumetric raymarch (+ new Beta package).
