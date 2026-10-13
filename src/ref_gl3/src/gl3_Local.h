@@ -73,6 +73,23 @@ extern cvar_t* r_hd_textures;
 extern cvar_t* r_antialiasing;
 extern cvar_t* r_shadows;
 
+// Dynamic sky + volumetric clouds (gl3_SkyDyn.c, Phase 0 scaffold).
+// Source: fede-vaccaro/TerrainEngine-OpenGL — see DYNAMIC_SKY_PLAN.md.
+extern cvar_t* r_dynsky;         // Tier A master switch (gradient sky). 0 = off (legacy 6-face sky).
+extern cvar_t* r_volclouds;      // Tier B master switch (volumetric clouds). Requires r_dynsky + GL 4.3+.
+extern cvar_t* r_sky_preset;     // 0 = day, 1 = sunset, 2 = auto by sun height.
+extern cvar_t* r_cloud_res;      // Cloud buffer scale (0.5 = half-res).
+extern cvar_t* r_cloud_coverage;
+extern cvar_t* r_cloud_speed;
+extern cvar_t* r_cloud_density;
+extern cvar_t* r_cloud_crisp;    // Crispiness (CLOUD_SCALE).
+extern cvar_t* r_cloud_curl;     // Curliness (erosion).
+extern cvar_t* r_cloud_absorb;   // Light absorption.
+extern cvar_t* r_cloud_seed;     // Weather-map seed.
+extern cvar_t* r_cloud_debug;    // Debug views (noise slice, etc.).
+extern cvar_t* r_cloud_blur;     // Post blur on/off.
+extern cvar_t* r_cloud_godrays;  // God-rays on/off (default off).
+
 extern cvar_t* gl_noartifacts;
 
 extern cvar_t* gl_modulate;

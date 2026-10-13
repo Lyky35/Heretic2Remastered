@@ -14,6 +14,7 @@
 #include "gl3_Shadow.h"
 #include "gl3_Shaders.h"
 #include "gl3_Sky.h"
+#include "gl3_SkyDyn.h"
 #include "gl3_Sprite.h"
 #include "gl3_Surface.h"
 #include "gl3_Local.h"
@@ -126,6 +127,20 @@ cvar_t* r_caustics;
 cvar_t* r_caustics_strength;
 cvar_t* r_hd_textures;
 cvar_t* r_antialiasing;
+cvar_t* r_dynsky;
+cvar_t* r_volclouds;
+cvar_t* r_sky_preset;
+cvar_t* r_cloud_res;
+cvar_t* r_cloud_coverage;
+cvar_t* r_cloud_speed;
+cvar_t* r_cloud_density;
+cvar_t* r_cloud_crisp;
+cvar_t* r_cloud_curl;
+cvar_t* r_cloud_absorb;
+cvar_t* r_cloud_seed;
+cvar_t* r_cloud_debug;
+cvar_t* r_cloud_blur;
+cvar_t* r_cloud_godrays;
 
 cvar_t* gl_noartifacts;
 
@@ -317,6 +332,8 @@ static void R_Register(void)
 	r_hd_textures     = ri.Cvar_Get("r_hd_textures",     "1",   CVAR_ARCHIVE);
 	r_antialiasing    = ri.Cvar_Get("r_antialiasing",    "0",   CVAR_ARCHIVE);
 
+	GL3_SkyDyn_RegisterCvars();
+
 	gl_noartifacts = ri.Cvar_Get("gl_noartifacts", "0", 0);
 
 	gl_modulate = ri.Cvar_Get("gl_modulate", "1", CVAR_ARCHIVE);
@@ -479,6 +496,11 @@ static qboolean RI_Init(void)
 		return false;
 	}
 
+	if (!GL3_SkyDyn_Init())
+	{
+		ri.Con_Printf(PRINT_ALL, "ref_gl3::RI_Init() - dynamic sky init failed (continuing with legacy sky)\n");
+	}
+
 	GL3_InitFBO(viddef.width, viddef.height);
 	GL3_InitBloom(viddef.width, viddef.height);
 	GL3_InitSSAO(viddef.width, viddef.height);
@@ -519,6 +541,7 @@ static void RI_Shutdown(void)
 	Mod_FreeAll();
 	R_ShutdownImages();
 	R_ShutdownShadows();
+	GL3_SkyDyn_Shutdown();
 	GL3_ShutdownRefract();
 	GL3_ShutdownReflect();
 	GL3_ShutdownSSAO();

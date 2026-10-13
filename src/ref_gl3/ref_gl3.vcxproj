@@ -39,6 +39,7 @@
     <ClCompile Include="src\gl3_Shaders.c" />
     <ClCompile Include="src\gl3_Shadow.c" />
     <ClCompile Include="src\gl3_Sky.c" />
+    <ClCompile Include="src\gl3_SkyDyn.c" />
     <ClCompile Include="src\gl3_Sprite.c" />
     <ClCompile Include="src\gl3_StbImage.c" />
     <ClCompile Include="src\gl3_Surface.c" />
@@ -76,6 +77,7 @@
     <ClInclude Include="src\gl3_SDL.h" />
     <ClInclude Include="src\gl3_Shaders.h" />
     <ClInclude Include="src\gl3_Sky.h" />
+    <ClInclude Include="src\gl3_SkyDyn.h" />
     <ClInclude Include="src\gl3_Sprite.h" />
     <ClInclude Include="src\gl3_Surface.h" />
     <ClInclude Include="src\gl3_Warp.h" />

@@ -73,3 +73,25 @@ Steps:
    - Reason: confirm push landed and working tree is clean except known untracked log.
 
 Result: `f63232a0` pushed to `origin/Beta`. Plan is in `DYNAMIC_SKY_PLAN.md`. No code changes yet; suggested next portion is Phase 0 scaffold (`gl3_SkyDyn` stub + cvars).
+
+## 2026-10-13 — Phase 0 scaffold: `gl3_SkyDyn` stub + cvars (no visual change)
+
+Steps:
+1. Inspected integration points: `gl3_Sky.h` (exports), `gl3_Local.h` (cvar externs + state), `gl3_Main.c` (`R_Register` cvar block ~275-318, `RI_Init` shader/FBO init ~474-489, `RI_Shutdown` ~510-532), `gl3_Shaders.{h,c}` (`CreateProgram` vert+frag only, GLSL 330), `ref_gl3.vcxproj` (`ClCompile`/`ClInclude` lists), `CMakeLists.txt` (parses vcxproj, so no CMake edit needed).
+   - Reason: find exact wire-up spots so the stub follows existing patterns (cvar define-in-Main/extern-in-Local, init-after-shaders, vcxproj-only file list).
+2. Created `src/ref_gl3/src/gl3_SkyDyn.h` (declares `GL3_SkyDyn_RegisterCvars/Init/Shutdown/Enabled/VolumetricEnabled`).
+   - Reason: single new module for all Tier A/B work; header-only contract keeps `gl3_Main.c` diff minimal.
+3. Created `src/ref_gl3/src/gl3_SkyDyn.c` (registers 14 cvars: `r_dynsky`, `r_volclouds`, `r_sky_preset`, `r_cloud_res/coverage/speed/density/crisp/curl/absorb/seed/debug/blur/godrays`; `Init` probes `GLAD_GL_VERSION_4_3` and prints status, always returns true; `Shutdown` is a no-op placeholder; gates check cvar + GL version).
+   - Reason: defaults all off so behavior is pixel-identical; soft-fail on old drivers instead of crashing; TerrainEngine defaults preserved for later phases.
+4. Edited `gl3_Local.h`: added 14 `extern cvar_t*` declarations.
+   - Reason: same pattern as `r_reflections`/`r_fog_*` — extern in Local, define in Main.
+5. Edited `gl3_Main.c`: defined 14 `cvar_t*` globals; `#include "gl3_SkyDyn.h"`; called `GL3_SkyDyn_RegisterCvars()` at end of `R_Register()`; called `GL3_SkyDyn_Init()` after `GL3_InitShaders()` (warn-and-continue on failure); called `GL3_SkyDyn_Shutdown()` in `RI_Shutdown()` before `GL3_ShutdownShaders()`.
+   - Reason: cvars available before init; init order matches shader dependency; shutdown reverses init.
+6. Edited `src/ref_gl3/ref_gl3.vcxproj`: added `ClCompile src\gl3_SkyDyn.c` + `ClInclude src\gl3_SkyDyn.h`.
+   - Reason: MSVC + mingw-CMake (which parses vcxproj) both pick up the new file with one edit.
+7. Build-checked: `cmake -B /tmp/opencode/h2-build -S . -DCMAKE_TOOLCHAIN_FILE=cmake/mingw-toolchain.cmake` (configure OK) + `cmake --build /tmp/opencode/h2-build --target ref_gl3 -j8` — built 100%, including `gl3_SkyDyn.c.obj`, linked `build/ref_gl3.dll` (gitignored via `/build/**`).
+   - Reason: verify no compile/link errors before committing; proves vcxproj wiring works for both toolchains.
+8. Next: `git add` new + modified files, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion" for this Phase 0 portion.
+
+Result: pending push (see next entry update after push).
