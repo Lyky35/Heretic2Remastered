@@ -5,6 +5,7 @@
 //
 
 #include "gl3_Shaders.h"
+#include "gl3_SkyDyn.h"
 #include <math.h>
 #include <string.h>
 
@@ -1149,7 +1150,7 @@ void GL3_DrawWaterPoly(const GLenum mode, const float* verts, const int numverts
 	const float refract_strength = ((int)r_refractions->value && gl3state.fboTexRefract != 0)
 		? r_refractions_intensity->value : 0.0f;
 	glUniform1f(gl3state.uniWater_refractAmt, refract_strength);
-	glUniform1f(gl3state.uniWater_waveHeight, r_water_wave_height->value);
+	glUniform1f(gl3state.uniWater_waveHeight, r_water_wave_height->value * GL3_SkyDyn_WaveScale());
 	glUniform1f(gl3state.uniWater_waveSpeed, r_water_wave_speed->value);
 	glUniform1f(gl3state.uniWater_waveSharp, r_water_wave_sharp->value);
 

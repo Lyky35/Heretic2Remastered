@@ -1225,26 +1225,29 @@ typedef struct
 	float fogScale;    // multiplier on server-driven r_fog_density (map fog varies
 	                   // per area via trigger_fogdensity; a latch would lose to the
 	                   // per-frame client lerp, so this scales at consumption)
+	float waveScale;   // multiplier on r_water_wave_height (same latch problem:
+	                   // water reads the cvar live per draw, so scale at upload)
 } skylevel_t;
 
 static const skylevel_t skylevels[] = {
 	// NOTE: first match wins — "hive" precedes "ss" because hivepriestess
 	// contains "ss" ("...tess"). Both are night today, order keeps it robust.
-	{ "hive", 3, 0.55f, 1.0f },      // K'Chekrik hive 1/2, trial pit, priestess: night
-	{ "gauntlet", 3, 0.55f, 1.0f },  // The gauntlet: night
-	{ "ss", 3, 0.40f, 1.0f },        // Silverspring (docks/warehouse/town/palace): night
-	{ "dmire", 4, 0.55f, 0.25f },    // Darkmire swamp: morning mist, light fog
-	{ "and", 0, 0.35f, 1.0f },       // Andoria (healer/plaza/slums/academic): day
-	{ "kellcaves", 5, 0.50f, 1.0f }, // Kell caves: evening
-	{ "canyon", 5, 0.50f, 1.0f },    // Katlit'k canyon: evening
-	{ "oglemine", 0, 0.30f, 1.0f },  // Ogle mines 1/2: day
-	{ "dungeon", 0, 0.30f, 1.0f },   // Morcalavin's dungeon: day
-	{ "cloud", 0, 0.40f, 1.0f },     // Cloud fortress (hub/quarters/labs/sanctum): day
-	{ NULL, 0, 0.45f, 1.0f },        // tutorial + anything else: day
+	{ "hive", 3, 0.55f, 1.0f, 1.0f },      // K'Chekrik hive 1/2, trial pit, priestess: night
+	{ "gauntlet", 3, 0.55f, 1.0f, 1.0f },  // The gauntlet: night
+	{ "ss", 3, 0.40f, 1.0f, 1.0f },        // Silverspring (docks/warehouse/town/palace): night
+	{ "dmire", 4, 0.55f, 0.25f, 0.05f },   // Darkmire: morning, light fog, near-flat swamp water
+	{ "and", 0, 0.35f, 1.0f, 1.0f },       // Andoria (healer/plaza/slums/academic): day
+	{ "kellcaves", 5, 0.50f, 1.0f, 1.0f }, // Kell caves: evening
+	{ "canyon", 5, 0.50f, 1.0f, 1.0f },    // Katlit'k canyon: evening
+	{ "oglemine", 0, 0.30f, 1.0f, 1.0f },  // Ogle mines 1/2: day
+	{ "dungeon", 0, 0.30f, 1.0f, 1.0f },   // Morcalavin's dungeon: day
+	{ "cloud", 0, 0.40f, 1.0f, 1.0f },     // Cloud fortress (hub/quarters/labs/sanctum): day
+	{ NULL, 0, 0.45f, 1.0f, 1.0f },        // tutorial + anything else: day
 };
 
 static char s_appliedMap[64] = { 0 };
 static float s_fogScale = 1.0f;
+static float s_waveScale = 1.0f;
 
 // Live lookup: this map's table preset (default row when unmapped/no map).
 // Used when r_sky_preset is auto (2); never writes cvars.
@@ -1277,6 +1280,7 @@ static void SkyDyn_ApplyLevelSky(void)
 	{
 		s_appliedMap[0] = '\0';
 		s_fogScale = 1.0f;
+		s_waveScale = 1.0f;
 		return;
 	}
 
@@ -1297,10 +1301,11 @@ static void SkyDyn_ApplyLevelSky(void)
 	strncpy(s_appliedMap, mapname, sizeof(s_appliedMap) - 1);
 	s_appliedMap[sizeof(s_appliedMap) - 1] = '\0';
 
-	// Fog scale follows the row whenever the levels system is on (even with
-	// r_dynsky off) — it can't latch (server lerp owns the cvar), so it can
-	// never go stale: every map change assigns it here.
+	// Fog/wave scales follow the row whenever the levels system is on (even
+	// with r_dynsky off) — neither can latch (server lerp / live cvar read),
+	// so they can never go stale: every map change assigns them here.
 	s_fogScale = (r_sky_levels != NULL && (int)r_sky_levels->value != 0) ? row->fogScale : 1.0f;
+	s_waveScale = (r_sky_levels != NULL && (int)r_sky_levels->value != 0) ? row->waveScale : 1.0f;
 
 	if (r_sky_levels == NULL || (int)r_sky_levels->value == 0)
 		return;
@@ -1335,8 +1340,8 @@ static void SkyDyn_ApplyLevelSky(void)
 		covVal = (r_cloud_coverage != NULL) ? r_cloud_coverage->value : 0.45f;
 	}
 
-	ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: level sky %s: preset %s %d, coverage %s %.2f, fog x%.2f\n",
-		mapname, presetSrc, effPreset, covSrc, (double)covVal, (double)s_fogScale);
+	ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: level sky %s: preset %s %d, coverage %s %.2f, fog x%.2f, waves x%.2f\n",
+		mapname, presetSrc, effPreset, covSrc, (double)covVal, (double)s_fogScale, (double)s_waveScale);
 }
 
 // Fog-density multiplier for the current map (1.0 = untouched). The server
@@ -1345,6 +1350,14 @@ static void SkyDyn_ApplyLevelSky(void)
 float GL3_SkyDyn_FogScale(void)
 {
 	return s_fogScale;
+}
+
+// Wave-height multiplier for the current map (1.0 = untouched). Water reads
+// r_water_wave_height live per draw, so levels scale it at upload time in
+// GL3_DrawWaterPoly() instead of latching the cvar.
+float GL3_SkyDyn_WaveScale(void)
+{
+	return s_waveScale;
 }
 
 void GL3_SkyDyn_Update(void)

@@ -421,3 +421,18 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `12eafb60` pushed, R8.7 Beta asset refreshed. Console shows `fog x0.25` on Darkmire load.
+
+## 2026-10-13 — Darkmire water near-flat via per-level wave scale
+
+Request: water wave height 0.15 on Darkmire.
+Steps:
+1. Same latch problem as fog (water reads `r_water_wave_height` live per draw), same cure: `waveScale` table column (dmire 0.05, rest 1.0) so effective = cvar x scale (3.0 x 0.05 = 0.15 on Darkmire with your default). `s_waveScale` assigned every map change (never stale, follows `r_sky_levels`); new `GL3_SkyDyn_WaveScale()` consumed in `GL3_DrawWaterPoly()`; console line extended (`waves x0.05`).
+   - Reason: multiplier composes with your tuning instead of robbing it; single mechanism for all level looks.
+2. Caught two edit mishaps before building: duplicated WaveScale decl in the header (removed) and a missing WaveScale definition caught by the linker; format string missing the waves specifier (extra arg silently ignored — fixed).
+   - Reason: verify, don't assume — link + format string checked explicitly.
+3. Rebuilt all (zero warnings/errors), repackaged, staged.
+   - Reason: ship to tester.
+4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).
