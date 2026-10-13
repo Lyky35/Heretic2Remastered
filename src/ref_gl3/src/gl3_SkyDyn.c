@@ -17,6 +17,7 @@
 #include "vid.h"
 
 #include <SDL3/SDL.h>
+#include <stdlib.h>
 
 #include <math.h>
 #include <string.h>
@@ -987,6 +988,58 @@ static GLint s_dbgErode = -1;
 static GLint s_dbgMode = -1;
 static GLint s_dbgSlice = -1;
 static GLint s_dbgRes = -1;
+static qboolean s_dbgAnnounced = false;
+
+// One-time diagnostic: read back level 0 and report R-channel min/max over a
+// stride. Proves on the user's machine whether a compute dispatch actually
+// wrote anything (zeros here + black debug views = lost/never-run writes).
+static void SkyDyn_LogTexStats(const char* name, GLenum target, GLuint tex, int w, int h, int d)
+{
+	const size_t count = (size_t)w * (size_t)h * (size_t)d;
+	unsigned char* pixels;
+	size_t i;
+	unsigned rmin = 255, rmax = 0;
+	size_t nonzero = 0;
+
+	if (tex == 0 || count == 0)
+	{
+		ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: %s: no texture to verify (id=%u)\n", name, tex);
+		return;
+	}
+
+	pixels = (unsigned char*)malloc(count * 4);
+	if (pixels == NULL)
+	{
+		ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: %s: out of memory for readback\n", name);
+		return;
+	}
+
+	if (target == GL_TEXTURE_3D)
+		glBindTexture(GL_TEXTURE_3D, tex);
+	else
+		glBindTexture(GL_TEXTURE_2D, tex);
+	glGetTexImage(target, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+	if (target == GL_TEXTURE_3D)
+		glBindTexture(GL_TEXTURE_3D, 0);
+	else
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+	for (i = 0; i < count; i += 16)
+	{
+		const unsigned r = pixels[i * 4];
+		if (r < rmin)
+			rmin = r;
+		if (r > rmax)
+			rmax = r;
+		if (r != 0)
+			nonzero++;
+	}
+
+	ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: %s R min=%u max=%u nonzero=%u/%u id=%u%s\n",
+		name, rmin, rmax, (unsigned)nonzero, (unsigned)(count / 16), tex,
+		(rmax == 0) ? "  <-- ALL ZEROS, compute writes lost" : "");
+	free(pixels);
+}
 
 // Generates perlin (once) + worley (once) + weather (on seed/freq change).
 // Safe to call every frame: early-outs on two float compares when current.
@@ -1069,6 +1122,11 @@ static void SkyDyn_GenNoise(qboolean force)
 	ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: noise generated in %ums (perlin=%u worley=%u weather=%u)%s\n",
 		(unsigned)(SDL_GetTicks() - t0), s_perlinTex, s_worleyTex, s_weatherTex,
 		(err == GL_NO_ERROR) ? "" : " — glGetError() != 0, check driver log");
+
+	// Readback proof of what the dispatches actually wrote (one-time cost).
+	SkyDyn_LogTexStats("perlin", GL_TEXTURE_3D, s_perlinTex, SKYDYN_PERLIN_SIZE, SKYDYN_PERLIN_SIZE, SKYDYN_PERLIN_SIZE);
+	SkyDyn_LogTexStats("worley", GL_TEXTURE_3D, s_worleyTex, SKYDYN_WORLEY_SIZE, SKYDYN_WORLEY_SIZE, SKYDYN_WORLEY_SIZE);
+	SkyDyn_LogTexStats("weather", GL_TEXTURE_2D, s_weatherTex, SKYDYN_WEATHER_SIZE, SKYDYN_WEATHER_SIZE, 1);
 }
 
 void GL3_SkyDyn_Update(void)
@@ -1087,6 +1145,14 @@ qboolean GL3_SkyDyn_DrawDebug(void)
 		return false;
 	if (s_dbgProg == 0 || s_weatherTex == 0 || s_perlinTex == 0 || s_worleyTex == 0)
 		return false;
+
+	if (!s_dbgAnnounced)
+	{
+		s_dbgAnnounced = true;
+		ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: debug draw mode=%d (dbgProg=%u weather=%u perlin=%u worley=%u locs w=%d n=%d e=%d m=%d s=%d r=%d)\n",
+			mode, s_dbgProg, s_weatherTex, s_perlinTex, s_worleyTex,
+			s_dbgWeather, s_dbgNoise, s_dbgErode, s_dbgMode, s_dbgSlice, s_dbgRes);
+	}
 
 	glDepthMask(GL_FALSE);
 
@@ -1261,6 +1327,7 @@ void GL3_SkyDyn_Shutdown(void)
 	}
 	s_uWeatherSeed = s_uWeatherFreq = -1;
 	s_dbgWeather = s_dbgNoise = s_dbgErode = s_dbgMode = s_dbgSlice = s_dbgRes = -1;
+	s_dbgAnnounced = false;
 	s_lastSeed = s_lastFreq = -1.0e30f;
 
 	if (s_skyProg != 0)

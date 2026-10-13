@@ -208,3 +208,16 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `e3c2922f` pushed to `origin/Beta`, R8.7 Beta asset refreshed. Retest ask: `r_cloud_debug 1/2/3` views + whether `noise generated` line changed.
+
+## 2026-10-13 — Black views persist: readback diagnostics added
+
+Report: still black after barrier fix. Prior fix verified in code but symptom unchanged -> barrier theory wrong/incomplete; guessing ends here.
+Steps:
+1. Added `SkyDyn_LogTexStats()` (`gl3_SkyDyn.c`): after every noise gen, reads back level 0 (`glGetTexImage` RGBA/UBYTE) and prints R min/max + nonzero count per texture, flagging `ALL ZEROS, compute writes lost`. Called for perlin/worley/weather in `SkyDyn_GenNoise()`. Added first-draw announce in `GL3_SkyDyn_DrawDebug()` (mode, program/texture IDs, uniform locations); flag reset in Shutdown. New `#include <stdlib.h>` for malloc/free.
+   - Reason: readback PROVES on the user's GPU whether dispatches wrote anything; announce PROVES the debug draw runs and with what bindings. Next round is decisive either way (zeros = compute-side, nonzero+black = sampling-side).
+2. Rebuilt all targets (no errors), repackaged Beta zip (gitignored), verified `ALL ZEROS` string in staged `ref_gl3.dll`.
+   - Reason: ship diagnostics to the tester.
+3. Next: commit + push, move `R8_7_Beta` tag, re-upload asset, verify; ask user for full `GL3_SkyDyn` console paste + whether legacy sky (`r_dynsky 0`) is textured or also black on their map.
+   - Reason: complete "commit and push after each portion" plus release refresh; legacy-sky status distinguishes "debug draws black" from "debug no-ops on a map with no sky".
+
+Result: pending push/upload (see next entry update after push).
