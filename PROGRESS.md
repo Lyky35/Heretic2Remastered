@@ -389,7 +389,7 @@ Steps:
    - Reason: preserves the map's per-area fog variation, just thinned (0.01 -> ~0.0015 effective: light haze at 500 units). ref_gl1 untouched (tester is on ref_gl3).
 3. Console line now reports `fog x0.15`; README notes Darkmire haze. Rebuilt (zero warnings/errors), repackaged, staged.
    - Reason: ship with visible proof + docs.
-4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+4. Ran `git add` (gl3_SkyDyn.c/h, gl3_Main.c, PROGRESS.md), commit `1b525c95` (+59/-18), `git push origin Beta`; moved tag `R8_7_Beta`; `gh release upload --clobber` (6659857 bytes, updated 2026-10-13T23:33:06Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `1b525c95` pushed, R8.7 Beta asset refreshed. Retest ask: Darkmire fog level (console shows `fog x0.15` on map load).
