@@ -314,7 +314,7 @@ Steps:
    - Reason: finer grid resolves waves + normals smoothly; clearer base lets refraction + mirror dominate. No blending-order risk taken.
 3. Rebuilt all targets (zero warnings/errors), repackaged Beta zip (gitignored), staged fresh binaries.
    - Reason: ship to tester.
-4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+4. Ran `git add` (gl3_Warp.c, gl3_Shaders.c, PROGRESS.md), commit `e875c805`, `git push origin Beta`; moved tag `R8_7_Beta`; `gh release upload --clobber` (6658208 bytes, updated 2026-10-13T22:48:13Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `e875c805` pushed, R8.7 Beta asset refreshed. Retest ask: wave smoothness + mirror strength.
