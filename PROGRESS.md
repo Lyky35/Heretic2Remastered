@@ -359,7 +359,7 @@ Steps:
    - Reason: first-match-wins tables rot silently; verified + documented.
 3. README presets + per-level paragraph updated. Rebuilt (zero warnings/errors), repackaged, staged.
    - Reason: ship with accurate docs.
-4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset, extend release notes.
+4. Ran `git add` (gl3_SkyDyn.c, gl3_Local.h, PROGRESS.md), commit `a90b45c3` (+68/-7), `git push origin Beta`; moved tag `R8_7_Beta`; `gh release upload --clobber` (6659813 bytes, updated 2026-10-13T23:21:32Z); extended release notes — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `a90b45c3` pushed, R8.7 Beta asset refreshed. Retest ask: per-hub moods across maps.
