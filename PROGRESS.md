@@ -436,3 +436,18 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `9ac5eacd` pushed, R8.7 Beta asset refreshed. Darkmire water = your height x 0.05 (0.15 at default 3); console shows `waves x0.05`.
+
+## 2026-10-13 — Auto guaranteed: migrate old latched values
+
+Request: an auto option, auto-set; undefined levels run default, defined use definitions.
+Steps:
+1. Verified the steady state already matches: `r_sky_preset` default 2 (auto, live table lookup), `r_sky_levels` default 1, default table row for unmapped maps, per-map console line. The gap is upgraders only: pre-auto builds latched row values into the cvars, cleared `modified`, vars.rc archived them — now masquerading as fixed manual choices, so auto never engages.
+   - Reason: genuine choices always arrive `modified` (console sets and archived loads both flag it); non-default + unmodified is provably latch residue.
+2. `GL3_SkyDyn_RegisterCvars()` end: non-default unmodified preset -> reset 2, non-default unmodified coverage -> reset 0.45 (epsilon compare), each with a `migrated ...` console line. Runs once at renderer init.
+   - Reason: one-time self-repair; real user settings (modified) untouched by construction.
+3. Rebuilt (zero warnings/errors), repackaged, staged.
+   - Reason: ship to tester.
+4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

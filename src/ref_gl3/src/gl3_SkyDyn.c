@@ -53,6 +53,24 @@ void GL3_SkyDyn_RegisterCvars(void)
 	r_cloud_debug = ri.Cvar_Get("r_cloud_debug", "0", 0);
 	r_cloud_blur = ri.Cvar_Get("r_cloud_blur", "1", CVAR_ARCHIVE);
 	r_cloud_godrays = ri.Cvar_Get("r_cloud_godrays", "0", CVAR_ARCHIVE);
+
+	// One-time migration: pre-auto builds latched table values into r_sky_preset
+	// / r_cloud_coverage and cleared modified, which vars.rc then archived —
+	// blocking auto for upgraders. Genuine choices always arrive modified
+	// (console sets and archived loads both flag it), so non-default plus
+	// unmodified can only be latch residue: return it to auto/default.
+	if ((int)r_sky_preset->value != 2 && !r_sky_preset->modified)
+	{
+		ri.Cvar_Set("r_sky_preset", "2");
+		r_sky_preset->modified = false;
+		ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: migrated r_sky_preset to auto (2).\n");
+	}
+	if (fabsf(r_cloud_coverage->value - 0.45f) > 0.001f && !r_cloud_coverage->modified)
+	{
+		ri.Cvar_Set("r_cloud_coverage", "0.45");
+		r_cloud_coverage->modified = false;
+		ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: migrated r_cloud_coverage to default (0.45).\n");
+	}
 }
 
 // ============================================================
