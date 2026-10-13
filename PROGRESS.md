@@ -363,3 +363,18 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `a90b45c3` pushed, R8.7 Beta asset refreshed. Retest ask: per-hub moods across maps.
+
+## 2026-10-13 — `r_sky_preset` auto follows the level live
+
+Request: auto option takes the preset defined by the level/mapname.
+Steps:
+1. Added `SkyDyn_LevelPreset()` (live table lookup, no cvar writes; default row preset made concrete 0/day so menu/no-map resolves sanely). Both draw funcs now map 2 -> live lookup (shared replaceAll; old `-> 0 day` alias retired).
+   - Reason: previously auto was a static day alias and the table latched the cvar (churn, order-dependent); live resolution is predictable and instant.
+2. Rewrote `SkyDyn_ApplyLevelSky()`: preset is never written anymore (auto resolves live, anything else is the user's fixed choice); coverage still latches once unless touched; single console line per map (`preset auto/manual %d, coverage level/yours %.2f`). Table comments + cvar comments updated.
+   - Reason: no cvar churn; semantics a tester can state in one sentence.
+3. README (auto description + per-level paragraph). Rebuilt (zero warnings/errors), repackaged, staged.
+   - Reason: ship with accurate docs.
+4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

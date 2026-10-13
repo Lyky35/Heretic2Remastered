@@ -33,7 +33,7 @@ void GL3_SkyDyn_RegisterCvars(void)
 	r_dynsky = ri.Cvar_Get("r_dynsky", "0", CVAR_ARCHIVE);
 	r_volclouds = ri.Cvar_Get("r_volclouds", "0", CVAR_ARCHIVE);
 
-	// Tier A: gradient-sky preset. 0 day, 1 sunset, 2 auto (day), 3 night, 4 morning, 5 evening.
+	// Tier A: gradient-sky preset. 0/1/3/4/5 fixed, 2 = auto (level table, live).
 	r_sky_preset = ri.Cvar_Get("r_sky_preset", "2", CVAR_ARCHIVE);
 	// Per-level auto look (table in SkyDyn_ApplyLevelSky, applied on map change).
 	r_sky_levels = ri.Cvar_Get("r_sky_levels", "1", CVAR_ARCHIVE);
@@ -1214,9 +1214,9 @@ static void SkyDyn_GenNoise(qboolean force)
 
 // Per-level dynamic-sky look (r_sky_levels master switch).
 // Level identity = r_worldmodel->name substring, same convention as
-// R_IsSilverpringMap / R_IsDarkmireSwampMap in gl3_Sky.c. Applied once per
-// map, and only to cvars the user never touched (cvar->modified): user tweaks
-// (console or archived vars.rc) always win; untouched cvars follow the table.
+// R_IsSilverpringMap / R_IsDarkmireSwampMap in gl3_Sky.c. The preset column
+// feeds auto mode (r_sky_preset 2) live via SkyDyn_LevelPreset — never latched.
+// Coverage latches once per map unless the user touched it.
 typedef struct
 {
 	const char* match; // strstr on the map name; NULL = default row (must be last)
@@ -1237,17 +1237,37 @@ static const skylevel_t skylevels[] = {
 	{ "oglemine", 0, 0.30f },  // Ogle mines 1/2: day
 	{ "dungeon", 0, 0.30f },   // Morcalavin's dungeon: day
 	{ "cloud", 0, 0.40f },     // Cloud fortress (hub/quarters/labs/sanctum): day
-	{ NULL, 2, 0.45f },        // tutorial + anything else: auto day
+	{ NULL, 0, 0.45f },        // tutorial + anything else: day
 };
 
 static char s_appliedMap[64] = { 0 };
+
+// Live lookup: this map's table preset (default row when unmapped/no map).
+// Used when r_sky_preset is auto (2); never writes cvars.
+static int SkyDyn_LevelPreset(void)
+{
+	size_t n = sizeof(skylevels) / sizeof(skylevels[0]);
+	size_t i;
+
+	if (r_worldmodel == NULL || r_worldmodel->name[0] == '\0')
+		return skylevels[n - 1].preset;
+	for (i = 0; i < n; i++)
+	{
+		if (skylevels[i].match != NULL && strstr(r_worldmodel->name, skylevels[i].match) != NULL)
+			return skylevels[i].preset;
+	}
+	return skylevels[n - 1].preset;
+}
 
 static void SkyDyn_ApplyLevelSky(void)
 {
 	const char* mapname;
 	const skylevel_t* row;
 	char val[32];
-	qboolean userTouched;
+	const char* presetSrc;
+	const char* covSrc;
+	int effPreset;
+	float covVal;
 
 	if (r_sky_levels == NULL || (int)r_sky_levels->value == 0)
 		return;
@@ -1276,31 +1296,36 @@ static void SkyDyn_ApplyLevelSky(void)
 	strncpy(s_appliedMap, mapname, sizeof(s_appliedMap) - 1);
 	s_appliedMap[sizeof(s_appliedMap) - 1] = '\0';
 
-	userTouched = false;
-	if (r_sky_preset != NULL && !r_sky_preset->modified)
+	// Preset is never latched: auto (2) resolves live via SkyDyn_LevelPreset,
+	// anything else is the user's fixed choice. Coverage still latches once
+	// (it has no auto mode) unless the user touched it.
+	if (r_sky_preset != NULL && (int)r_sky_preset->value == 2)
 	{
-		snprintf(val, sizeof(val), "%d", row->preset);
-		ri.Cvar_Set("r_sky_preset", val);
-		r_sky_preset->modified = false; // ours, not the user's: re-apply next map
+		presetSrc = "auto";
+		effPreset = row->preset;
 	}
 	else
-		userTouched = true;
+	{
+		presetSrc = "manual";
+		effPreset = (r_sky_preset != NULL) ? (int)r_sky_preset->value : 2;
+	}
+
 	if (r_cloud_coverage != NULL && !r_cloud_coverage->modified)
 	{
 		snprintf(val, sizeof(val), "%.2f", (double)row->coverage);
 		ri.Cvar_Set("r_cloud_coverage", val);
-		r_cloud_coverage->modified = false;
+		r_cloud_coverage->modified = false; // ours, not the user's
+		covSrc = "level";
+		covVal = row->coverage;
 	}
 	else
-		userTouched = true;
+	{
+		covSrc = "yours";
+		covVal = (r_cloud_coverage != NULL) ? r_cloud_coverage->value : 0.45f;
+	}
 
-	if (userTouched)
-		ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: level sky %s keeps your settings (preset=%d coverage=%.2f)\n",
-			mapname, (r_sky_preset != NULL) ? (int)r_sky_preset->value : 2,
-			(r_cloud_coverage != NULL) ? r_cloud_coverage->value : 0.45f);
-	else
-		ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: level sky %s -> preset %d, coverage %.2f\n",
-			mapname, row->preset, row->coverage);
+	ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: level sky %s: preset %s %d, coverage %s %.2f\n",
+		mapname, presetSrc, effPreset, covSrc, (double)covVal);
 }
 
 void GL3_SkyDyn_Update(void)
@@ -2028,7 +2053,7 @@ void GL3_SkyDyn_DrawTierA(void)
 	if (preset < 0 || preset > 5)
 		preset = 2;
 	if (preset == 2)
-		preset = 0; // auto tracks day until Phase 6 sun-cycle
+		preset = SkyDyn_LevelPreset(); // auto follows the level table, live
 	SkyDyn_Preset(preset, top, bottom, sunDir, sunColor, moonDir, moonColor, &night);
 
 	if (!SkyDyn_InvertMatrix(r_projection_matrix, invProj))
@@ -2119,7 +2144,7 @@ void GL3_SkyDyn_DrawClouds(void)
 	if (preset < 0 || preset > 5)
 		preset = 2;
 	if (preset == 2)
-		preset = 0; // auto tracks day until Phase 6 sun-cycle
+		preset = SkyDyn_LevelPreset(); // auto follows the level table, live
 	SkyDyn_Preset(preset, top, bottom, sunDir, sunColor, moonDir, moonColor, &night);
 	isNight = (preset == 3) ? true : false;
 
