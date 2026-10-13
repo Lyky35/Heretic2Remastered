@@ -284,3 +284,22 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `80a02f85` pushed, R8.7 Beta asset refreshed. Retest ask: clouds visible in water.
+
+## 2026-10-13 — Phase 5 night + moon (`r_sky_preset 3`)
+
+Request: night time with moon. Manual preset (no auto cycle; world lightmaps untouched — sky-only night).
+Steps:
+1. Tier-A (`gl3_SkyDyn.c` frag): night gradient (near-black blue + horizon glow), moon disc (1200-power core + 24-power halo, HDR-bright for bloom), procedural 2-octave hash star field with twinkle gated by new `uNight`/`uTime` uniforms and a Z-up horizon mask; sun/moon disc colors now uniforms (day/sunset sun identical to before). New `starLayer()` + 5 uniform locations (cached, reset in Shutdown).
+   - Reason: one backdrop serves both tiers; stars show through cloud alpha for free.
+2. Extended `SkyDyn_Preset()` (now also fills sunColor/moonDir/moonColor/night; Y-up canonical documented): preset 3 = night (moon high, sun parked below horizon, night=1), sunset gains faint stars (0.2). Updated `DrawTierA` (accepts 0-3, uploads moon/swizzled dirs/colors/night/time) and `DrawClouds` (accepts 0-3).
+   - Reason: single preset source for both tiers, no divergence.
+3. Tier-B: new `glareColor` uniform replaces hardcoded orange glare (day value bit-identical, night pale blue); night branch feeds moon dir + cool dim light + dark blue ambient cloud colors.
+   - Reason: orange glare at the moon would be wrong; day look provably unchanged.
+4. Docs: `DYNAMIC_SKY_PLAN.md` Phase 9 section, `r_sky_preset` comment (0/1/2/3), in-zip README (preset 3 + night notes).
+   - Reason: keep plan/README accurate for the tester.
+5. Rebuilt all targets (zero warnings/errors), repackaged Beta zip (gitignored), staged fresh binaries.
+   - Reason: ship to tester.
+6. Next: commit + push, move `R8_7_Beta` tag, re-upload asset, rewrite notes.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

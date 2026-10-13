@@ -143,3 +143,21 @@ Key implication: **context is ready (4.6), shader/infra is not (330, no compute/
 ## 8. Suggested first commit after this plan
 
 `scaffold: add gl3_SkyDyn stub + cvars (no visual change)` — proves build/plumbing before any GLSL port.
+
+---
+
+## 9. Phase 5 — Night + moon (added per test feedback, after Phase 4)
+
+`r_sky_preset 3` = night. No auto cycle yet (manual select; full day/night
+cycle stays a Phase 6 item) and world lightmaps are untouched (sky-only night).
+
+- Tier-A: night gradient (near-black blue top, faint horizon glow), moon disc
+  (tight core + wide halo, HDR-bright so bloom catches it), procedural
+  two-octave hash star field with twinkle (`uNight`/`uTime`), sun off.
+  Sunset keeps a touch of stars (`night=0.2`). Sun/moon colors are uniforms
+  now (day/sunset disc colors unchanged from before).
+- Tier-B: moon becomes the light — direction, cool dim `lightColor`, dark blue
+  ambient cloud colors; new `glareColor` uniform replaces the hardcoded orange
+  glare (day value identical to before, night = pale blue).
+- Stars show through cloud alpha automatically (Tier-A is the backdrop).
+- Out of scope: legacy textured sky at night (stays map art), world lighting.

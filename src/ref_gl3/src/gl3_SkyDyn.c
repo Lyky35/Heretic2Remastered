@@ -32,7 +32,7 @@ void GL3_SkyDyn_RegisterCvars(void)
 	r_dynsky = ri.Cvar_Get("r_dynsky", "0", CVAR_ARCHIVE);
 	r_volclouds = ri.Cvar_Get("r_volclouds", "0", CVAR_ARCHIVE);
 
-	// Tier A: gradient-sky preset. 0 = day, 1 = sunset, 2 = auto (currently day; sun-cycle in Phase 6).
+	// Tier A: gradient-sky preset. 0 = day, 1 = sunset, 2 = auto (day), 3 = night + moon.
 	r_sky_preset = ri.Cvar_Get("r_sky_preset", "2", CVAR_ARCHIVE);
 
 	// Tier B tuning (TerrainEngine defaults; rescaled later in Phase 4).
@@ -79,10 +79,20 @@ static const char* fragmentSourceSkyDyn =
 	"uniform vec3 uLightDir;\n"
 	"uniform vec3 uSkyTop;\n"
 	"uniform vec3 uSkyBottom;\n"
+	"uniform vec3 uSunColor;\n"   // pre-scaled sun disc color (black = off)
+	"uniform vec3 uMoonDir;\n"    // H2 Z-up moon direction
+	"uniform vec3 uMoonColor;\n"  // pre-scaled moon color (black = off)
+	"uniform float uNight;\n"     // 0..1 star-field visibility
+	"uniform float uTime;\n"      // seconds, star twinkle
 	"out vec4 FragColor;\n"
-	"vec3 getSun(vec3 d, float powExp) {\n"
-	"    float sun = clamp(dot(normalize(uLightDir), d), 0.0, 1.0);\n"
-	"    return 0.8 * vec3(1.0, 0.6, 0.1) * pow(sun, powExp);\n"
+	"float starLayer(vec3 d, float scale, float t) {\n"
+	"    vec3 p = d * scale;\n"
+	"    vec3 id = floor(p);\n"
+	"    vec3 f = fract(p) - 0.5;\n"
+	"    float h = fract(sin(dot(id, vec3(12.9898, 78.233, 45.164))) * 43758.5453);\n"
+	"    float star = step(0.78, h) * smoothstep(0.22, 0.04, length(f));\n"
+	"    float twinkle = 0.7 + 0.3 * sin(t * (2.0 + h * 4.0) + h * 40.0);\n"
+	"    return star * twinkle * (0.4 + 0.6 * h);\n"
 	"}\n"
 	"void main() {\n"
 	"    vec2 ray_nds = 2.0 * gl_FragCoord.xy / uResolution - 1.0;\n"
@@ -92,7 +102,16 @@ static const char* fragmentSourceSkyDyn =
 	"    vec3 worldDir = normalize((uInvView * ray_view).xyz);\n"
 	"    vec3 col = mix(uSkyBottom, uSkyTop,\n"
 	"        clamp(1.0 - exp(8.5 - 17.0 * clamp(worldDir.z * 0.5 + 0.5, 0.0, 1.0)), 0.0, 1.0));\n"
-	"    col += getSun(worldDir, 350.0);\n"
+	"    vec3 d = normalize(worldDir);\n"
+	"    col += uSunColor * pow(clamp(dot(normalize(uLightDir), d), 0.0, 1.0), 350.0);\n"
+	"    float mdot = clamp(dot(normalize(uMoonDir), d), 0.0, 1.0);\n"
+	"    col += uMoonColor * pow(mdot, 1200.0);\n"
+	"    col += uMoonColor * 0.25 * pow(mdot, 24.0);\n"
+	"    if (uNight > 0.001) {\n"
+	"        float horiz = smoothstep(-0.05, 0.25, d.z);\n"
+	"        float stars = starLayer(d, 200.0, uTime) + 0.6 * starLayer(d + 11.7, 90.0, uTime);\n"
+	"        col += uNight * horiz * vec3(0.9, 0.95, 1.0) * stars;\n"
+	"    }\n"
 	"    FragColor = vec4(col, 1.0);\n"
 	"}\n";
 
@@ -103,6 +122,11 @@ static GLint s_uInvView = -1;
 static GLint s_uLightDir = -1;
 static GLint s_uSkyTop = -1;
 static GLint s_uSkyBottom = -1;
+static GLint s_uSunColor = -1;
+static GLint s_uMoonDir = -1;
+static GLint s_uMoonColor = -1;
+static GLint s_uNight = -1;
+static GLint s_uTime = -1;
 
 static GLuint SkyDyn_CompileShader(GLenum type, const char* source)
 {
@@ -165,6 +189,11 @@ static qboolean SkyDyn_InitTierA(void)
 	s_uLightDir = glGetUniformLocation(s_skyProg, "uLightDir");
 	s_uSkyTop = glGetUniformLocation(s_skyProg, "uSkyTop");
 	s_uSkyBottom = glGetUniformLocation(s_skyProg, "uSkyBottom");
+	s_uSunColor = glGetUniformLocation(s_skyProg, "uSunColor");
+	s_uMoonDir = glGetUniformLocation(s_skyProg, "uMoonDir");
+	s_uMoonColor = glGetUniformLocation(s_skyProg, "uMoonColor");
+	s_uNight = glGetUniformLocation(s_skyProg, "uNight");
+	s_uTime = glGetUniformLocation(s_skyProg, "uTime");
 	return true;
 }
 
@@ -214,29 +243,54 @@ static qboolean SkyDyn_InvertMatrix(const float* m, float* out)
 	return true;
 }
 
-// TerrainEngine Skybox presets (DefaultPreset / SunsetPreset1), flattened.
-// Canonical form is Y-up (high sunDir.y = overhead): Tier-B consumes it as-is
-// (its shader converts rays to Y-up); Tier-A swizzles to H2 Z-up at upload.
-static void SkyDyn_Preset(int preset, float* top, float* bottom, float* sunDir)
+// TerrainEngine Skybox presets (DefaultPreset / SunsetPreset1) + night,
+// flattened. Canonical form is Y-up (high sunDir.y = overhead): Tier-B
+// consumes it as-is (its shader converts rays to Y-up); Tier-A swizzles
+// sun/moon dirs to H2 Z-up at upload.
+static void SkyDyn_Preset(int preset, float* top, float* bottom, float* sunDir,
+	float* sunColor, float* moonDir, float* moonColor, float* night)
 {
-	if (preset == 1) // sunset: low warm sun
+	if (preset == 3) // night: dark sky, moon disc + stars, dim blue clouds
+	{
+		top[0] = 0.012f; top[1] = 0.025f; top[2] = 0.07f;
+		bottom[0] = 0.045f; bottom[1] = 0.07f; bottom[2] = 0.14f;
+		sunDir[0] = 0.35f; sunDir[1] = -0.5f; sunDir[2] = 0.30f; // below horizon
+		sunColor[0] = 0.0f; sunColor[1] = 0.0f; sunColor[2] = 0.0f;
+		moonDir[0] = -0.45f; moonDir[1] = 0.62f; moonDir[2] = -0.30f;
+		moonColor[0] = 0.95f; moonColor[1] = 1.0f; moonColor[2] = 1.15f;
+		*night = 1.0f;
+	}
+	else if (preset == 1) // sunset: low warm sun
 	{
 		top[0] = 133.0f / 255.0f; top[1] = 158.0f / 255.0f; top[2] = 214.0f / 255.0f;
 		bottom[0] = 241.0f / 255.0f; bottom[1] = 161.0f / 255.0f; bottom[2] = 161.0f / 255.0f;
 		sunDir[0] = 0.85f; sunDir[1] = 0.14f; sunDir[2] = 0.25f;
+		sunColor[0] = 1.0f; sunColor[1] = 0.5f; sunColor[2] = 0.15f;
+		moonDir[0] = 0.0f; moonDir[1] = -1.0f; moonDir[2] = 0.0f;
+		moonColor[0] = 0.0f; moonColor[1] = 0.0f; moonColor[2] = 0.0f;
+		*night = 0.2f;
 	}
 	else // day (preset 0 and auto/2, which tracks day until Phase 6 sun-cycle)
 	{
 		top[0] = 0.5f * 1.05f; top[1] = 0.7f * 1.05f; top[2] = 0.8f * 1.05f;
 		bottom[0] = 0.9f; bottom[1] = 0.9f; bottom[2] = 0.95f;
 		sunDir[0] = 0.35f; sunDir[1] = 0.75f; sunDir[2] = 0.30f;
+		sunColor[0] = 0.8f; sunColor[1] = 0.48f; sunColor[2] = 0.08f;
+		moonDir[0] = 0.0f; moonDir[1] = -1.0f; moonDir[2] = 0.0f;
+		moonColor[0] = 0.0f; moonColor[1] = 0.0f; moonColor[2] = 0.0f;
+		*night = 0.0f;
 	}
-	// Normalize sun direction.
+	// Normalize directions.
 	{
-		const float len = sqrtf(sunDir[0] * sunDir[0] + sunDir[1] * sunDir[1] + sunDir[2] * sunDir[2]);
+		float len = sqrtf(sunDir[0] * sunDir[0] + sunDir[1] * sunDir[1] + sunDir[2] * sunDir[2]);
 		if (len > 0.0f)
 		{
 			sunDir[0] /= len; sunDir[1] /= len; sunDir[2] /= len;
+		}
+		len = sqrtf(moonDir[0] * moonDir[0] + moonDir[1] * moonDir[1] + moonDir[2] * moonDir[2]);
+		if (len > 0.0f)
+		{
+			moonDir[0] /= len; moonDir[1] /= len; moonDir[2] /= len;
 		}
 	}
 }
@@ -1242,6 +1296,7 @@ static const char* computeSourceClouds =
 	"uniform vec3 cloudColorBottom;\n"
 	"uniform vec3 skyColorTop;\n"
 	"uniform vec3 skyColorBottom;\n"
+	"uniform vec3 glareColor;\n" // sun/moon glare tint (preset-driven, replaces hardcoded orange)
 	"uniform vec3 noiseKernel[6u] = vec3[](\n"
 	"	vec3(0.38051305, 0.92453449, -0.02111345),\n"
 	"	vec3(-0.50625799, -0.03590792, -0.86163418),\n"
@@ -1508,7 +1563,7 @@ static const char* computeSourceClouds =
 	"	v.rgb = v.rgb*1.8 - 0.1;\n"
 	"	v.rgb = mix(v.rgb, bg.rgb*v.a, clamp(fogAmount, 0., 1.));\n"
 	"	float sun = clamp(dot(SUN_DIR, normalize(endPos - startPos)), 0.0, 1.0);\n"
-	"	vec3 s = 0.8*vec3(1.0,0.4,0.2)*pow(sun, 256.0);\n"
+	"	vec3 s = glareColor*pow(sun, 256.0);\n"
 	"	v.rgb += s*v.a;\n"
 	"	imageStore(outClouds, fragCoord, vec4(v.rgb, cloudAlphaness));\n"
 	"}\n";
@@ -1562,6 +1617,7 @@ static GLint s_clOuterR = -1;
 
 static GLuint s_compProg = 0;
 static GLint s_cpClouds = -1;
+static GLint s_clGlare = -1;
 
 static GLuint s_cloudTex = 0;
 static int s_cloudW = 0;
@@ -1698,6 +1754,7 @@ qboolean GL3_SkyDyn_Init(void)
 			s_clEarthR = glGetUniformLocation(s_progClouds, "earthRadius");
 			s_clInnerR = glGetUniformLocation(s_progClouds, "sphereInnerRadius");
 			s_clOuterR = glGetUniformLocation(s_progClouds, "sphereOuterRadius");
+			s_clGlare = glGetUniformLocation(s_progClouds, "glareColor");
 		}
 
 		// Composite program (textured FSQ vertex + cloud blend fragment).
@@ -1809,6 +1866,7 @@ void GL3_SkyDyn_Shutdown(void)
 	s_clSampCloud = s_clSampWorley = s_clSampWeather = -1;
 	s_clCoverage = s_clSpeed = s_clCrisp = s_clCurl = s_clAbsorb = s_clDensity = -1;
 	s_clEarthR = s_clInnerR = s_clOuterR = -1;
+	s_clGlare = -1;
 	s_cpClouds = -1;
 
 	if (s_skyProg != 0)
@@ -1817,6 +1875,7 @@ void GL3_SkyDyn_Shutdown(void)
 		s_skyProg = 0;
 	}
 	s_uResolution = s_uInvProj = s_uInvView = s_uLightDir = s_uSkyTop = s_uSkyBottom = -1;
+	s_uSunColor = s_uMoonDir = s_uMoonColor = s_uNight = s_uTime = -1;
 }
 
 qboolean GL3_SkyDyn_Enabled(void)
@@ -1841,6 +1900,7 @@ qboolean GL3_SkyDyn_TierAReady(void)
 void GL3_SkyDyn_DrawTierA(void)
 {
 	float top[3], bottom[3], sunDir[3];
+	float sunColor[3], moonDir[3], moonColor[3], night;
 	float invProj[16], invView[16];
 	float width, height;
 	int preset;
@@ -1849,11 +1909,11 @@ void GL3_SkyDyn_DrawTierA(void)
 		return;
 
 	preset = (r_sky_preset != NULL) ? (int)r_sky_preset->value : 2;
-	if (preset < 0 || preset > 2)
+	if (preset < 0 || preset > 3)
 		preset = 2;
 	if (preset == 2)
 		preset = 0; // auto tracks day until Phase 6 sun-cycle
-	SkyDyn_Preset(preset, top, bottom, sunDir);
+	SkyDyn_Preset(preset, top, bottom, sunDir, sunColor, moonDir, moonColor, &night);
 
 	if (!SkyDyn_InvertMatrix(r_projection_matrix, invProj))
 		return;
@@ -1872,6 +1932,11 @@ void GL3_SkyDyn_DrawTierA(void)
 	glUniform3f(s_uLightDir, sunDir[0], sunDir[2], sunDir[1]);
 	glUniform3f(s_uSkyTop, top[0], top[1], top[2]);
 	glUniform3f(s_uSkyBottom, bottom[0], bottom[1], bottom[2]);
+	glUniform3f(s_uSunColor, sunColor[0], sunColor[1], sunColor[2]);
+	glUniform3f(s_uMoonDir, moonDir[0], moonDir[2], moonDir[1]);
+	glUniform3f(s_uMoonColor, moonColor[0], moonColor[1], moonColor[2]);
+	glUniform1f(s_uNight, night);
+	glUniform1f(s_uTime, r_newrefdef.time);
 
 	// Caller keeps depth test on + writes off + cull/clip off; FSQ at far
 	// depth loses to all opaque geometry via LEQUAL, like legacy sky quads.
@@ -1882,11 +1947,13 @@ void GL3_SkyDyn_DrawTierA(void)
 void GL3_SkyDyn_DrawClouds(void)
 {
 	float top[3], bottom[3], sunDir[3];
+	float sunColor[3], moonDir[3], moonColor[3], night;
 	float invProj[16], invView[16];
 	float fw, fh, res;
 	int cw, ch, preset;
 	GLboolean blend_was_enabled;
 	GLint blend_src, blend_dst;
+	qboolean isNight;
 
 	// Gates: cvars + GL 4.3 + programs + noise. Runs in the reflection pass too:
 	// r_origin / r_world_matrix / r_projection_matrix are mirrored there
@@ -1933,11 +2000,12 @@ void GL3_SkyDyn_DrawClouds(void)
 	}
 
 	preset = (r_sky_preset != NULL) ? (int)r_sky_preset->value : 2;
-	if (preset < 0 || preset > 2)
+	if (preset < 0 || preset > 3)
 		preset = 2;
 	if (preset == 2)
 		preset = 0; // auto tracks day until Phase 6 sun-cycle
-	SkyDyn_Preset(preset, top, bottom, sunDir);
+	SkyDyn_Preset(preset, top, bottom, sunDir, sunColor, moonDir, moonColor, &night);
+	isNight = (preset == 3) ? true : false;
 
 	if (!SkyDyn_InvertMatrix(r_projection_matrix, invProj))
 		return;
@@ -1945,6 +2013,8 @@ void GL3_SkyDyn_DrawClouds(void)
 		return;
 
 	// --- Raymarch (compute) ---
+	// At night the moon is the light: direction + cool dim light + dark
+	// ambient cloud colors; Tier-A already shows the moon disc + stars.
 	GL3_UseShader(s_progClouds);
 	glUniform2f(s_clRes, (float)cw, (float)ch);
 	glUniform1f(s_clTime, r_newrefdef.time);
@@ -1953,12 +2023,28 @@ void GL3_SkyDyn_DrawClouds(void)
 	// H2 world is Z-up; shader dome math is Y-up: swizzle camera (x, z, y).
 	// (Ray dirs are swizzled in-shader; sun/preset stays Y-up canonical.)
 	glUniform3f(s_clCamPos, r_origin[0], r_origin[2], r_origin[1]);
-	glUniform3f(s_clLightDir, sunDir[0], sunDir[1], sunDir[2]);
-	glUniform3f(s_clLightColor, 1.0f, 1.0f, 230.0f / 255.0f);
+	if (isNight)
+		glUniform3f(s_clLightDir, moonDir[0], moonDir[1], moonDir[2]);
+	else
+		glUniform3f(s_clLightDir, sunDir[0], sunDir[1], sunDir[2]);
+	if (isNight)
+		glUniform3f(s_clLightColor, 0.45f, 0.55f, 0.8f);
+	else
+		glUniform3f(s_clLightColor, 1.0f, 1.0f, 230.0f / 255.0f);
 	glUniform3f(s_clSkyTop, top[0], top[1], top[2]);
 	glUniform3f(s_clSkyBottom, bottom[0], bottom[1], bottom[2]);
-	glUniform3f(s_clCloudTop, 169.0f * 1.5f / 255.0f, 149.0f * 1.5f / 255.0f, 149.0f * 1.5f / 255.0f);
-	glUniform3f(s_clCloudBottom, 65.0f * 1.5f / 255.0f, 70.0f * 1.5f / 255.0f, 80.0f * 1.5f / 255.0f);
+	if (isNight)
+	{
+		glUniform3f(s_clCloudTop, 0.10f, 0.12f, 0.20f);
+		glUniform3f(s_clCloudBottom, 0.04f, 0.05f, 0.09f);
+		glUniform3f(s_clGlare, 0.35f, 0.42f, 0.55f);
+	}
+	else
+	{
+		glUniform3f(s_clCloudTop, 169.0f * 1.5f / 255.0f, 149.0f * 1.5f / 255.0f, 149.0f * 1.5f / 255.0f);
+		glUniform3f(s_clCloudBottom, 65.0f * 1.5f / 255.0f, 70.0f * 1.5f / 255.0f, 80.0f * 1.5f / 255.0f);
+		glUniform3f(s_clGlare, 0.8f, 0.32f, 0.16f); // == old hardcoded 0.8*(1,.4,.2)
+	}
 	glUniform1f(s_clCoverage, (r_cloud_coverage != NULL) ? r_cloud_coverage->value : 0.45f);
 	glUniform1f(s_clSpeed, (r_cloud_speed != NULL) ? r_cloud_speed->value : 450.0f);
 	glUniform1f(s_clCrisp, (r_cloud_crisp != NULL) ? r_cloud_crisp->value : 40.0f);
