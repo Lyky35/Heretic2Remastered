@@ -267,3 +267,20 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `4c3b95e6` pushed, R8.7 Beta asset refreshed. Retest ask: Tier-A gradient orientation/sun height, cloud placement/drift with `r_volclouds 1`, legacy sky gone under clouds.
+
+## 2026-10-13 — Clouds in water reflections (remove reflection skip)
+
+Report: volumetrics work, but water doesn't reflect clouds.
+Steps:
+1. Confirmed in `R_RenderReflection` (`gl3_Main.c:986-1072`): reflected `r_origin` (line 1010), mirrored `r_world_matrix` (1026-1033) + projection (1025) are current when `R_DrawWorld` -> `R_DrawSkyBox` runs for the mirror. Tier-A already reflects (same inputs), so the cloud pass needs no special-casing — the Phase-4 skip was pure cost saving, now unwanted.
+   - Reason: enable instead of work around; mirrored rays reconstruct correctly for free.
+2. `gl3_SkyDyn.c` `GL3_SkyDyn_DrawClouds()`: removed the `R_IsReflectionPass()` early return; header comment updated (runs in both passes). Cull/depth handling at the hook is identical in both passes, so no other change.
+   - Reason: one-line behavior change; cost is a second raymarch while water reflections render (noted in README).
+3. Updated in-zip README known-limits (reflections now include clouds + cost note).
+   - Reason: tester-facing docs stay accurate.
+4. Rebuilt all targets (zero warnings/errors), repackaged Beta zip (gitignored), staged fresh binaries.
+   - Reason: ship to tester.
+5. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

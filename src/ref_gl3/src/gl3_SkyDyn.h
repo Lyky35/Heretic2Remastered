@@ -44,7 +44,7 @@ extern void GL3_SkyDyn_Update(void);
 extern qboolean GL3_SkyDyn_DrawDebug(void);
 
 // Tier-B volumetric clouds (Phase 4): raymarch at r_cloud_res scale into an
-// offscreen buffer, then alpha-blend over the sky. Skipped in the reflection
-// pass (main-pass result is reused by water automatically since it lives in
-// the framebuffer). Caller must have depth writes off + cull off.
+// offscreen buffer, then alpha-blend over the sky. Runs in the reflection
+// pass too (mirrored camera state is current there), so water reflects clouds.
+// Caller must have depth writes off + cull off.
 extern void GL3_SkyDyn_DrawClouds(void);

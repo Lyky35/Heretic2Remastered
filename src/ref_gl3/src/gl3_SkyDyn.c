@@ -1888,15 +1888,15 @@ void GL3_SkyDyn_DrawClouds(void)
 	GLboolean blend_was_enabled;
 	GLint blend_src, blend_dst;
 
-	// Gates: cvars + GL 4.3 + programs + noise + main pass only.
+	// Gates: cvars + GL 4.3 + programs + noise. Runs in the reflection pass too:
+	// r_origin / r_world_matrix / r_projection_matrix are mirrored there
+	// (R_RenderReflection), so rays reconstruct correctly for the mirror view.
 	if (!GL3_SkyDyn_VolumetricEnabled())
 		return;
 	if (!GLAD_GL_VERSION_4_3 || s_progClouds == 0 || s_compProg == 0)
 		return;
 	if (s_perlinTex == 0 || s_worleyTex == 0 || s_weatherTex == 0)
 		return;
-	if (R_IsReflectionPass())
-		return; // Half the cost: reflection reuses the main-pass framebuffer result.
 
 	// Cloud buffer size follows the framebuffer, scaled by r_cloud_res.
 	fw = (gl3state.fbo_width > 0) ? (float)gl3state.fbo_width : (float)viddef.width;
