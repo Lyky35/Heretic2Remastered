@@ -299,7 +299,7 @@ Steps:
    - Reason: keep plan/README accurate for the tester.
 5. Rebuilt all targets (zero warnings/errors), repackaged Beta zip (gitignored), staged fresh binaries.
    - Reason: ship to tester.
-6. Next: commit + push, move `R8_7_Beta` tag, re-upload asset, rewrite notes.
+6. Ran `git add` (gl3_SkyDyn.c, gl3_Local.h, plan, PROGRESS.md), commit `5826d281` (+145/-22), `git push origin Beta`; moved tag `R8_7_Beta`; `gh release upload --clobber` (6658209 bytes, updated 2026-10-13T22:38:52Z); rewrote notes — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `5826d281` pushed, R8.7 Beta asset refreshed with night + moon. Retest ask: preset 3 look, moon/stars, moonlit clouds.
