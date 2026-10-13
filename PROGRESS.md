@@ -404,7 +404,7 @@ Steps:
    - Reason: one user-owned knob that sticks; map fog variation preserved at 1.0.
 3. README fog-control lines. Rebuilt all (one pre-existing `input.h:21` inline warning, unrelated file untouched), repackaged, staged.
    - Reason: ship + docs.
-4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+4. Ran `git add` (cl_screen.c, PROGRESS.md), commit `8d80af2c` (+24/-2), `git push origin Beta`; moved tag `R8_7_Beta`; `gh release upload --clobber` (6660044 bytes, updated 2026-10-13T23:38:36Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `8d80af2c` pushed, R8.7 Beta asset refreshed. Use `r_fog_scale 0` for zero map fog (sticks, archived); tell me if haze remains — then it's clouds/mist, not post fog.
