@@ -241,7 +241,24 @@ qboolean GL3_SkyDyn_Init(void)
 	}
 	else
 	{
-		ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: GL 4.3+ compute available.\n");
+		// Minimal #version 430 probe: compile + link only, no dispatch and no
+		// GL state touched, so this is safe on every driver. Phase 3+ reuses
+		// GL3_CreateComputeProgram for the real noise / cloud shaders.
+		static const char* computeProbeSource =
+			"#version 430 core\n"
+			"layout(local_size_x = 1) in;\n"
+			"layout(rgba8, binding = 0) uniform image2D outImg;\n"
+			"void main() {\n"
+			"    imageStore(outImg, ivec2(0, 0), vec4(1.0, 0.0, 1.0, 1.0));\n"
+			"}\n";
+		const GLuint probe = GL3_CreateComputeProgram(computeProbeSource);
+		if (probe == 0)
+			ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: compute probe FAILED — volumetric clouds disabled, gradient sky still available.\n");
+		else
+		{
+			ri.Con_Printf(PRINT_ALL, "GL3_SkyDyn: compute probe OK (GL 4.3+ program path works).\n");
+			glDeleteProgram(probe);
+		}
 	}
 
 	if (!SkyDyn_InitTierA())

@@ -141,7 +141,21 @@ Steps:
    - Reason: user asked to publish; prerelease (not latest) so R8.6 stays the stable download.
 3. Verified with `gh release view R8_7_Beta --json name,tagName,isPrerelease,assets`: name `R8.7 Beta`, tag `R8_7_Beta`, `isPrerelease true`, 1 asset `HereticIIRemastered_R8_7_Beta.zip`.
    - Reason: confirm the release is live with the correct file before announcing.
-4. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+4. Ran `git add PROGRESS.md`, commit `46039da0`, `git push origin Beta` — succeeded (`8b3dc133..46039da0`).
    - Reason: complete "commit and push after each portion" for this publishing portion.
+
+Result: `46039da0` pushed to `origin/Beta`. Release live at https://github.com/Lyky35/Heretic2Remastered/releases/tag/R8_7_Beta.
+
+## 2026-10-13 — Phase 2 compute + 3D-texture infrastructure (no visual change)
+
+Steps:
+1. Added to `gl3_Shaders.h` / `gl3_Shaders.c` (new section after `CreateProgram`, reusing static `CompileShader`): `GL3_CreateComputeProgram(comp_src)` (compile `GL_COMPUTE_SHADER` + link + log, returns 0 on fail), `GL3_MakeTexture3D(w,h,d,format)` (trilinear + REPEAT on S/T/R for world-XZ tiling + mipmaps), `GL3_MakeTexture2D(w,h,format)` (same 2D, for weather map), `GL3_BindImageTexture(unit,tex,layered,access,format)` (whole-level image binding), `GL3_MemoryBarrierCompute()` (`SHADER_IMAGE_ACCESS` barrier).
+   - Reason: per plan Phase 2 — new `#version 430+` programs ride the 4.6 Core context while all existing 330 programs stay untouched; wrappers centralize image-unit handling away from the 2D-only `R_Bind/R_SelectTexture` cache (`MAX_TEXTURE_UNITS 2` left alone).
+2. Wired a minimal `#version 430` probe (`imageStore` to `rgba8` image, compile+link only, no dispatch, no GL state touched) into `GL3_SkyDyn_Init()` when `GLAD_GL_VERSION_4_3` is present; prints `compute probe OK` or `compute probe FAILED`, deletes the program either way.
+   - Reason: init-only verification per plan — proves the real Phase 3/4 shader path works on the user's driver at startup, with soft-fail (volumetrics disabled, Tier-A unaffected) instead of a crash.
+3. Build-checked: mingw `ref_gl3` rebuilt, zero warnings/errors.
+   - Reason: verify helpers compile clean before committing; runtime probe output will be confirmed from the user's Windows test.
+4. Next: `git add` modified files, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion" for this Phase 2 portion.
 
 Result: pending push (see next entry update after push).

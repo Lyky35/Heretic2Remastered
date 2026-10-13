@@ -524,6 +524,97 @@ static GLuint CreateProgram(const char* vert_src, const char* frag_src)
 }
 
 // ============================================================
+// Compute-shader + image-texture helpers (Phase 2: dynamic sky).
+// New programs are #version 430+ (context is 4.6 Core); all existing
+// 330 programs above are untouched. Callers check GLAD_GL_VERSION_4_3.
+// ============================================================
+
+GLuint GL3_CreateComputeProgram(const char* comp_src)
+{
+	const GLuint comp = CompileShader(GL_COMPUTE_SHADER, comp_src);
+	if (comp == 0)
+		return 0;
+
+	const GLuint program = glCreateProgram();
+	glAttachShader(program, comp);
+	glLinkProgram(program);
+
+	GLint success = 0;
+	glGetProgramiv(program, GL_LINK_STATUS, &success);
+
+	if (!success)
+	{
+		char info_log[512];
+		glGetProgramInfoLog(program, sizeof(info_log), NULL, info_log);
+		ri.Con_Printf(PRINT_ALL, "GL3 Compute program link error: %s\n", info_log);
+		glDeleteProgram(program);
+		glDeleteShader(comp);
+		return 0;
+	}
+
+	// Shader can be detached/deleted after linking.
+	glDetachShader(program, comp);
+	glDeleteShader(comp);
+
+	return program;
+}
+
+GLuint GL3_MakeTexture3D(int width, int height, int depth, GLenum internalFormat)
+{
+	GLuint tex = 0;
+
+	if (width <= 0 || height <= 0 || depth <= 0)
+		return 0;
+
+	glGenTextures(1, &tex);
+	glBindTexture(GL_TEXTURE_3D, tex);
+	// Cloud noise is sampled by a world-XZ projection far outside [0,1] -> repeat.
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_REPEAT);
+	glTexImage3D(GL_TEXTURE_3D, 0, (GLint)internalFormat, width, height, depth, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glGenerateMipmap(GL_TEXTURE_3D);
+	glBindTexture(GL_TEXTURE_3D, 0);
+
+	return tex;
+}
+
+GLuint GL3_MakeTexture2D(int width, int height, GLenum internalFormat)
+{
+	GLuint tex = 0;
+
+	if (width <= 0 || height <= 0)
+		return 0;
+
+	glGenTextures(1, &tex);
+	glBindTexture(GL_TEXTURE_2D, tex);
+	// Weather map is sampled by a world-XZ projection outside [0,1] -> repeat.
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexImage2D(GL_TEXTURE_2D, 0, (GLint)internalFormat, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	return tex;
+}
+
+void GL3_BindImageTexture(GLuint unit, GLuint tex, GLboolean layered, GLenum access, GLenum format)
+{
+	// Whole-level image binding (level 0): layered GL_TRUE for 3D noise,
+	// GL_FALSE for 2D weather / cloud buffers.
+	glBindImageTexture(unit, tex, 0, layered, 0, access, format);
+}
+
+void GL3_MemoryBarrierCompute(void)
+{
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+}
+
+// ============================================================
 // Public API.
 // ============================================================
 

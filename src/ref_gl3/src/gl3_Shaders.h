@@ -68,3 +68,13 @@ extern void GL3_RenderSSAO(float radius, float bias);
 // Per-frame dynamic light update (transforms dlights to view-space, sets shader3D uniforms).
 extern void GL3_UpdateDlights(void);
 extern void GL3_SetNumDlights(const int n);
+
+// Compute-shader + image-texture helpers (Phase 2: dynamic sky / volumetric clouds).
+// New programs are #version 430+ (context is 4.6 Core); existing 330 programs untouched.
+// Callers must check GLAD_GL_VERSION_4_3 before use; helpers return 0 on bad input.
+extern GLuint GL3_CreateComputeProgram(const char* comp_src);
+extern GLuint GL3_MakeTexture3D(int width, int height, int depth, GLenum internalFormat);
+extern GLuint GL3_MakeTexture2D(int width, int height, GLenum internalFormat);
+// Whole-level (level 0) image binding: layered=GL_TRUE for 3D noise, GL_FALSE for 2D.
+extern void GL3_BindImageTexture(GLuint unit, GLuint tex, GLboolean layered, GLenum access, GLenum format);
+extern void GL3_MemoryBarrierCompute(void);
