@@ -177,3 +177,19 @@ Steps:
    - Reason: complete "commit and push after each portion" for this Phase 3 portion.
 
 Result: `2e8cbeac` pushed to `origin/Beta`. Windows test: console should show `noise generated in Xms (...)`, then `r_cloud_debug 1/2/3` fullscreen views. Suggested next portion: Phase 4 volumetric raymarch (+ new Beta package).
+
+## 2026-10-13 — Updated R8.7 Beta release to Phase 1-3 binaries
+
+Steps:
+1. Verified Beta clean (`git status` only untracked `fxstaff_debug.log`) and HEAD == `origin/Beta` (`53865e77`).
+   - Reason: release must match pushed HEAD exactly; no stray edits.
+2. Full rebuild (`cmake --build /tmp/opencode/h2-build -j`, all targets, no errors) + verified `strings build/ref_gl3.dll` contains Phase 2-3 code (`r_cloud_debug`, `noise generated in`); `ref_gl3.dll` grew 459333 -> 489152 bytes.
+   - Reason: previous R8.7 Beta asset only had Phase 1; fresh binaries prove current HEAD is packaged.
+3. Refreshed stage `/tmp/opencode/R87Beta/...` with new binaries, updated `README.txt` (startup-log expectations + debug-view/seed test steps + report checklist), re-zipped to `release/HereticIIRemastered_R8_7_Beta.zip` (15 files, same R8.6-compatible layout; gitignored).
+   - Reason: tester gets one self-contained drop-in with instructions matching the new binaries.
+4. Moved tag: `git tag -f -a R8_7_Beta` (now Phase 1-3) + `git push -f origin R8_7_Beta` (forced update `d45dbe26..45bf3901`); `gh release upload R8_7_Beta <zip> --clobber` (asset now 6649863 bytes, updated 2026-10-13T21:41:44Z); `gh release edit` notes rewritten for Phases 1-3; release stays prerelease (R8.6 remains latest stable).
+   - Reason: user asked to update R8.7 Beta in place; force-moving a Beta prerelease tag is safe and keeps one download URL.
+5. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion" for this release-update portion.
+
+Result: pending push (see next entry update after push).
