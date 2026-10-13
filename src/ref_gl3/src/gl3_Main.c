@@ -320,7 +320,7 @@ static void R_Register(void)
 	r_ssao_strength   = ri.Cvar_Get("r_ssao_strength",   "1.0", CVAR_ARCHIVE);
 	r_shadows         = ri.Cvar_Get("r_shadows",         "1",   CVAR_ARCHIVE);
 	r_reflections     = ri.Cvar_Get("r_reflections",     "1",   CVAR_ARCHIVE);
-	r_reflections_intensity = ri.Cvar_Get("r_reflections_intensity", "1.6", CVAR_ARCHIVE);
+	r_reflections_intensity = ri.Cvar_Get("r_reflections_intensity", "4.0", CVAR_ARCHIVE);
 	r_reflections_res = ri.Cvar_Get("r_reflections_res", "0", CVAR_ARCHIVE); // 0 = native, 1 = half
 	r_bump            = ri.Cvar_Get("r_bump",            "1",   CVAR_ARCHIVE);
 	r_bump_scale_world = ri.Cvar_Get("r_bump_scale_world", "0", CVAR_ARCHIVE);
@@ -329,9 +329,9 @@ static void R_Register(void)
 	r_caustics_strength = ri.Cvar_Get("r_caustics_strength", "0.6", CVAR_ARCHIVE);
 	r_refractions     = ri.Cvar_Get("r_refractions",     "1",   CVAR_ARCHIVE);
 	r_refractions_intensity = ri.Cvar_Get("r_refractions_intensity", "0.5", CVAR_ARCHIVE);
-	r_water_wave_height = ri.Cvar_Get("r_water_wave_height", "0.6", CVAR_ARCHIVE);
+	r_water_wave_height = ri.Cvar_Get("r_water_wave_height", "3.0", CVAR_ARCHIVE);
 	r_water_wave_speed  = ri.Cvar_Get("r_water_wave_speed",  "1.0", CVAR_ARCHIVE);
-	r_water_wave_sharp  = ri.Cvar_Get("r_water_wave_sharp",  "0.5", CVAR_ARCHIVE);
+	r_water_wave_sharp  = ri.Cvar_Get("r_water_wave_sharp",  "0.0", CVAR_ARCHIVE);
 	r_hd_textures     = ri.Cvar_Get("r_hd_textures",     "1",   CVAR_ARCHIVE);
 	r_antialiasing    = ri.Cvar_Get("r_antialiasing",    "0",   CVAR_ARCHIVE);
 

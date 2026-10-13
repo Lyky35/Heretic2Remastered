@@ -882,12 +882,12 @@ qboolean GL3_InitShaders(void)
 	glUniform1i(gl3state.uniWater_reflectTex, 1);      // TMU1: reflection texture.
 	glUniform1i(gl3state.uniWater_refractTex, 2);      // TMU2: refraction texture.
 	glUniform4f(gl3state.uniWater_color, 1.0f, 1.0f, 1.0f, 1.0f);
-	glUniform1f(gl3state.uniWater_reflectAmt, 0.35f);
+	glUniform1f(gl3state.uniWater_reflectAmt, 4.0f);
 	glUniform1f(gl3state.uniWater_refractAmt, 0.5f);
 	glUniform1f(gl3state.uniWater_time, 0.0f);
-	glUniform1f(gl3state.uniWater_waveHeight, 0.6f);
+	glUniform1f(gl3state.uniWater_waveHeight, 3.0f);
 	glUniform1f(gl3state.uniWater_waveSpeed, 1.0f);
-	glUniform1f(gl3state.uniWater_waveSharp, 0.5f);
+	glUniform1f(gl3state.uniWater_waveSharp, 0.0f);
 
 	// Neutral clip plane + default bump strength on all 3D programs.
 	{

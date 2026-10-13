@@ -318,3 +318,16 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `e875c805` pushed, R8.7 Beta asset refreshed. Retest ask: wave smoothness + mirror strength.
+
+## 2026-10-13 — Water defaults per tester: intensity 4, height 3, sharp 0
+
+Request: exact default values.
+Steps:
+1. `gl3_Main.c`: `r_reflections_intensity` 1.6 -> 4.0 (full mirror at all angles: clamp(4*fresnel) = 1 everywhere), `r_water_wave_height` 0.6 -> 3.0, `r_water_wave_sharp` 0.5 -> 0.0 (pure sine rollers, no sharp crests). `gl3_Shaders.c` init-time uniforms matched (overwritten per-draw from cvars, but kept consistent).
+   - Reason: as requested. Note: height 3 with summed wave amps ~3.9 gives swells up to ~11 units — watch for clipping through docks/geometry; sharp 0 removes crest bite entirely.
+2. Rebuilt, repackaged, staged.
+   - Reason: ship to tester. Caveat: CVAR_ARCHIVE values persist in existing vars.rc — old installs keep prior values until reset/deleted; fresh installs get the new defaults.
+3. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).
