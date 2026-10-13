@@ -348,3 +348,18 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `49f83f45` pushed, R8.7 Beta asset refreshed. Note for tester: archived cvars keep old values — reset `r_cloud_res/base/thick` (or delete from vars.rc) to see new defaults; per-level rows apply on each map load until you touch the cvars.
+
+## 2026-10-13 — Per-hub skies: morning/evening presets + full table
+
+Request: Silverspring night, Darkmire morning, Andoria day, Kell evening, Hive night, Ogle day, Morcalavin day.
+Steps:
+1. New presets in `SkyDyn_Preset()` (`gl3_SkyDyn.c`): 4 morning (pale-gold low sun, cool blue dome, no stars), 5 evening (dusk purple-blue dome, deep-orange low sun, faint stars 0.3). Both Tier-A + Tier-B lit (morning pale-gold / evening amber light + glare tints; day/sunset/night values untouched). Clamps widened 0-5 in both draws; cvar comments updated.
+   - Reason: morning/evening didn't exist; tints keep clouds coherent per preset.
+2. Table extended to all hubs: ss->3, dmire->4, and->0, kellcaves/canyon->5, hive/gauntlet->3, oglemine/dungeon/cloud->0, default->2. Verified every retail BSP against the table with a script: 25/25 hit exactly one row — except `hivepriestess` also contains "ss", fixed by ordering "hive" before "ss" (commented).
+   - Reason: first-match-wins tables rot silently; verified + documented.
+3. README presets + per-level paragraph updated. Rebuilt (zero warnings/errors), repackaged, staged.
+   - Reason: ship with accurate docs.
+4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset, extend release notes.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

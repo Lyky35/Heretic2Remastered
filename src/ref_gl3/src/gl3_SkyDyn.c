@@ -33,7 +33,7 @@ void GL3_SkyDyn_RegisterCvars(void)
 	r_dynsky = ri.Cvar_Get("r_dynsky", "0", CVAR_ARCHIVE);
 	r_volclouds = ri.Cvar_Get("r_volclouds", "0", CVAR_ARCHIVE);
 
-	// Tier A: gradient-sky preset. 0 = day, 1 = sunset, 2 = auto (day), 3 = night + moon.
+	// Tier A: gradient-sky preset. 0 day, 1 sunset, 2 auto (day), 3 night, 4 morning, 5 evening.
 	r_sky_preset = ri.Cvar_Get("r_sky_preset", "2", CVAR_ARCHIVE);
 	// Per-level auto look (table in SkyDyn_ApplyLevelSky, applied on map change).
 	r_sky_levels = ri.Cvar_Get("r_sky_levels", "1", CVAR_ARCHIVE);
@@ -272,6 +272,26 @@ static void SkyDyn_Preset(int preset, float* top, float* bottom, float* sunDir,
 		moonDir[0] = 0.0f; moonDir[1] = -1.0f; moonDir[2] = 0.0f;
 		moonColor[0] = 0.0f; moonColor[1] = 0.0f; moonColor[2] = 0.0f;
 		*night = 0.2f;
+	}
+	else if (preset == 4) // morning: low pale-gold sun, cool blue dome
+	{
+		top[0] = 0.52f; top[1] = 0.68f; top[2] = 0.86f;
+		bottom[0] = 1.0f; bottom[1] = 0.88f; bottom[2] = 0.72f;
+		sunDir[0] = 0.9f; sunDir[1] = 0.22f; sunDir[2] = 0.15f;
+		sunColor[0] = 0.95f; sunColor[1] = 0.8f; sunColor[2] = 0.6f;
+		moonDir[0] = 0.0f; moonDir[1] = -1.0f; moonDir[2] = 0.0f;
+		moonColor[0] = 0.0f; moonColor[1] = 0.0f; moonColor[2] = 0.0f;
+		*night = 0.0f;
+	}
+	else if (preset == 5) // evening: dusk purple-blue dome, deep orange low sun
+	{
+		top[0] = 0.30f; top[1] = 0.26f; top[2] = 0.48f;
+		bottom[0] = 0.95f; bottom[1] = 0.50f; bottom[2] = 0.30f;
+		sunDir[0] = -0.85f; sunDir[1] = 0.12f; sunDir[2] = 0.20f;
+		sunColor[0] = 1.0f; sunColor[1] = 0.55f; sunColor[2] = 0.25f;
+		moonDir[0] = 0.0f; moonDir[1] = -1.0f; moonDir[2] = 0.0f;
+		moonColor[0] = 0.0f; moonColor[1] = 0.0f; moonColor[2] = 0.0f;
+		*night = 0.3f;
 	}
 	else // day (preset 0 and auto/2, which tracks day until Phase 6 sun-cycle)
 	{
@@ -1205,9 +1225,19 @@ typedef struct
 } skylevel_t;
 
 static const skylevel_t skylevels[] = {
-	{ "ss", 0, 0.35f },    // Silverspring (ssdocks/sswarehouse/sstown/sspalace): bright day
-	{ "dmire", 1, 0.70f }, // Darkmire swamp: low warm sun, heavy cover
-	{ NULL, 2, 0.45f },    // everything else: auto day, medium cover
+	// NOTE: first match wins — "hive" precedes "ss" because hivepriestess
+	// contains "ss" ("...tess"). Both are night today, order keeps it robust.
+	{ "hive", 3, 0.55f },      // K'Chekrik hive 1/2, trial pit, priestess: night
+	{ "gauntlet", 3, 0.55f },  // The gauntlet: night
+	{ "ss", 3, 0.40f },        // Silverspring (docks/warehouse/town/palace): night
+	{ "dmire", 4, 0.55f },     // Darkmire swamp: morning mist
+	{ "and", 0, 0.35f },       // Andoria (healer/plaza/slums/academic): day
+	{ "kellcaves", 5, 0.50f }, // Kell caves: evening
+	{ "canyon", 5, 0.50f },    // Katlit'k canyon: evening
+	{ "oglemine", 0, 0.30f },  // Ogle mines 1/2: day
+	{ "dungeon", 0, 0.30f },   // Morcalavin's dungeon: day
+	{ "cloud", 0, 0.40f },     // Cloud fortress (hub/quarters/labs/sanctum): day
+	{ NULL, 2, 0.45f },        // tutorial + anything else: auto day
 };
 
 static char s_appliedMap[64] = { 0 };
@@ -1995,7 +2025,7 @@ void GL3_SkyDyn_DrawTierA(void)
 		return;
 
 	preset = (r_sky_preset != NULL) ? (int)r_sky_preset->value : 2;
-	if (preset < 0 || preset > 3)
+	if (preset < 0 || preset > 5)
 		preset = 2;
 	if (preset == 2)
 		preset = 0; // auto tracks day until Phase 6 sun-cycle
@@ -2086,7 +2116,7 @@ void GL3_SkyDyn_DrawClouds(void)
 	}
 
 	preset = (r_sky_preset != NULL) ? (int)r_sky_preset->value : 2;
-	if (preset < 0 || preset > 3)
+	if (preset < 0 || preset > 5)
 		preset = 2;
 	if (preset == 2)
 		preset = 0; // auto tracks day until Phase 6 sun-cycle
@@ -2115,6 +2145,10 @@ void GL3_SkyDyn_DrawClouds(void)
 		glUniform3f(s_clLightDir, sunDir[0], sunDir[1], sunDir[2]);
 	if (isNight)
 		glUniform3f(s_clLightColor, 0.45f, 0.55f, 0.8f);
+	else if (preset == 4)
+		glUniform3f(s_clLightColor, 1.0f, 0.93f, 0.82f); // morning: soft pale gold
+	else if (preset == 5)
+		glUniform3f(s_clLightColor, 1.0f, 0.75f, 0.55f); // evening: low warm amber
 	else
 		glUniform3f(s_clLightColor, 1.0f, 1.0f, 230.0f / 255.0f);
 	glUniform3f(s_clSkyTop, top[0], top[1], top[2]);
@@ -2124,6 +2158,18 @@ void GL3_SkyDyn_DrawClouds(void)
 		glUniform3f(s_clCloudTop, 0.10f, 0.12f, 0.20f);
 		glUniform3f(s_clCloudBottom, 0.04f, 0.05f, 0.09f);
 		glUniform3f(s_clGlare, 0.35f, 0.42f, 0.55f);
+	}
+	else if (preset == 4)
+	{
+		glUniform3f(s_clCloudTop, 169.0f * 1.5f / 255.0f, 149.0f * 1.5f / 255.0f, 149.0f * 1.5f / 255.0f);
+		glUniform3f(s_clCloudBottom, 65.0f * 1.5f / 255.0f, 70.0f * 1.5f / 255.0f, 80.0f * 1.5f / 255.0f);
+		glUniform3f(s_clGlare, 0.9f, 0.65f, 0.4f); // morning pale gold
+	}
+	else if (preset == 5)
+	{
+		glUniform3f(s_clCloudTop, 169.0f * 1.5f / 255.0f, 149.0f * 1.5f / 255.0f, 149.0f * 1.5f / 255.0f);
+		glUniform3f(s_clCloudBottom, 65.0f * 1.5f / 255.0f, 70.0f * 1.5f / 255.0f, 80.0f * 1.5f / 255.0f);
+		glUniform3f(s_clGlare, 1.0f, 0.45f, 0.2f); // evening deep orange
 	}
 	else
 	{
