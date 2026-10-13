@@ -11,7 +11,8 @@
 #include "turbsin.h"
 #include "Vector.h"
 
-#define SUBDIVIDE_SIZE	64.0f
+#define SUBDIVIDE_SIZE	32.0f // 64-unit quads aliased the Gerstner vertex waves
+                             // (shortest wavelength ~40 units) into blocky facets.
 
 #pragma region ========================== POLYGON GENERATION ==========================
 

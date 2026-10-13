@@ -303,3 +303,18 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `5826d281` pushed, R8.7 Beta asset refreshed with night + moon. Retest ask: preset 3 look, moon/stars, moonlit clouds.
+
+## 2026-10-13 — Water: smoother waves + stronger mirror
+
+Request: waves too blocky; water too opaque (should mirror more).
+Steps:
+1. Inspected `gl3_Warp.c` (SUBDIVIDE_SIZE 64, Gerstner in vertex shader with wavelengths 200/130/70/40 units) + water frag (`gl3_Shaders.c`: base = 65% refraction / 35% murky texture, then fresnel mirror with `r_reflections_intensity` 1.6) + `GL3_DrawWaterPoly` (cvar wiring; no alpha blending — water is opaque, so clarity must come from the mix factors, not alpha).
+   - Reason: 64-unit quads undersample the 40-unit wave AND its analytic normals -> faceted/blocky look; the 35% murky base dulls the mirror.
+2. `gl3_Warp.c`: SUBDIVIDE_SIZE 64 -> 32 (4x water tris, water-only cost; per-poly vert caps unchanged so `vbuf`/subdivider limits hold). Water frag: murky-base mix 0.35 -> 0.15. Cvars untouched (`r_water_wave_*`, `r_reflections_intensity`, `r_refractions_intensity` still tune live).
+   - Reason: finer grid resolves waves + normals smoothly; clearer base lets refraction + mirror dominate. No blending-order risk taken.
+3. Rebuilt all targets (zero warnings/errors), repackaged Beta zip (gitignored), staged fresh binaries.
+   - Reason: ship to tester.
+4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

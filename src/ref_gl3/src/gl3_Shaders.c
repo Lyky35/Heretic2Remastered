@@ -444,7 +444,7 @@ static const char* fragmentSourceWater =
 	"        vec2 refractUV = clamp(screenUV + N.xy * uRefractAmt, 0.0, 1.0);\n"
 	"        refractUV.y = 1.0 - refractUV.y;\n"
 	"        vec3 refractColor = texture(uRefractTex, refractUV).rgb;\n"
-	"        blended = mix(refractColor, waterColor.rgb, 0.35);\n"
+	"        blended = mix(refractColor, waterColor.rgb, 0.15);\n" // mostly see-through: refraction + mirror dominate over the murky base
 	"    }\n"
 	"    // Reflection: projective lookup with normal distortion and a fresnel term.\n"
 	"    vec2 reflectUV = clamp(screenUV + N.xy * 0.05, 0.0, 1.0);\n"
