@@ -232,7 +232,7 @@ Steps:
    - Reason: minimal, state-safe fix; no other state (clip/depth) affects this program.
 3. Rebuilt all targets (no warnings/errors), repackaged Beta zip (gitignored), staged fresh binaries.
    - Reason: ship fix to tester.
-4. Next: commit + push, move `R8_7_Beta` tag, re-upload asset, verify.
+4. Ran `git add` (gl3_SkyDyn.c, PROGRESS.md), commit `7f020f90`, `git push origin Beta`; moved tag `R8_7_Beta`; `gh release upload --clobber` (6650801 bytes, updated 2026-10-13T22:13:09Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `7f020f90` pushed, R8.7 Beta asset refreshed. Retest ask: `r_cloud_debug 1/2/3` should now show noise.
