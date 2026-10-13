@@ -217,7 +217,7 @@ Steps:
    - Reason: readback PROVES on the user's GPU whether dispatches wrote anything; announce PROVES the debug draw runs and with what bindings. Next round is decisive either way (zeros = compute-side, nonzero+black = sampling-side).
 2. Rebuilt all targets (no errors), repackaged Beta zip (gitignored), verified `ALL ZEROS` string in staged `ref_gl3.dll`.
    - Reason: ship diagnostics to the tester.
-3. Next: commit + push, move `R8_7_Beta` tag, re-upload asset, verify; ask user for full `GL3_SkyDyn` console paste + whether legacy sky (`r_dynsky 0`) is textured or also black on their map.
-   - Reason: complete "commit and push after each portion" plus release refresh; legacy-sky status distinguishes "debug draws black" from "debug no-ops on a map with no sky".
+3. Ran `git add` (gl3_SkyDyn.c, PROGRESS.md), commit `ad638520`, `git push origin Beta`; moved tag `R8_7_Beta`; `gh release upload --clobber` (6650749 bytes, updated 2026-10-13T22:03:30Z) — all succeeded.
+   - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `ad638520` pushed, R8.7 Beta asset refreshed. Awaiting: full `GL3_SkyDyn` console paste + legacy-sky status.
