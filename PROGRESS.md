@@ -545,6 +545,17 @@ Steps:
 
 Result: `5a6e94a3` pushed, R8.7 asset refreshed. Rows no longer overlap by construction.
 
+## 2026-10-13 — Explored integer scaling via GLSL (no code change)
+
+Request: explore adding integer scaling using GLSL.
+Findings (read in-tree, `ref_gl3` only):
+1. No render scaling exists: 3D always renders at native window res into full-size `fbo3D` (RGBA16F + `DEPTH24_STENCIL8`, `GL3_InitFBO`), world viewport from full-res `r_newrefdef` (`R_SetupGL3D`), composite is a 1:1 FSQ (`GL3_CompositeHDR`), and UI/HUD draws native AFTER it (`R_SetupGL2D` post-composite). So the pipeline is already staged for it: shrink the 3D chain, upscale at present, UI stays crisp untouched.
+2. Proposed design: new `r_int_scale` 0=off, 1..5 = render at display/N, integer-present with the GLSL primitive `texelFetch` (exact texel, zero filtering ambiguity) + letterbox centering. Entire 3D chain (scene, bloom, SSAO, depth-fog — all resolution-independent math already: NDC fog, inverse-matrix rays) runs internal; bloom/SSAO FBOs re-created at internal size on change (precedent: `r_reflections_res` live rebuild in `RI_BeginFrame`); cloud buffer + Tier-A follow `fbo_width` automatically; final present = tonemap/color-profile + `texelFetch` + bars, then native UI on top.
+   - Reason: square pixels preserved (same N both axes), one cvar, exact (not "looks integerish"); perf win ~N^2 on weak GPUs as a bonus.
+3. Scoped OUT deliberately: `ref_gl1` (no FBO pipeline — renders direct to backbuffer, no sampling point; stays native), refraction/reflection FBOs (independent sizes, keep working via blit scale), SSAO px-radius (retune note, not blocker), screenshots (capture post-present, bars included, fine).
+4. Cost estimate: ~200-300 lines (`gl3_Shaders.c` sizing + present mode, `gl3_Main.c` cvar/recreate hook, `gl3_Local.h` extern, one Advanced-menu item), no new libs, no save impact. Suggested menu home: Advanced Options under Anti-Aliasing (they're philosophical opposites).
+   - Reason: logged for the implement decision; nothing committed beyond this note.
+
 ## 2026-10-13 — Merged trail line into R8.7 stable
 
 Request: merge AdvShaders (TrailT1 build) into R8.7.
