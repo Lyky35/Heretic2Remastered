@@ -596,7 +596,7 @@ Steps:
    - Reason: "same as L1 trail" means the trail's color, not the staff-type flash color.
 3. Rebuilt (no errors), verified fresh DLL timestamp + zip md5 match (zip size coincidence double-checked, not assumed), repackaged (15 files).
    - Reason: ship to tester with proof of freshness.
-4. Next: commit + push, move `R8_7_TrailT1` tag, re-upload asset.
+4. Ran `git add` (fx_staff.c, PROGRESS.md), commit `34b35389` (+25/-7), `git push origin R8.7_AdvShaders`; moved tag `R8_7_TrailT1`; `gh release upload --clobber` (6663664 bytes, updated 2026-10-15T03:49:48Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `34b35389` pushed, TrailT1 asset refreshed. Retest ask: L1 select flash color/scope.
