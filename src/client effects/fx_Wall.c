@@ -428,6 +428,25 @@ static qboolean FireWaveUpdate(client_entity_t* wall, centity_t* owner) //mxd. N
 		wall->nextEventTime = fx_time + (int)(flrand(0.8f, 1.2f) * FIREWAVE_WORM_TIME);
 	}
 
+	// AdvShaders lingering heat haze: warp-only billboards at the wall center,
+	// living 2s so haze remains in the area past the flames. Sized to the wall.
+	{
+		float hs = wall->radius * 2.5f;
+		if (hs > 350.0f)
+			hs = 350.0f;
+		if (hs < 40.0f)
+			hs = 40.0f;
+
+		client_entity_t* haze = ClientEntity_new(FX_WEAPON_FIREWAVE, CEF_NOMOVE, wall->r.origin, NULL, 2000);
+		haze->r.model = &wall_models[0]; // wflame sprite (texture ignored in distort path).
+		haze->r.flags = (RF_TRANSLUCENT | RF_TRANS_ADD | RF_TRANS_ADD_ALPHA | RF_DISTORT | RF_NOCORE);
+		haze->alpha = 0.5f;
+		haze->d_alpha = -0.25f;
+		haze->radius = hs;
+		RE_SetupRollSprite(&haze->r, hs, flrand(0.0f, 359.0f));
+		AddEffect(NULL, haze);
+	}
+
 	return true;
 }
 
@@ -658,6 +677,18 @@ static qboolean FireBurstUpdate(client_entity_t* self, centity_t* owner) //mxd. 
 
 		if (i == 0 || i == num_flame_columns - 1)
 			burst->dlight = CE_DLight_new(burst_dlight_color, 150.0f, -250.0f);
+	}
+
+	// AdvShaders lingering heat haze at the burst center (1.5s, outlives flames).
+	{
+		client_entity_t* haze = ClientEntity_new(FX_WEAPON_FIREBURST, CEF_NOMOVE, self->r.origin, NULL, 1500);
+		haze->r.model = &wall_models[1]; // wflame2 sprite (texture ignored in distort path).
+		haze->r.flags = (RF_TRANSLUCENT | RF_TRANS_ADD | RF_TRANS_ADD_ALPHA | RF_DISTORT | RF_NOCORE);
+		haze->alpha = 0.5f;
+		haze->d_alpha = -(0.5f / 1.5f);
+		haze->radius = 110.0f;
+		RE_SetupRollSprite(&haze->r, 110.0f, flrand(0.0f, 359.0f));
+		AddEffect(NULL, haze);
 	}
 
 	return true;

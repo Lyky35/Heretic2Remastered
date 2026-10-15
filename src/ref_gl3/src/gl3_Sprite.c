@@ -88,6 +88,61 @@ static void R_DrawVariableSprite(const entity_t* e, const vec3_t up, const vec3_
 	GL3_Draw3DPoly(GL_TRIANGLE_FAN, vbuf, e->numVerts);
 }
 
+// AdvShaders T2+: shared distortion draw tail. quad is 4x9 floats
+// (pos3+tc2+tint3+core1, TRIANGLE_FAN). radial selects the mask shape:
+// 0 = ribbon strip (edge/ends), 1 = billboard (radial).
+static void R_DrawDistortPoly(const entity_t* e, const float quad[4 * 9], float radial)
+{
+	// Snapshot first (lazy once-per-frame-per-pass), then draw over it.
+	GL3_CopySceneForTrail();
+
+	GL3_UseShader(gl3state.shaderTrail);
+	glUniformMatrix4fv(gl3state.uniTrail_projection, 1, GL_FALSE, r_projection_matrix);
+	glUniformMatrix4fv(gl3state.uniTrail_modelview, 1, GL_FALSE, r_world_matrix);
+	glUniform1f(gl3state.uniTrail_strength, r_trail_strength->value);
+	glUniform1f(gl3state.uniTrail_time, r_newrefdef.time);
+	glUniform1f(gl3state.uniTrail_chroma, (r_trail_chroma != NULL && (int)r_trail_chroma->value != 0) ? 1.0f : 0.0f);
+	glUniform1f(gl3state.uniTrail_coreAmt, (r_trail_core != NULL) ? r_trail_core->value : 0.35f);
+	glUniform1f(gl3state.uniTrail_fade, e->color.a / 255.0f);
+	glUniform1f(gl3state.uniTrail_radial, radial);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, gl3state.fboTexTrail);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, gl3state.trailNoiseTex);
+	glActiveTexture(GL_TEXTURE0);
+
+	// Distortion quads face the camera ambiguously; like the sky panels, never cull them.
+	GLboolean cull_was_enabled;
+	glGetBooleanv(GL_CULL_FACE, &cull_was_enabled);
+	glDisable(GL_CULL_FACE);
+
+	if (e->flags & RF_NODEPTHTEST)
+		glDisable(GL_DEPTH_TEST);
+
+	// Normal blending (NOT additive): the fragment outputs refracted scene.
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glBindVertexArray(gl3state.vao3D);
+	glBindBuffer(GL_ARRAY_BUFFER, gl3state.vbo3D);
+	glBufferData(GL_ARRAY_BUFFER, 4 * 9 * sizeof(float), quad, GL_STREAM_DRAW);
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+	if (e->flags & RF_NODEPTHTEST)
+		glEnable(GL_DEPTH_TEST);
+
+	if (cull_was_enabled)
+		glEnable(GL_CULL_FACE);
+
+	R_CleanupTransparency(e);
+
+	// Raw sampler binds above bypass the 2D texture-unit cache: invalidate so
+	// the next R_Bind/R_BindImage re-binds instead of skipping on stale texnums.
+	gl_state.currenttextures[0] = -1;
+	gl_state.currenttextures[1] = -1;
+}
+
 // AdvShaders T2: same strip geometry as R_DrawLineSprite, but sampling the
 // scene-minus-trail snapshot with a normal-perturbed UV (heat-haze refraction)
 // plus a faint hot core. Only for RF_DISTORT entities when the trail path is
@@ -130,53 +185,29 @@ static void R_DrawDistortLineSprite(const entity_t* e)
 	VectorSubtract(e->endpos, end_offset, point);
 	WriteSpriteVert(&quad[27], point, 0.0f, e->tileoffset + tile, tint_r, tint_g, tint_b, core);
 
-	// Snapshot first (lazy once-per-frame-per-pass), then draw over it.
-	GL3_CopySceneForTrail();
+	R_DrawDistortPoly(e, quad, 0.0f);
+}
 
-	GL3_UseShader(gl3state.shaderTrail);
-	glUniformMatrix4fv(gl3state.uniTrail_projection, 1, GL_FALSE, r_projection_matrix);
-	glUniformMatrix4fv(gl3state.uniTrail_modelview, 1, GL_FALSE, r_world_matrix);
-	glUniform1f(gl3state.uniTrail_strength, r_trail_strength->value);
-	glUniform1f(gl3state.uniTrail_time, r_newrefdef.time);
-	glUniform1f(gl3state.uniTrail_chroma, (r_trail_chroma != NULL && (int)r_trail_chroma->value != 0) ? 1.0f : 0.0f);
-	glUniform1f(gl3state.uniTrail_coreAmt, (r_trail_core != NULL) ? r_trail_core->value : 0.6f);
-	glUniform1f(gl3state.uniTrail_fade, e->color.a / 255.0f);
+// AdvShaders haze: billboard version (SPRITE_DYNAMIC roll sprites sized in
+// world units via RE_SetupRollSprite). Same distortion treatment with a radial
+// mask; warp-only when RF_NOCORE (lingering haze over existing fire).
+static void R_DrawDistortBillboard(const entity_t* e, const vec3_t up, const vec3_t right)
+{
+	vec3_t point;
+	float quad[4 * 9];
+	const float tint_r = e->color.r / 255.0f;
+	const float tint_g = e->color.g / 255.0f;
+	const float tint_b = e->color.b / 255.0f;
+	const float core = (e->flags & RF_NOCORE) ? 0.0f : 1.0f;
 
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gl3state.fboTexTrail);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, gl3state.trailNoiseTex);
-	glActiveTexture(GL_TEXTURE0);
+	for (int i = 0; i < 4; i++)
+	{
+		VectorMA(e->origin, e->scale * e->verts[i].y, up, point);
+		VectorMA(point, e->scale * e->verts[i].x, right, point);
+		WriteSpriteVert(&quad[i * 9], point, e->verts[i].s, e->verts[i].t, tint_r, tint_g, tint_b, core);
+	}
 
-	// Strips face the camera ambiguously; like the sky panels, never cull them.
-	GLboolean cull_was_enabled;
-	glGetBooleanv(GL_CULL_FACE, &cull_was_enabled);
-	glDisable(GL_CULL_FACE);
-
-	if (e->flags & RF_NODEPTHTEST)
-		glDisable(GL_DEPTH_TEST);
-
-	// Normal blending (NOT additive): the fragment outputs refracted scene.
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-	glBindVertexArray(gl3state.vao3D);
-	glBindBuffer(GL_ARRAY_BUFFER, gl3state.vbo3D);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_STREAM_DRAW);
-	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-
-	if (e->flags & RF_NODEPTHTEST)
-		glEnable(GL_DEPTH_TEST);
-
-	if (cull_was_enabled)
-		glEnable(GL_CULL_FACE);
-
-	R_CleanupTransparency(e);
-
-	// Raw sampler binds above bypass the 2D texture-unit cache: invalidate so
-	// the next R_Bind/R_BindImage re-binds instead of skipping on stale texnums.
-	gl_state.currenttextures[0] = -1;
-	gl_state.currenttextures[1] = -1;
+	R_DrawDistortPoly(e, quad, 1.0f);
 }
 
 // Long linear semi-oriented sprite with two verts (xyz start and end) and a width.
@@ -238,15 +269,6 @@ void R_DrawSpriteModel(entity_t* e)
 	if (mdl->skins[e->frame] == NULL)
 		return;
 
-	// AdvShaders T2: distortion ribbon. Own blend/bind/cleanup; falls through
-	// to the plain path when the trail setup isn't ready (T1 look) or the
-	// entity isn't a line strip.
-	if ((e->flags & RF_DISTORT) && e->spriteType == SPRITE_LINE && GL3_TrailDistortReady())
-	{
-		R_DrawDistortLineSprite(e);
-		return;
-	}
-
 	R_HandleTransparency(e);
 	R_BindImage(mdl->skins[e->frame]);
 
@@ -268,6 +290,19 @@ void R_DrawSpriteModel(entity_t* e)
 	{
 		VectorCopy(vup, up);
 		VectorCopy(vright, right);
+	}
+
+	// AdvShaders distortion: LINE strips (staff ribbon, hellbeam haze) and
+	// DYNAMIC roll billboards (lingering haze volumes). Own blend/bind/cleanup;
+	// falls through to the plain path when the trail setup isn't ready.
+	if ((e->flags & RF_DISTORT) && GL3_TrailDistortReady() &&
+		(e->spriteType == SPRITE_LINE || e->spriteType == SPRITE_DYNAMIC))
+	{
+		if (e->spriteType == SPRITE_LINE)
+			R_DrawDistortLineSprite(e);
+		else
+			R_DrawDistortBillboard(e, up, right);
+		return;
 	}
 
 	switch (e->spriteType)

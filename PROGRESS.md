@@ -600,3 +600,24 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `34b35389` pushed, TrailT1 asset refreshed. Retest ask: L1 select flash color/scope.
+
+## 2026-10-13 — Weapon heat haze: hellstaff charge, firewall linger, phoenix
+
+Requests: hellstaff haze grows with sustained fire; firewall (base+powered) large lingering haze; phoenix arrow wake + sized explosion haze (powered: no flight haze, big 5s linger).
+Steps:
+1. Renderer first (all three need it): `uRadial` uniform + `R_DrawDistortPoly` shared tail extracted from the line path + `R_DrawDistortBillboard` (copies `R_DrawDynamicSprite` math for `RE_SetupRollSprite` world-size quads, radial mask); branch accepts LINE + DYNAMIC (others fall through plain). Warp-only via `RF_NOCORE`; masks need no texture reads.
+   - Reason: billboards can't reuse strip UV logic; one program, one flag more.
+2. Hellstaff (`fx_HellStaff.c`): file-static heat 0..1 (+0.12/shot, ~2s cool, capped) bumped in both `FXHellbolt` and `FXHellstaffPower`. Muzzle warp-only billboard per bolt (16u x growth, 700ms); power-beam haze width x growth (up to 2.5x sustained).
+   - Reason: no persistent entities/thinks — heat derived on demand from shot timing; works for tap and hold alike.
+3. Firewall (`fx_Wall.c`): one warp-only billboard per `FireWaveUpdate` at wall center sized `min(radius*2.5, 350)` (2s life outlives flames = linger) + one per `FireBurstUpdate` (110u, 1.5s). Covers powered wall + base burst proportionally by construction.
+   - Reason: lingering falls out of lifespan, no expiry special-casing; ~120-180 extra quads worst case.
+4. Phoenix: base `PhoenixMissileUpdate` wake billboard (48u, 400ms) — power update untouched per spec; base explode haze 160u/2s; powered explode haze 220u/5s per spec.
+   - Reason: exact spec compliance (powered arrow clean in flight, big long linger on blast).
+5. Excluded with reason: mork/StaffHit debris streaks + impact sparks (transient, haze would add noise), flamethrower/phoenix-trail sprite fire (needs fire-visible+mixed billboards — bigger feature, offered next).
+   - Reason: haze where fire sustains; stated, not silently dropped.
+6. Rebuilt all (no errors), repackaged TrailT1 (15 files), staged + README weapon section.
+   - Reason: ship to tester.
+7. Next: commit + push, move `R8_7_TrailT1` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).
