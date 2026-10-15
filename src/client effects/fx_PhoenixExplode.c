@@ -111,19 +111,6 @@ static void PhoenixExplode(const int type, int flags, const vec3_t origin, const
 
 	AddEffect(NULL, explosion);
 
-	// AdvShaders heat haze: circular warp-only billboard matching the fireball,
-	// lingering past the flames.
-	{
-		client_entity_t* haze = ClientEntity_new(type, CEF_NOMOVE, origin, NULL, 2000);
-		haze->r.model = &phoenix_explode_models[PEMDL_EXPLOSION]; // fireball sprite (texture ignored in distort path).
-		haze->r.flags = (RF_TRANSLUCENT | RF_TRANS_ADD | RF_TRANS_ADD_ALPHA | RF_DISTORT | RF_NOCORE);
-		haze->alpha = 0.6f;
-		haze->d_alpha = -(0.6f / 2.0f);
-		haze->radius = 160.0f;
-		RE_SetupRollSprite(&haze->r, 160.0f, flrand(0.0f, 359.0f));
-		AddEffect(NULL, haze);
-	}
-
 	// Add some glowing blast particles.
 	vec3_t vel;
 	VectorScale(dir, flrand(EXPLODE_SPEED * 0.8f, EXPLODE_SPEED), vel); //mxd. Randomize velocity.
@@ -376,19 +363,6 @@ static void PhoenixExplodePower(const int type, int flags, const vec3_t origin, 
 
 	AddEffect(NULL, core);
 	PhoenixExplosionPowerUpdate(core, NULL);
-
-	// AdvShaders heat haze: warp-only billboard sized to the powered blast,
-	// lingering 5s per spec (no flight haze on the powered arrow itself).
-	{
-		client_entity_t* haze = ClientEntity_new(type, CEF_NOMOVE, origin, NULL, 5000);
-		haze->r.model = &phoenix_explode_models[PEMDL_EXPLOSION]; // fireball sprite (texture ignored in distort path).
-		haze->r.flags = (RF_TRANSLUCENT | RF_TRANS_ADD | RF_TRANS_ADD_ALPHA | RF_DISTORT | RF_NOCORE);
-		haze->alpha = 0.6f;
-		haze->d_alpha = -(0.6f / 5.0f);
-		haze->radius = 220.0f;
-		RE_SetupRollSprite(&haze->r, 220.0f, flrand(0.0f, 359.0f));
-		AddEffect(NULL, haze);
-	}
 
 	// Draw the phoenix rising from the explosion.
 	vec3_t phoenix_pos;

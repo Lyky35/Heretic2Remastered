@@ -82,19 +82,6 @@ static qboolean PhoenixMissileUpdate(client_entity_t* self, centity_t* owner) //
 	RE_SetupRollSprite(&smoke->r, 32.0f, flrand(0.0f, 360.0f)); //mxd
 	AddEffect(NULL, smoke);	// Add the smoke as independent world smoke.
 
-	// AdvShaders heat-haze wake: warp-only billboard at the missile, short life
-	// (base arrow only — powered arrow skips flight haze, gets explosion haze).
-	{
-		client_entity_t* haze = ClientEntity_new(-1, CEF_NOMOVE, self->r.origin, NULL, 400);
-		haze->r.model = &phoenix_missile_models[PAMDL_STEAM]; // steam sprite (texture ignored in distort path).
-		haze->r.flags = (RF_TRANSLUCENT | RF_TRANS_ADD | RF_TRANS_ADD_ALPHA | RF_DISTORT | RF_NOCORE);
-		haze->alpha = 0.5f;
-		haze->d_alpha = -(0.5f / 0.4f);
-		haze->radius = 48.0f;
-		RE_SetupRollSprite(&haze->r, 48.0f, flrand(0.0f, 360.0f));
-		AddEffect(NULL, haze);
-	}
-
 	// Add fire to the tail. Attach it to the smoke because it doesn't get out of the fx radius so quickly.
 	for (int i = 0; i < FIRETRAIL_PARTS; i++)
 	{

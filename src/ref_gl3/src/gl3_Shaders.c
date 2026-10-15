@@ -496,15 +496,11 @@ static const char* fragmentSourceTrail =
 	"uniform float uChroma;\n"
 	"uniform float uCoreAmt;\n"
 	"uniform float uFade;\n"
-	"uniform float uRadial;\n" // 0 = ribbon strip (edge/ends), 1 = billboard (radial mask)
 	"out vec4 FragColor;\n"
 	"void main() {\n"
 	"    vec2 screenUV = vClipPos.xy / vClipPos.w * 0.5 + 0.5;\n"
-	"    float across = smoothstep(0.0, 0.40, vUv.x) * smoothstep(1.0, 0.60, vUv.x);\n"
-	"    float along = smoothstep(0.0, 0.20, vUv.y) * smoothstep(1.0, 0.80, vUv.y);\n"
-	"    float radial = smoothstep(1.0, 0.55, length((vUv - 0.5) * 2.0));\n"
-	"    float edge = mix(across, 1.0, uRadial);\n"
-	"    float ends = mix(along, radial, uRadial);\n"
+	"    float edge = smoothstep(0.0, 0.40, vUv.x) * smoothstep(1.0, 0.60, vUv.x);\n"
+	"    float ends = smoothstep(0.0, 0.20, vUv.y) * smoothstep(1.0, 0.80, vUv.y);\n"
 	"    vec2 nuv = vec2(vUv.y * 3.0, vUv.x) + vec2(-uTime * 0.35, uTime * 0.05);\n"
 	"    vec2 off = (texture(uNoiseTex, nuv).rg - 0.5) * uStrength * edge * ends;\n"
 	"    vec3 refr = texture(uTrailBg, screenUV + off).rgb;\n"
@@ -969,7 +965,6 @@ qboolean GL3_InitShaders(void)
 	gl3state.uniTrail_chroma     = glGetUniformLocation(gl3state.shaderTrail, "uChroma");
 	gl3state.uniTrail_coreAmt    = glGetUniformLocation(gl3state.shaderTrail, "uCoreAmt");
 	gl3state.uniTrail_fade       = glGetUniformLocation(gl3state.shaderTrail, "uFade");
-	gl3state.uniTrail_radial     = glGetUniformLocation(gl3state.shaderTrail, "uRadial");
 
 	GL3_UseShader(gl3state.shaderTrail);
 	glUniform1i(gl3state.uniTrail_bg, 0);    // TMU0: background snapshot.

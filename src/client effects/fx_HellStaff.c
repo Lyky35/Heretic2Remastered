@@ -37,23 +37,6 @@ void PreCacheHellstaffSFX(void) //mxd
 	hell_hit_sound = fxi.S_RegisterSound("weapons/HellHit.wav");
 }
 
-// Sustained-fire heat 0..1: bumped per emission, cools over ~2s idle. Haze
-// size scales with it so longer firing reads as building heat.
-static float hell_heat = 0.0f;
-static int hell_lastShot = -100000;
-
-static float HellHeatBump(void)
-{
-	const int dt = fx_time - hell_lastShot;
-	hell_heat = hell_heat - (float)dt / 2000.0f + 0.12f;
-	if (hell_heat < 0.0f)
-		hell_heat = 0.0f;
-	if (hell_heat > 1.0f)
-		hell_heat = 1.0f;
-	hell_lastShot = fx_time;
-	return 1.0f + hell_heat * 1.5f; // up to 2.5x size sustained
-}
-
 void FXHellbolt(centity_t* owner, const int type, const int flags, vec3_t origin)
 {
 	vec3_t vel;
@@ -77,21 +60,6 @@ void FXHellbolt(centity_t* owner, const int type, const int flags, vec3_t origin
 	hellbolt->dlight = CE_DLight_new(hellbolt_dlight_color, 120.0f, 0.0f);
 
 	AddEffect(owner, hellbolt);
-
-	// Muzzle heat haze: warp-only billboard sized by sustained-fire heat.
-	{
-		const float hg = HellHeatBump();
-		const float size = 16.0f * hg;
-
-		client_entity_t* haze = ClientEntity_new(type, CEF_NOMOVE, origin, NULL, 700);
-		haze->r.model = &hell_models[0];
-		haze->r.flags = (RF_TRANSLUCENT | RF_TRANS_ADD | RF_TRANS_ADD_ALPHA | RF_DISTORT | RF_NOCORE);
-		haze->alpha = 0.5f;
-		haze->d_alpha = -(0.5f / 0.7f);
-		haze->radius = size;
-		RE_SetupRollSprite(&haze->r, size, flrand(0.0f, 359.0f));
-		AddEffect(NULL, haze);
-	}
 }
 
 static void HellboltExplode(const vec3_t loc, const vec3_t vel)
@@ -222,15 +190,14 @@ void FXHellstaffPower(centity_t* owner, int type, const int flags, vec3_t origin
 	AddEffect(NULL, beam);
 
 	// AdvShaders haze envelope: distortion-only sibling at ~2.2x the beam width
-	// (proportional to the fire), grown by sustained-fire heat. The beam itself
-	// stays a plain textured bolt; tile is 1.0 here (the distortion end-fade
-	// expects a 0..1 strip param).
+	// (proportional to the fire). The beam itself stays a plain textured bolt;
+	// tile is 1.0 here (the distortion end-fade expects a 0..1 strip param).
 	client_entity_t* haze = ClientEntity_new(-1, CEF_DONT_LINK | CEF_ABSOLUTE_PARTS | CEF_ADDITIVE_PARTS | CEF_NOMOVE, origin, NULL, 333);
 
 	haze->r.model = &hell_models[1];
 	haze->r.spriteType = SPRITE_LINE;
 	haze->r.flags = (RF_TRANSLUCENT | RF_TRANS_ADD | RF_TRANS_ADD_ALPHA | RF_DISTORT);
-	haze->r.scale = beam->r.scale * 2.2f * HellHeatBump();
+	haze->r.scale = beam->r.scale * 2.2f;
 	haze->r.tile = 1.0f;
 	haze->r.tileoffset = 0.0f;
 	haze->radius = 40.0f;
