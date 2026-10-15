@@ -515,7 +515,7 @@ Steps:
    - Reason: "too small" addressed on both axes (warp amount + ribbon body).
 4. Rebuilt all (no errors), refreshed TrailT1 stage + README default, repackaged (15 files verified).
    - Reason: ship to tester.
-5. Next: commit + push, move `R8_7_TrailT1` tag, re-upload asset.
+5. Ran `git add` (fx_staff.c, gl3_Main.c, PROGRESS.md), commit `1305dec7` (+33/-6), `git push origin R8.7_AdvShaders`; moved tag `R8_7_TrailT1`; `gh release upload --clobber` (6662828 bytes, updated 2026-10-15T03:06:55Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `1305dec7` pushed, TrailT1 asset refreshed. Retest ask: warp presence + bends reading as one trail.
