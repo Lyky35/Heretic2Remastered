@@ -525,10 +525,10 @@ Steps:
    - Reason: standard submenu pattern (`M_PushMenu`), no build-system changes (all in-file).
 3. Rebuilt all (quake2 clean), repackaged R8.7 (15 files), staged.
    - Reason: ship to tester per standing release rhythm.
-4. Next: commit + push, move `R8_7` tag, re-upload asset.
+4. Ran `git add` (menu_video.c/h, menu.c/h, PROGRESS.md), commit `7b2fa715` (+362/-146), `git push origin Beta`; moved tag `R8_7`; `gh release upload --clobber` (6663480 bytes, updated 2026-10-15T04:56:43Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `7b2fa715` pushed, R8.7 asset refreshed. Video menu is now hub -> Basic (7) / Advanced (9).
 
 ## 2026-10-13 — Merged trail line into R8.7 stable
 
