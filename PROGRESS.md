@@ -621,3 +621,16 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `42427483` pushed, TrailT1 asset refreshed. Retest ask: hellstaff growth, firewall linger, phoenix wake/blast per spec.
+
+## 2026-10-13 — Reverted weapon heat haze (`bd8bbaa1`)
+
+Report: not good — revert to prior commit.
+Steps:
+1. `git revert --no-commit 42427483` (forward-history revert, no rewrite: branch + tag stay clean). Resolved the one conflict in `PROGRESS.md` by keeping HEAD (full log history) — the revert commit touches only the 7 code files.
+   - Reason: never rewrite pushed history; keep the attempt documented.
+2. Rebuilt all (no errors), repackaged TrailT1 (15 files), staged.
+   - Reason: ship the reverted binaries so TrailT1 matches pre-haze behavior + all accepted trail work.
+3. Next: push branch, move `R8_7_TrailT1` tag, re-upload asset, then log.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).
