@@ -25,6 +25,9 @@ cvar_t* m_item_water_reflections;
 cvar_t* m_item_water_reflection_res;
 cvar_t* m_item_light_emission;
 cvar_t* m_item_shadows;
+cvar_t* m_item_video_basic; // "Basic Settings" submenu.
+cvar_t* m_item_video_advanced; // "Advanced Options" submenu.
+cvar_t* m_item_dynsky; // "New Dynamic Sky".
 
 static float m_gamma;
 static float m_brightness;
@@ -35,6 +38,12 @@ static float m_antialiasing; //mxd. r_antialiasing when entering menu.
 static float m_color_profile; //mxd. r_colorprofile when entering menu.
 
 static menuframework_t s_video_menu;
+
+static menuaction_t s_basic_action;
+static menuaction_t s_advanced_action;
+
+static menuframework_t s_basic_menu;
+static menuframework_t s_advanced_menu;
 
 static menulist_t s_ref_list;
 static menulist_t s_mode_list;
@@ -51,6 +60,7 @@ static menulist_t s_water_reflections_list;
 static menulist_t s_water_reflection_res_list;
 static menulist_t s_light_emission_list;
 static menulist_t s_shadows_list;
+static menulist_t s_dynsky_list;
 
 static const char* ref_list_titles[MAX_REFLIBS];
 static int initial_reflib_index; // vid_ref index when entering menu.
@@ -135,6 +145,31 @@ static void UpdateShadowsFunc(void* self)
 	Cvar_SetValue("r_shadows", (float)(s_shadows_list.curvalue == 0));
 }
 
+static void UpdateDynamicSkyFunc(void* self)
+{
+	Cvar_SetValue("r_dynsky", (float)(s_dynsky_list.curvalue == 0));
+}
+
+// Forward declarations (hub callbacks push the submenus below).
+static void Basic_MenuInit(void);
+static void Basic_MenuDraw(void);
+static const char* Basic_MenuKey(int key);
+static void Advanced_MenuInit(void);
+static void Advanced_MenuDraw(void);
+static const char* Advanced_MenuKey(int key);
+
+static void OpenBasicFunc(void* data)
+{
+	Basic_MenuInit();
+	M_PushMenu(Basic_MenuDraw, Basic_MenuKey);
+}
+
+static void OpenAdvancedFunc(void* data)
+{
+	Advanced_MenuInit();
+	M_PushMenu(Advanced_MenuDraw, Advanced_MenuKey);
+}
+
 static void ApplyChanges(const qboolean close_menu) //mxd. +close_menu arg.
 {
 	if (initial_vid_mode != s_mode_list.curvalue)
@@ -200,31 +235,10 @@ void VID_PreMenuInit(void)
 		scr_viewsize = Cvar_Get("viewsize", "100", CVAR_ARCHIVE);
 }
 
-static void VID_MenuInit(void)
+static void VID_MenuInit(void) // Video hub: Basic Settings / Advanced Options.
 {
-	static const char* target_fps_names[] = { "30", "60", "90", "120", "144", "240", NULL }; //mxd
-	static const int target_fps_values[] = { 30, 60, 90, 120, 144, 240 };
-	static const char* antialiasing_names[] = { "Off", "MSAA", "FXAA", NULL };
-	static const char* color_profile_names[] = { "sRGB", "Adobe RGB", "DCI-P3", "Rec.2020", NULL };
-	static const char* on_off_names[] = { "On", "Off", NULL };
-	static const char* reflection_res_names[] = { "Native", "Half", NULL };
-	static const char* light_emission_names[] = { "0", "1", "2", "3", "4", "5", "6", NULL };
-
-	static char name_driver[MAX_QPATH];
-	static char name_vidmode[MAX_QPATH];
-	static char name_target_fps[MAX_QPATH]; //mxd
-	static char name_gamma[MAX_QPATH];
-	static char name_brightness[MAX_QPATH];
-	static char name_contrast[MAX_QPATH];
-	static char name_minlight[MAX_QPATH]; // YQ2
-	static char name_detail[MAX_QPATH];
-	static char name_hd_mode[MAX_QPATH];
-	static char name_antialiasing[MAX_QPATH];
-	static char name_color_profile[MAX_QPATH];
-	static char name_water_reflections[MAX_QPATH];
-	static char name_water_reflection_res[MAX_QPATH];
-	static char name_light_emission[MAX_QPATH];
-	static char name_shadows[MAX_QPATH];
+	static char name_basic[MAX_QPATH];
+	static char name_advanced[MAX_QPATH];
 
 	VID_PreMenuInit();
 
@@ -247,17 +261,196 @@ static void VID_MenuInit(void)
 	Cvar_SetValue("r_reflections_res", Clamp(Cvar_VariableValue("r_reflections_res"), 0.0f, 1.0f));
 	Cvar_SetValue("gl_dlight_scale", Clamp((float)(int)(Cvar_VariableValue("gl_dlight_scale") + 0.5f), 0.0f, 6.0f));
 	Cvar_SetValue("r_shadows", (Cvar_VariableValue("r_shadows") != 0.0f) ? 1.0f : 0.0f);
+	Cvar_SetValue("r_dynsky", (Cvar_VariableValue("r_dynsky") != 0.0f) ? 1.0f : 0.0f);
+
+	Com_sprintf(name_basic, sizeof(name_basic), "\x02%s", m_item_video_basic->string);
+	s_basic_action.generic.type = MTYPE_ACTION;
+	s_basic_action.generic.flags = (QMF_LEFT_JUSTIFY | QMF_SELECT_SOUND);
+	s_basic_action.generic.x = 0;
+	s_basic_action.generic.y = 0;
+	s_basic_action.generic.name = name_basic;
+	s_basic_action.generic.width = re.BF_Strlen(name_basic);
+	s_basic_action.generic.callback = OpenBasicFunc;
+
+	Com_sprintf(name_advanced, sizeof(name_advanced), "\x02%s", m_item_video_advanced->string);
+	s_advanced_action.generic.type = MTYPE_ACTION;
+	s_advanced_action.generic.flags = (QMF_LEFT_JUSTIFY | QMF_SELECT_SOUND);
+	s_advanced_action.generic.x = 0;
+	s_advanced_action.generic.y = 20;
+	s_advanced_action.generic.name = name_advanced;
+	s_advanced_action.generic.width = re.BF_Strlen(name_advanced);
+	s_advanced_action.generic.callback = OpenAdvancedFunc;
+
+	Menu_AddItem(&s_video_menu, &s_basic_action);
+	Menu_AddItem(&s_video_menu, &s_advanced_action);
+
+	Menu_Center(&s_video_menu);
+}
+
+static void Basic_MenuInit(void)
+{
+	static const char* target_fps_names[] = { "30", "60", "90", "120", "144", "240", NULL }; //mxd
+	static const int target_fps_values[] = { 30, 60, 90, 120, 144, 240 };
+	static const char* antialiasing_names[] = { "Off", "MSAA", "FXAA", NULL };
+	static const char* color_profile_names[] = { "sRGB", "Adobe RGB", "DCI-P3", "Rec.2020", NULL };
+
+	static char name_vidmode[MAX_QPATH];
+	static char name_target_fps[MAX_QPATH]; //mxd
+	static char name_gamma[MAX_QPATH];
+	static char name_brightness[MAX_QPATH];
+	static char name_contrast[MAX_QPATH];
+	static char name_antialiasing[MAX_QPATH];
+	static char name_color_profile[MAX_QPATH];
+
+	s_basic_menu.nitems = 0;
+
+	Com_sprintf(name_vidmode, sizeof(name_vidmode), "\x02%s", m_item_vidmode->string);
+	s_mode_list.generic.type = MTYPE_SPINCONTROL;
+	s_mode_list.generic.x = 0;
+	s_mode_list.generic.y = 0;
+	s_mode_list.generic.name = name_vidmode;
+	s_mode_list.generic.width = re.BF_Strlen(name_vidmode);
+	s_mode_list.curvalue = initial_vid_mode;
+	s_mode_list.itemnames = vid_mode_titles;
+
+	Com_sprintf(name_target_fps, sizeof(name_target_fps), "\x02%s", m_item_target_fps->string);
+	s_target_fps_list.generic.type = MTYPE_SPINCONTROL;
+	s_target_fps_list.generic.x = 0;
+	s_target_fps_list.generic.y = 20;
+	s_target_fps_list.generic.name = name_target_fps;
+	s_target_fps_list.generic.width = re.BF_Strlen(name_target_fps);
+	s_target_fps_list.generic.flags = QMF_SINGLELINE;
+	s_target_fps_list.generic.callback = UpdateTargetFPSFunc;
+	s_target_fps_list.itemnames = target_fps_names;
+
+	// Find matching FPS value index.
+	s_target_fps_list.curvalue = 1; // Default to 60 FPS.
+	for (int i = 0; i < 6; i++)
+	{
+		if ((int)vid_maxfps->value == target_fps_values[i])
+		{
+			s_target_fps_list.curvalue = i;
+			break;
+		}
+	}
+
+	Com_sprintf(name_gamma, sizeof(name_gamma), "\x02%s", m_item_gamma->string);
+	s_gamma_slider.generic.type = MTYPE_SLIDER;
+	s_gamma_slider.generic.flags = QMF_SELECT_SOUND;
+	s_gamma_slider.generic.x = 0;
+	s_gamma_slider.generic.y = 40;
+	s_gamma_slider.generic.name = name_gamma;
+	s_gamma_slider.generic.width = re.BF_Strlen(name_gamma);
+	s_gamma_slider.generic.callback = UpdateGammaFunc;
+	s_gamma_slider.minvalue = 0.0f;
+	s_gamma_slider.maxvalue = 16.0f;
+	s_gamma_slider.curvalue = 16.0f - vid_gamma->value * 16.0f;
+
+	Com_sprintf(name_brightness, sizeof(name_brightness), "\x02%s", m_item_brightness->string);
+	s_brightness_slider.generic.type = MTYPE_SLIDER;
+	s_brightness_slider.generic.flags = QMF_SELECT_SOUND;
+	s_brightness_slider.generic.x = 0;
+	s_brightness_slider.generic.y = 80;
+	s_brightness_slider.generic.name = name_brightness;
+	s_brightness_slider.generic.width = re.BF_Strlen(name_brightness);
+	s_brightness_slider.generic.callback = UpdateBrightnessFunc;
+	s_brightness_slider.minvalue = 0.0f;
+	s_brightness_slider.maxvalue = 16.0f;
+	s_brightness_slider.curvalue = vid_brightness->value * 16.0f;
+
+	Com_sprintf(name_contrast, sizeof(name_contrast), "\x02%s", m_item_contrast->string);
+	s_contrast_slider.generic.type = MTYPE_SLIDER;
+	s_contrast_slider.generic.flags = QMF_SELECT_SOUND;
+	s_contrast_slider.generic.x = 0;
+	s_contrast_slider.generic.y = 120;
+	s_contrast_slider.generic.name = name_contrast;
+	s_contrast_slider.generic.width = re.BF_Strlen(name_contrast);
+	s_contrast_slider.generic.callback = UpdateContrastFunc;
+	s_contrast_slider.minvalue = 1.6f;
+	s_contrast_slider.maxvalue = 14.4f;
+	s_contrast_slider.curvalue = vid_contrast->value * 16.0f;
 
 	Com_sprintf(name_color_profile, sizeof(name_color_profile), "\x02%s", m_item_color_profile->string);
 	s_color_profile_list.generic.type = MTYPE_SPINCONTROL;
 	s_color_profile_list.generic.x = 0;
-	s_color_profile_list.generic.y = 40;
+	s_color_profile_list.generic.y = 160;
 	s_color_profile_list.generic.name = name_color_profile;
 	s_color_profile_list.generic.width = re.BF_Strlen(name_color_profile);
 	s_color_profile_list.generic.flags = QMF_SINGLELINE;
 	s_color_profile_list.generic.callback = UpdateColorProfileFunc;
 	s_color_profile_list.curvalue = (int)Cvar_VariableValue("r_colorprofile");
 	s_color_profile_list.itemnames = color_profile_names;
+
+	Com_sprintf(name_antialiasing, sizeof(name_antialiasing), "\x02%s", m_item_antialiasing->string);
+	s_antialiasing_list.generic.type = MTYPE_SPINCONTROL;
+	s_antialiasing_list.generic.x = 0;
+	s_antialiasing_list.generic.y = 180;
+	s_antialiasing_list.generic.name = name_antialiasing;
+	s_antialiasing_list.generic.width = re.BF_Strlen(name_antialiasing);
+	s_antialiasing_list.generic.flags = QMF_SINGLELINE;
+	s_antialiasing_list.generic.callback = UpdateAntiAliasingFunc;
+	s_antialiasing_list.curvalue = (int)Cvar_VariableValue("r_antialiasing");
+	s_antialiasing_list.itemnames = antialiasing_names;
+
+	Menu_AddItem(&s_basic_menu, &s_mode_list);
+	Menu_AddItem(&s_basic_menu, &s_target_fps_list);
+	Menu_AddItem(&s_basic_menu, &s_gamma_slider);
+	Menu_AddItem(&s_basic_menu, &s_brightness_slider);
+	Menu_AddItem(&s_basic_menu, &s_contrast_slider);
+	Menu_AddItem(&s_basic_menu, &s_color_profile_list);
+	Menu_AddItem(&s_basic_menu, &s_antialiasing_list);
+
+	Menu_Center(&s_basic_menu);
+}
+
+static void Advanced_MenuInit(void)
+{
+	static const char* on_off_names[] = { "On", "Off", NULL };
+	static const char* reflection_res_names[] = { "Native", "Half", NULL };
+	static const char* light_emission_names[] = { "0", "1", "2", "3", "4", "5", "6", NULL };
+
+	static char name_driver[MAX_QPATH];
+	static char name_hd_mode[MAX_QPATH];
+	static char name_dynsky[MAX_QPATH];
+	static char name_water_reflections[MAX_QPATH];
+	static char name_water_reflection_res[MAX_QPATH];
+	static char name_light_emission[MAX_QPATH];
+	static char name_shadows[MAX_QPATH];
+	static char name_minlight[MAX_QPATH]; // YQ2
+	static char name_detail[MAX_QPATH];
+
+	s_advanced_menu.nitems = 0;
+
+	Com_sprintf(name_driver, sizeof(name_driver), "\x02%s", m_item_driver->string);
+	s_ref_list.generic.type = MTYPE_SPINCONTROL;
+	s_ref_list.generic.x = 0;
+	s_ref_list.generic.y = 0;
+	s_ref_list.generic.name = name_driver;
+	s_ref_list.generic.width = re.BF_Strlen(name_driver);
+	s_ref_list.curvalue = initial_reflib_index;
+	s_ref_list.itemnames = ref_list_titles;
+
+	Com_sprintf(name_hd_mode, sizeof(name_hd_mode), "\x02%s", m_item_hd_mode->string);
+	s_hd_mode_list.generic.type = MTYPE_SPINCONTROL;
+	s_hd_mode_list.generic.x = 0;
+	s_hd_mode_list.generic.y = 20;
+	s_hd_mode_list.generic.name = name_hd_mode;
+	s_hd_mode_list.generic.width = re.BF_Strlen(name_hd_mode);
+	s_hd_mode_list.generic.flags = QMF_SINGLELINE;
+	s_hd_mode_list.generic.callback = UpdateHDModeFunc;
+	s_hd_mode_list.curvalue = (int)(Cvar_VariableValue("r_hd_textures") != 0.0f);
+	s_hd_mode_list.itemnames = yes_no_names;
+
+	Com_sprintf(name_dynsky, sizeof(name_dynsky), "\x02%s", m_item_dynsky->string);
+	s_dynsky_list.generic.type = MTYPE_SPINCONTROL;
+	s_dynsky_list.generic.x = 0;
+	s_dynsky_list.generic.y = 40;
+	s_dynsky_list.generic.name = name_dynsky;
+	s_dynsky_list.generic.width = re.BF_Strlen(name_dynsky);
+	s_dynsky_list.generic.flags = QMF_SINGLELINE;
+	s_dynsky_list.generic.callback = UpdateDynamicSkyFunc;
+	s_dynsky_list.curvalue = (Cvar_VariableValue("r_dynsky") != 0.0f) ? 0 : 1;
+	s_dynsky_list.itemnames = on_off_names;
 
 	Com_sprintf(name_water_reflections, sizeof(name_water_reflections), "\x02%s", m_item_water_reflections->string);
 	s_water_reflections_list.generic.type = MTYPE_SPINCONTROL;
@@ -303,109 +496,12 @@ static void VID_MenuInit(void)
 	s_shadows_list.curvalue = (Cvar_VariableValue("r_shadows") != 0.0f) ? 0 : 1;
 	s_shadows_list.itemnames = on_off_names;
 
-	Com_sprintf(name_hd_mode, sizeof(name_hd_mode), "\x02%s", m_item_hd_mode->string);
-	s_hd_mode_list.generic.type = MTYPE_SPINCONTROL;
-	s_hd_mode_list.generic.x = 0;
-	s_hd_mode_list.generic.y = 0;
-	s_hd_mode_list.generic.name = name_hd_mode;
-	s_hd_mode_list.generic.width = re.BF_Strlen(name_hd_mode);
-	s_hd_mode_list.generic.flags = QMF_SINGLELINE;
-	s_hd_mode_list.generic.callback = UpdateHDModeFunc;
-	s_hd_mode_list.curvalue = (int)(Cvar_VariableValue("r_hd_textures") != 0.0f);
-	s_hd_mode_list.itemnames = yes_no_names;
-
-	Com_sprintf(name_antialiasing, sizeof(name_antialiasing), "\x02%s", m_item_antialiasing->string);
-	s_antialiasing_list.generic.type = MTYPE_SPINCONTROL;
-	s_antialiasing_list.generic.x = 0;
-	s_antialiasing_list.generic.y = 20;
-	s_antialiasing_list.generic.name = name_antialiasing;
-	s_antialiasing_list.generic.width = re.BF_Strlen(name_antialiasing);
-	s_antialiasing_list.generic.flags = QMF_SINGLELINE;
-	s_antialiasing_list.generic.callback = UpdateAntiAliasingFunc;
-	s_antialiasing_list.curvalue = (int)Cvar_VariableValue("r_antialiasing");
-	s_antialiasing_list.itemnames = antialiasing_names;
-
-	Com_sprintf(name_driver, sizeof(name_driver), "\x02%s", m_item_driver->string);
-	s_ref_list.generic.type = MTYPE_SPINCONTROL;
-	s_ref_list.generic.x = 0;
-	s_ref_list.generic.y = 40;
-	s_ref_list.generic.name = name_driver;
-	s_ref_list.generic.width = re.BF_Strlen(name_driver);
-	s_ref_list.curvalue = initial_reflib_index;
-	s_ref_list.itemnames = ref_list_titles;
-
-	Com_sprintf(name_vidmode, sizeof(name_vidmode), "\x02%s", m_item_vidmode->string);
-	s_mode_list.generic.type = MTYPE_SPINCONTROL;
-	s_mode_list.generic.x = 0;
-	s_mode_list.generic.y = 160;
-	s_mode_list.generic.name = name_vidmode;
-	s_mode_list.generic.width = re.BF_Strlen(name_vidmode);
-	s_mode_list.curvalue = initial_vid_mode;
-	s_mode_list.itemnames = vid_mode_titles;
-
-	Com_sprintf(name_target_fps, sizeof(name_target_fps), "\x02%s", m_item_target_fps->string);
-	s_target_fps_list.generic.type = MTYPE_SPINCONTROL;
-	s_target_fps_list.generic.x = 0;
-	s_target_fps_list.generic.y = 200;
-	s_target_fps_list.generic.name = name_target_fps;
-	s_target_fps_list.generic.width = re.BF_Strlen(name_target_fps);
-	s_target_fps_list.generic.flags = QMF_SINGLELINE;
-	s_target_fps_list.generic.callback = UpdateTargetFPSFunc;
-	s_target_fps_list.itemnames = target_fps_names;
-
-	// Find matching FPS value index.
-	s_target_fps_list.curvalue = 1; // Default to 60 FPS.
-	for (int i = 0; i < 6; i++)
-	{
-		if ((int)vid_maxfps->value == target_fps_values[i])
-		{
-			s_target_fps_list.curvalue = i;
-			break;
-		}
-	}
-
-	Com_sprintf(name_gamma, sizeof(name_gamma), "\x02%s", m_item_gamma->string);
-	s_gamma_slider.generic.type = MTYPE_SLIDER;
-	s_gamma_slider.generic.flags = QMF_SELECT_SOUND;
-	s_gamma_slider.generic.x = 0;
-	s_gamma_slider.generic.y = 220;
-	s_gamma_slider.generic.name = name_gamma;
-	s_gamma_slider.generic.width = re.BF_Strlen(name_gamma);
-	s_gamma_slider.generic.callback = UpdateGammaFunc;
-	s_gamma_slider.minvalue = 0.0f;
-	s_gamma_slider.maxvalue = 16.0f;
-	s_gamma_slider.curvalue = 16.0f - vid_gamma->value * 16.0f;
-
-	Com_sprintf(name_brightness, sizeof(name_brightness), "\x02%s", m_item_brightness->string);
-	s_brightness_slider.generic.type = MTYPE_SLIDER;
-	s_brightness_slider.generic.flags = QMF_SELECT_SOUND;
-	s_brightness_slider.generic.x = 0;
-	s_brightness_slider.generic.y = 260;
-	s_brightness_slider.generic.name = name_brightness;
-	s_brightness_slider.generic.width = re.BF_Strlen(name_brightness);
-	s_brightness_slider.generic.callback = UpdateBrightnessFunc;
-	s_brightness_slider.minvalue = 0.0f;
-	s_brightness_slider.maxvalue = 16.0f;
-	s_brightness_slider.curvalue = vid_brightness->value * 16.0f;
-
-	Com_sprintf(name_contrast, sizeof(name_contrast), "\x02%s", m_item_contrast->string);
-	s_contrast_slider.generic.type = MTYPE_SLIDER;
-	s_contrast_slider.generic.flags = QMF_SELECT_SOUND;
-	s_contrast_slider.generic.x = 0;
-	s_contrast_slider.generic.y = 300;
-	s_contrast_slider.generic.name = name_contrast;
-	s_contrast_slider.generic.width = re.BF_Strlen(name_contrast);
-	s_contrast_slider.generic.callback = UpdateContrastFunc;
-	s_contrast_slider.minvalue = 1.6f;
-	s_contrast_slider.maxvalue = 14.4f;
-	s_contrast_slider.curvalue = vid_contrast->value * 16.0f;
-
 	// YQ2
 	Com_sprintf(name_minlight, sizeof(name_minlight), "\x02%s", m_item_minlight->string);
 	s_minlight_slider.generic.type = MTYPE_SLIDER;
 	s_minlight_slider.generic.flags = QMF_SELECT_SOUND;
 	s_minlight_slider.generic.x = 0;
-	s_minlight_slider.generic.y = 340;
+	s_minlight_slider.generic.y = 140;
 	s_minlight_slider.generic.name = name_minlight;
 	s_minlight_slider.generic.width = re.BF_Strlen(name_minlight);
 	s_minlight_slider.generic.callback = UpdateMinlightFunc;
@@ -417,7 +513,7 @@ static void VID_MenuInit(void)
 	s_detail_slider.generic.type = MTYPE_SLIDER;
 	s_detail_slider.generic.flags = QMF_SELECT_SOUND; //mxd. QMF_SELECT_SOUND flag was missing in original version.
 	s_detail_slider.generic.x = 0;
-	s_detail_slider.generic.y = 380;
+	s_detail_slider.generic.y = 180;
 	s_detail_slider.generic.name = name_detail;
 	s_detail_slider.generic.width = re.BF_Strlen(name_detail);
 	s_detail_slider.generic.callback = UpdateDetailFunc;
@@ -425,22 +521,17 @@ static void VID_MenuInit(void)
 	s_detail_slider.maxvalue = 3.0f;
 	s_detail_slider.curvalue = m_r_detail->value; //mxd. Original version used Cvar_VariableValue("r_detail") here.
 
-	Menu_AddItem(&s_video_menu, &s_hd_mode_list);
-	Menu_AddItem(&s_video_menu, &s_antialiasing_list);
-	Menu_AddItem(&s_video_menu, &s_color_profile_list);
-	Menu_AddItem(&s_video_menu, &s_water_reflections_list);
-	Menu_AddItem(&s_video_menu, &s_water_reflection_res_list);
-	Menu_AddItem(&s_video_menu, &s_light_emission_list);
-	Menu_AddItem(&s_video_menu, &s_shadows_list);
-	Menu_AddItem(&s_video_menu, &s_mode_list);
-	Menu_AddItem(&s_video_menu, &s_target_fps_list); //mxd
-	Menu_AddItem(&s_video_menu, &s_gamma_slider);
-	Menu_AddItem(&s_video_menu, &s_brightness_slider);
-	Menu_AddItem(&s_video_menu, &s_contrast_slider);
-	Menu_AddItem(&s_video_menu, &s_minlight_slider); // YQ2
-	Menu_AddItem(&s_video_menu, &s_detail_slider);
+	Menu_AddItem(&s_advanced_menu, &s_ref_list);
+	Menu_AddItem(&s_advanced_menu, &s_hd_mode_list);
+	Menu_AddItem(&s_advanced_menu, &s_dynsky_list);
+	Menu_AddItem(&s_advanced_menu, &s_water_reflections_list);
+	Menu_AddItem(&s_advanced_menu, &s_water_reflection_res_list);
+	Menu_AddItem(&s_advanced_menu, &s_light_emission_list);
+	Menu_AddItem(&s_advanced_menu, &s_shadows_list);
+	Menu_AddItem(&s_advanced_menu, &s_minlight_slider);
+	Menu_AddItem(&s_advanced_menu, &s_detail_slider);
 
-	Menu_Center(&s_video_menu);
+	Menu_Center(&s_advanced_menu);
 }
 
 static void VID_MenuDraw(void)
@@ -466,6 +557,32 @@ static void VID_MenuDraw(void)
 
 static const char* VID_MenuKey(const int key)
 {
+	return Default_MenuKey(&s_video_menu, key);
+}
+
+static void Basic_MenuDraw(void)
+{
+	char title[MAX_QPATH];
+
+	// Draw menu BG.
+	Menu_DrawBG("book/back/b_conback8.bk", cls.m_menuscale);
+
+	if (cls.m_menualpha == 0.0f)
+		return;
+
+	// Draw menu title.
+	Com_sprintf(title, sizeof(title), "\x03%s", m_item_video_basic->string);
+	const int x = M_GetMenuLabelX(re.BF_Strlen(title));
+	const int y = M_GetMenuOffsetY(&s_basic_menu);
+	re.DrawBigFont(x, y, title, cls.m_menualpha);
+
+	s_basic_menu.x = M_GetMenuLabelX(s_basic_menu.width);
+	Menu_AdjustCursor(&s_basic_menu, 1);
+	Menu_Draw(&s_basic_menu);
+}
+
+static const char* Basic_MenuKey(const int key)
+{
 	if (cls.m_menustate != MS_OPENED)
 		return NULL;
 
@@ -485,8 +602,8 @@ static const char* VID_MenuKey(const int key)
 		case K_AUX8:	// D-pad up
 		case 'w':
 		case 'W':
-			s_video_menu.cursor--;
-			Menu_AdjustCursor(&s_video_menu, -1);
+			s_basic_menu.cursor--;
+			Menu_AdjustCursor(&s_basic_menu, -1);
 			return SND_MENU_SELECT;
 
 		case K_DOWNARROW:
@@ -494,8 +611,8 @@ static const char* VID_MenuKey(const int key)
 		case K_AUX9:	// D-pad down
 		case 's':
 		case 'S':
-			s_video_menu.cursor++;
-			Menu_AdjustCursor(&s_video_menu, 1);
+			s_basic_menu.cursor++;
+			Menu_AdjustCursor(&s_basic_menu, 1);
 			return SND_MENU_SELECT;
 
 		case K_LEFTARROW:
@@ -504,7 +621,7 @@ static const char* VID_MenuKey(const int key)
 		case 'a':
 		case 'A':
 			//mxd. Original logic calls se.StopAllSounds_Sounding() here - no longer needed.
-			return (Menu_SlideItem(&s_video_menu, -1) ? SND_MENU_TOGGLE : NULL); //mxd. Add sound.
+			return (Menu_SlideItem(&s_basic_menu, -1) ? SND_MENU_TOGGLE : NULL); //mxd. Add sound.
 
 		case K_RIGHTARROW:
 		case K_KP_RIGHTARROW:
@@ -512,7 +629,85 @@ static const char* VID_MenuKey(const int key)
 		case 'd':
 		case 'D':
 			//mxd. Original logic calls se.StopAllSounds_Sounding() here - no longer needed.
-			return (Menu_SlideItem(&s_video_menu, 1) ? SND_MENU_TOGGLE : NULL); //mxd. Add sound.
+			return (Menu_SlideItem(&s_basic_menu, 1) ? SND_MENU_TOGGLE : NULL); //mxd. Add sound.
+
+		default:
+			break;
+	}
+
+	return NULL;
+}
+
+static void Advanced_MenuDraw(void)
+{
+	char title[MAX_QPATH];
+
+	// Draw menu BG.
+	Menu_DrawBG("book/back/b_conback8.bk", cls.m_menuscale);
+
+	if (cls.m_menualpha == 0.0f)
+		return;
+
+	// Draw menu title.
+	Com_sprintf(title, sizeof(title), "\x03%s", m_item_video_advanced->string);
+	const int x = M_GetMenuLabelX(re.BF_Strlen(title));
+	const int y = M_GetMenuOffsetY(&s_advanced_menu);
+	re.DrawBigFont(x, y, title, cls.m_menualpha);
+
+	s_advanced_menu.x = M_GetMenuLabelX(s_advanced_menu.width);
+	Menu_AdjustCursor(&s_advanced_menu, 1);
+	Menu_Draw(&s_advanced_menu);
+}
+
+static const char* Advanced_MenuKey(const int key)
+{
+	if (cls.m_menustate != MS_OPENED)
+		return NULL;
+
+	switch (key)
+	{
+		case K_ENTER:
+		case K_KP_ENTER:
+			ApplyChanges(false);
+			return SND_MENU_ENTER;
+
+		case K_ESCAPE:
+			ApplyChanges(true);
+			return SND_MENU_CLOSE;
+
+		case K_UPARROW:
+		case K_KP_UPARROW:
+		case K_AUX8:	// D-pad up
+		case 'w':
+		case 'W':
+			s_advanced_menu.cursor--;
+			Menu_AdjustCursor(&s_advanced_menu, -1);
+			return SND_MENU_SELECT;
+
+		case K_DOWNARROW:
+		case K_KP_DOWNARROW:
+		case K_AUX9:	// D-pad down
+		case 's':
+		case 'S':
+			s_advanced_menu.cursor++;
+			Menu_AdjustCursor(&s_advanced_menu, 1);
+			return SND_MENU_SELECT;
+
+		case K_LEFTARROW:
+		case K_KP_LEFTARROW:
+		case K_AUX10:	// D-pad left
+		case 'a':
+		case 'A':
+			//mxd. Original logic calls se.StopAllSounds_Sounding() here - no longer needed.
+			return (Menu_SlideItem(&s_advanced_menu, -1) ? SND_MENU_TOGGLE : NULL); //mxd. Add sound.
+
+		case K_RIGHTARROW:
+		case K_KP_RIGHTARROW:
+		case K_AUX11:	// D-pad right
+		case 'd':
+		case 'D':
+			//mxd. Original logic calls se.StopAllSounds_Sounding() here - no longer needed.
+			return (Menu_SlideItem(&s_advanced_menu, 1) ? SND_MENU_TOGGLE : NULL); //mxd. Add sound.
 
 		default:
 			break;

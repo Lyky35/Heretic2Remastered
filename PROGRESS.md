@@ -515,6 +515,21 @@ Steps:
 
 Result: `c96a7c11` pushed, R8.7 asset refreshed. Main menu is now Game/Options/Video/Sound/Maps-Objectives/Quit.
 
+## 2026-10-13 — Video Settings split into Basic / Advanced submenus
+
+Request: Basic (resolution, FPS, gamma, brightness, contrast, color profile, AA) + Advanced (HD mode, dynamic sky, reflections, reflection res, light emission, shadows, min light, effects detail), like normal options.
+Steps:
+1. Mapped every item: all existed flat in `menu_video.c` except New Dynamic Sky (new `r_dynsky` spincontrol). Light Emission = `gl_dlight_scale`, Effects Detail = `r_detail` (renamed label from "Detail Level"), Min light = `gl_minlight`. Renderer select (unlisted) placed first in Advanced.
+   - Reason: reuse, don't reinvent — same widgets, callbacks, cvars, ApplyChanges.
+2. `menu_video.c`: hub (`s_video_menu`, 2 actions via `Default_MenuKey`) + `Basic_MenuInit/Draw/Key` (7 items) + `Advanced_MenuInit/Draw/Key` (9 items); snapshots/clamps stay once-per-hub-open; shared `ApplyChanges` from both submenus (escape pops one level). New labels in `menu.c`/`menu.h` (+ `m_item_*` definitions; fixed the one link error that caught).
+   - Reason: standard submenu pattern (`M_PushMenu`), no build-system changes (all in-file).
+3. Rebuilt all (quake2 clean), repackaged R8.7 (15 files), staged.
+   - Reason: ship to tester per standing release rhythm.
+4. Next: commit + push, move `R8_7` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).
+
 ## 2026-10-13 — Merged trail line into R8.7 stable
 
 Request: merge AdvShaders (TrailT1 build) into R8.7.

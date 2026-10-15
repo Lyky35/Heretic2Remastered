@@ -638,7 +638,7 @@ void M_Init(void)
 	m_item_brightness = Cvar_Get("m_item_brightness", "Brightness", 0);
 	m_item_contrast = Cvar_Get("m_item_contrast", "Contrast", 0);
 	m_item_minlight = Cvar_Get("m_item_minlight", "Min. light level", 0); //mxd
-	m_item_detail = Cvar_Get("m_item_detail", "Detail Level", 0);
+	m_item_detail = Cvar_Get("m_item_detail", "Effects Detail", 0);
 	m_item_hd_mode = Cvar_Get("m_item_hd_mode", "HD Mode", 0);
 	m_item_antialiasing = Cvar_Get("m_item_antialiasing", "Anti-Aliasing", 0);
 	m_item_color_profile = Cvar_Get("m_item_color_profile", "Color Profile", 0);
@@ -646,6 +646,9 @@ void M_Init(void)
 	m_item_water_reflection_res = Cvar_Get("m_item_water_reflection_res", "Reflection Resolution", 0);
 	m_item_light_emission = Cvar_Get("m_item_light_emission", "Light Emission Scale", 0);
 	m_item_shadows = Cvar_Get("m_item_shadows", "Shadows", 0);
+	m_item_video_basic = Cvar_Get("m_item_video_basic", "Basic Settings", 0);
+	m_item_video_advanced = Cvar_Get("m_item_video_advanced", "Advanced Options", 0);
+	m_item_dynsky = Cvar_Get("m_item_dynsky", "New Dynamic Sky", 0);
 
 	// Options / Video Settings menus.
 	m_item_defaults = Cvar_Get("m_item_defaults", "Reset to Defaults", 0);
