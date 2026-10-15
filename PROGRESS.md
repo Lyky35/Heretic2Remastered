@@ -466,7 +466,7 @@ Steps:
    - Reason: renderer-side master switch lives where T2 will read it too.
 5. Built ALL targets mingw (only pre-existing warnings, e.g. `input.h` inline note); fixed the missing include from the single error.
    - Reason: `q_shared.h` edit rebuilds the world — verify everything links.
-6. Next: commit + push on `R8.7_AdvShaders` (no Beta release — testers get this when it merges).
+6. Ran `git add` (q_shared.h, fx_staff.c, gl3_Local.h, gl3_Main.c, PROGRESS.md), commit `a9a03599` (+124/-1), `git push origin R8.7_AdvShaders` — succeeded.
    - Reason: complete "commit and push after each portion" for T1.
 
-Result: pending push (see next entry update after push).
+Result: `a9a03599` pushed to `origin/R8.7_AdvShaders`. T2 next (dedicated blit + distortion shader + noise + cvars). No Beta release from this branch.
