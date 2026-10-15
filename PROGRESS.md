@@ -585,3 +585,18 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `e058bc9b` pushed, TrailT1 asset refreshed. Retest ask: L2 legacy, L3 fire+haze-without-body, select flash.
+
+## 2026-10-13 — Trail feedback 6: select ribbon L1-only, L1 color
+
+Report: materialize change hit L2/L3 too (L1 only, please); L1 flash shows green, should match L1 trail.
+Steps:
+1. Shaft-ribbon branch now requires `self->classID == STAFF_TRAIL` (normal/L1; blue/flames types keep legacy sprites); poof skip requires neither `CEF_FLAG7` nor `CEF_FLAG8` (same normal-only rule, flags already used in-file).
+   - Reason: exact scoping, no behavior delta for L2/L3.
+2. Shaft ribbon color: was the per-type `color` (green 0xff20ff20 for sword) — now hardcoded `0x02201010`, the actual L1 trail color set in `FXStaff` case 1 (commented at use).
+   - Reason: "same as L1 trail" means the trail's color, not the staff-type flash color.
+3. Rebuilt (no errors), verified fresh DLL timestamp + zip md5 match (zip size coincidence double-checked, not assumed), repackaged (15 files).
+   - Reason: ship to tester with proof of freshness.
+4. Next: commit + push, move `R8_7_TrailT1` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

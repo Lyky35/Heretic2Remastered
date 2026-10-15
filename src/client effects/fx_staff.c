@@ -532,9 +532,11 @@ static qboolean StaffCreateOrRemoveUpdate(client_entity_t* self, centity_t* owne
 	vec3_t diff;
 	VectorSubtract(end_pt, start_pt, diff);
 
-	// Ribbon-mode select flash: one distorting streak along the materializing
-	// shaft instead of white sprite puffs (L1 ribbon look, type-colored).
-	if (ribbon_mode)
+	// Ribbon-mode select flash, L1 (normal) staff only: one distorting streak
+	// along the materializing shaft instead of white sprite puffs. Uses the
+	// L1 trail color (0x02201010, same as StaffLevel1Update via FXStaff), not
+	// the green/red type colors. L2/L3 keep their legacy flashes.
+	if (ribbon_mode && self->classID == STAFF_TRAIL)
 	{
 		vec3_t wstart, wend, mid;
 		StaffTipToWorld(owner, start_pt, wstart);
@@ -547,7 +549,7 @@ static qboolean StaffCreateOrRemoveUpdate(client_entity_t* self, centity_t* owne
 		flash->r.scale = 8.0f;
 		flash->alpha = 0.6f;
 		flash->d_alpha = -2.0f;
-		flash->r.color.c = color;
+		flash->r.color.c = 0x02201010; // L1 trail color (see FXStaff case 1).
 		flash->r.tile = 1.0f;
 		VectorCopy(wstart, flash->r.startpos);
 		VectorCopy(wend, flash->r.endpos);
@@ -697,8 +699,9 @@ void FXStaffCreatePoof(centity_t* owner, int type, const int flags, vec3_t origi
 	if (!RefPointsValid(owner))
 		return; // Remove the effect in this case.
 
-	// Ribbon mode replaces these white halo flashes with the shaft streak.
-	if (ribbon_mode)
+	// Ribbon mode replaces these white halo flashes with the shaft streak,
+	// but only for the L1 (normal) staff — L2/L3 keep their flashes.
+	if (ribbon_mode && !(flags & (CEF_FLAG7 | CEF_FLAG8)))
 		return;
 
 	const int ref_id = ((flags & CEF_FLAG6) ? CORVUS_HELL_HEAD : CORVUS_BLADE); //mxd
