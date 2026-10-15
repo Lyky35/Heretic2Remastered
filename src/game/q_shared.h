@@ -577,7 +577,9 @@ typedef struct
 #define RF_IGNORE_REFS		0x00100000		// Don't update the ref points for a model.
 #define RF_NODRAW			0x00200000 //TODO: not implemented.
 #define RF_CULL_LARGE		0x00400000		// If set on a poly that is really close to the near clip plane and occupies
-											// a significant amount of screen real-estate, the poly will be culled. Used for particles in software.
+										// a significant amount of screen real-estate, the poly will be culled. Used for particles in software.
+#define RF_DISTORT			0x00800000		// Distortion-trail ribbon: ref_gl3 refracts the background behind it
+										// (r_trail_distort); renderers without distortion draw a normal line sprite.
 
 #define RF_TRANS_ANY		(RF_TRANS_ADD | RF_TRANS_GHOST | RF_TRANSLUCENT)
 

@@ -12,6 +12,7 @@
 #include "Vector.h"
 #include "ce_DLight.h"
 #include "g_playstats.h"
+#include "q_Sprite.h"
 
 #define STAFF_LENGTH		27
 #define STAFF_TYPE_SWORD	3
@@ -60,6 +61,78 @@ static qboolean StaffElementUpdate(client_entity_t* self, centity_t* owner) //mx
 	return true;
 }
 
+// ---- T1 AdvShaders ribbon: chained world-space SPRITE_LINE segments along
+// the blade arc (replaces sprite puffs when r_trail_distort is on). Segments
+// carry RF_DISTORT: ref_gl3 refracts the background behind them (T2); renderers
+// without distortion draw normal textured line sprites (automatic fallback).
+// Single owner (player staff) so file-static history is safe.
+static vec3_t ribbon_prev_tip;
+static qboolean ribbon_have_prev = false;
+static qboolean ribbon_mode = false;
+
+#define RIBBON_SEG_LIFE		300 // ms each segment lives (fades out)
+#define RIBBON_MIN_STEP		0.5f // world units: below this, hold anchor without emitting
+
+static void StaffTipToWorld(const centity_t* owner, const vec3_t local, vec3_t world)
+{
+	matrix3_t rotation;
+	Matrix3FromAngles(owner->lerp_angles, rotation);
+	Matrix3MultByVec3(rotation, local, world);
+	VectorAdd(owner->origin, world, world);
+}
+
+static qboolean StaffRibbonSegment(client_entity_t* self, centity_t* owner, int ref_index, int modelIdx, uint color, float width, float alpha)
+{
+	vec3_t pivot, dir, tipLocal, tipWorld, seg;
+	float seg_len;
+
+	// Same tip construction as the puff loop, current frame (old->current
+	// interpolation happens across frames by chaining prev->cur).
+	VectorCopy(owner->referenceInfo->references[CORVUS_RIGHTHAND].placement.origin, pivot);
+	VectorNormalize2(owner->referenceInfo->references[ref_index].placement.direction, dir);
+	VectorMA(pivot, STAFF_LENGTH, dir, tipLocal);
+	StaffTipToWorld(owner, tipLocal, tipWorld);
+
+	if (!ribbon_have_prev)
+	{
+		VectorCopy(tipWorld, ribbon_prev_tip);
+		ribbon_have_prev = true;
+		return true; // Anchor only: need two points for a segment.
+	}
+
+	VectorSubtract(tipWorld, ribbon_prev_tip, seg);
+	seg_len = VectorLength(seg);
+	if (seg_len < RIBBON_MIN_STEP)
+	{
+		VectorCopy(tipWorld, ribbon_prev_tip);
+		return true;
+	}
+
+	client_entity_t* ribbon = ClientEntity_new(FX_SPELLHANDS, CEF_NOMOVE, tipWorld, NULL, RIBBON_SEG_LIFE);
+	ribbon->r.model = &staff_models[modelIdx];
+	ribbon->r.spriteType = SPRITE_LINE;
+	ribbon->r.flags = (RF_TRANSLUCENT | RF_TRANS_ADD | RF_TRANS_ADD_ALPHA | RF_DISTORT);
+	ribbon->r.scale = width;
+	ribbon->d_scale = -2.0f;
+	ribbon->alpha = alpha;
+	ribbon->d_alpha = -(alpha / ((float)RIBBON_SEG_LIFE / 1000.0f));
+	ribbon->r.color.c = color;
+	ribbon->r.tile = 1.0f;
+	VectorCopy(ribbon_prev_tip, ribbon->r.startpos);
+	VectorCopy(tipWorld, ribbon->r.endpos);
+
+	// Cull by segment midpoint + half-length so long fast swings aren't
+	// point-culled at the tip.
+	VectorAdd(ribbon_prev_tip, tipWorld, ribbon->r.origin);
+	Vec3ScaleAssign(0.5f, ribbon->r.origin);
+	VectorCopy(ribbon->r.origin, ribbon->origin);
+	ribbon->radius = seg_len * 0.5f + width;
+
+	AddEffect(NULL, ribbon);
+	VectorCopy(tipWorld, ribbon_prev_tip);
+	return true;
+}
+
 static qboolean StaffLevel3Update(client_entity_t* self, centity_t* owner) //mxd. Named 'FXStaffLevel2Think' in original logic.
 {
 #define TRAIL_LVL3_LIFETIME	2000 //mxd
@@ -84,6 +157,10 @@ static qboolean StaffLevel3Update(client_entity_t* self, centity_t* owner) //mxd
 
 	if (VectorLengthSquared(diff) < 0.01f)
 		return true;
+
+	// T1 ribbon: chain world-space LINE segments instead of sprite puffs.
+	if (ribbon_mode)
+		return StaffRibbonSegment(self, owner, ref_index, STAFF_TRAIL2, color_white.c, 10.0f, 0.75f);
 
 	//mxd. Clamp instead of removing the effect (see StaffLevel1Update).
 	int num_of_intervals = GetScaledCount((int)(VectorLength(diff) * 0.5f), 1.0f);
@@ -206,6 +283,18 @@ static qboolean StaffLevel2Update(client_entity_t* self, centity_t* owner) //mxd
 	if (VectorLengthSquared(diff) < 0.01f)
 		return true;
 
+	// T1 ribbon: chain world-space LINE segments instead of sprite puffs.
+	if (ribbon_mode)
+	{
+		paletteRGBA_t ribbon_col;
+		const int rc = irand(128, 208);
+		if (owner->current.effects & EF_BLOOD_ENABLED)
+			COLOUR_SETA(ribbon_col, irand(236, 255), rc, rc, irand(80, 192));
+		else
+			COLOUR_SETA(ribbon_col, rc, rc, irand(236, 255), irand(80, 192));
+		return StaffRibbonSegment(self, owner, ref_index, STAFF_TRAIL3, ribbon_col.c, 8.0f, 0.75f);
+	}
+
 	//mxd. Clamp instead of removing the effect (see StaffLevel1Update).
 	int num_of_intervals = GetScaledCount((int)(VectorLength(diff) * 0.5f), 1.0f);
 	if (num_of_intervals > 40)
@@ -290,6 +379,11 @@ static qboolean StaffLevel1Update(client_entity_t* self, centity_t* owner) //mxd
 	if (VectorLengthSquared(diff) < 0.01f)
 		return true;
 
+	// T1 ribbon: chain world-space LINE segments instead of sprite puffs.
+	if (ribbon_mode)
+		return StaffRibbonSegment(self, owner, ref_index, STAFF_TRAIL,
+			((owner->current.effects & EF_BLOOD_ENABLED) ? 0x50000018 : self->color.c), 6.0f, 0.5f);
+
 	//mxd. Clamp instead of removing the effect: a fast swing used to push this past 40 and kill the whole
 	//trail mid-attack, so it only tracked the blade for the first frame or two.
 	int num_of_intervals = GetScaledCount((int)(VectorLength(diff) * 0.75f), 1.0f);
@@ -350,6 +444,11 @@ void FXStaff(centity_t* owner, const int type, const int flags, vec3_t origin)
 
 	if (!ReferencesInitialized(owner))
 		return;
+
+	// T1 ribbon gate (read per swing, no caching): ref_gl3 registers default 1;
+	// under ref_gl1 the cvar doesn't exist so this creates it as 0 (puffs).
+	ribbon_mode = (Cvar_Get("r_trail_distort", "0", 0)->value != 0.0f);
+	ribbon_have_prev = false;
 
 	// Add a fiery trail effect to the player's staff.
 	client_entity_t* trail = ClientEntity_new(type, CEF_OWNERS_ORIGIN | CEF_DONT_LINK, origin, NULL, 0); //mxd. next_think_time:17 in original logic.

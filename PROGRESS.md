@@ -451,3 +451,22 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `b2e3219c` pushed, R8.7 Beta asset refreshed. Auto is now genuinely automatic, including for upgraders.
+
+## 2026-10-13 — T1 staff ribbon on `R8.7_AdvShaders` (plain additive, no distortion yet)
+
+Plan: `TRAIL_DISTORTION_PLAN.md` (`4684d12a` on this branch). Goal here: geometry only.
+Steps:
+1. Verified the cheap path exists: `SPRITE_LINE` semi-oriented strips in both renderers (`gl3_Sprite.c:91`, `gl1_Sprite.c:98` — gl1 fallback safe), established FX pattern (`fx_StaffHit.c` streaks), `OffsetLinkedEntityUpdatePlacement` transforms only `origin` (so ribbon segments go world-space static, `AddEffect(NULL)`), `CEF_NOMOVE` in `qcommon/EffectFlags.h`, free `RF_` bit `0x00800000` (CONTENTS_* reuse of the value is a separate domain).
+   - Reason: zero renderer changes for T1; distortion flag honored in T2.
+2. `src/game/q_shared.h`: `RF_DISTORT 0x00800000` (gl3 refracts later; others draw normal line).
+   - Reason: the only cross-DLL contract T1+T2 need.
+3. `src/client effects/fx_staff.c`: file-static ribbon state (single owner = player staff), `StaffTipToWorld` (same pivot+27*dir tip formula, owner-angles transform like L3), `StaffRibbonSegment` (prev→cur world chord, 0.5-unit hold-anchor, `SPRITE_LINE` + `RF_DISTORT`, midpoint culling, 300 ms fade, per-level model/color/width/alpha mirroring L1/L2/L3), gate in `FXStaff` (per-swing `Cvar_Get("r_trail_distort","0",0)` read — ref_gl3 registers default 1 first at vid init, so gl1 absence correctly yields puffs), branches in all three `StaffLevel*Update` after the movement gate (+ `q_Sprite.h` include; fixed the one compile error it caused).
+   - Reason: puff loops byte-untouched for the fallback path; ribbon reuses proven field patterns.
+4. `ref_gl3` `gl3_Local.h`/`gl3_Main.c`: `r_trail_distort` default 1 archived. gl1 untouched.
+   - Reason: renderer-side master switch lives where T2 will read it too.
+5. Built ALL targets mingw (only pre-existing warnings, e.g. `input.h` inline note); fixed the missing include from the single error.
+   - Reason: `q_shared.h` edit rebuilds the world — verify everything links.
+6. Next: commit + push on `R8.7_AdvShaders` (no Beta release — testers get this when it merges).
+   - Reason: complete "commit and push after each portion" for T1.
+
+Result: pending push (see next entry update after push).

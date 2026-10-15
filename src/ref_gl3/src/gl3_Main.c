@@ -127,6 +127,7 @@ cvar_t* r_caustics;
 cvar_t* r_caustics_strength;
 cvar_t* r_hd_textures;
 cvar_t* r_antialiasing;
+cvar_t* r_trail_distort;
 cvar_t* r_dynsky;
 cvar_t* r_volclouds;
 cvar_t* r_sky_preset;
@@ -337,6 +338,7 @@ static void R_Register(void)
 	r_water_wave_sharp  = ri.Cvar_Get("r_water_wave_sharp",  "0.0", CVAR_ARCHIVE);
 	r_hd_textures     = ri.Cvar_Get("r_hd_textures",     "1",   CVAR_ARCHIVE);
 	r_antialiasing    = ri.Cvar_Get("r_antialiasing",    "0",   CVAR_ARCHIVE);
+	r_trail_distort   = ri.Cvar_Get("r_trail_distort",   "1",   CVAR_ARCHIVE); // AdvShaders T1: staff ribbon (Client Effects reads it; absent on gl1 = puffs).
 
 	GL3_SkyDyn_RegisterCvars();
 

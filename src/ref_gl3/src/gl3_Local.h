@@ -71,6 +71,7 @@ extern cvar_t* r_caustics;
 extern cvar_t* r_caustics_strength;
 extern cvar_t* r_hd_textures;
 extern cvar_t* r_antialiasing;
+extern cvar_t* r_trail_distort;  // AdvShaders T1: staff ribbon mode (Client Effects reads it).
 extern cvar_t* r_shadows;
 
 // Dynamic sky + volumetric clouds (gl3_SkyDyn.c, Phase 0 scaffold).
