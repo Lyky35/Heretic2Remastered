@@ -498,7 +498,7 @@ Steps:
    - Reason: a test build that doesn't launch wastes a whole test round.
 3. Created tag `R8_7_TrailT1` (target `R8.7_AdvShaders`, no clash with branch names) + prerelease `R8.7 TrailT1 (test)` with asset (first `gh release create` failed outside the repo — `GIT_DISCOVERY_ACROSS_FILESYSTEM`; reran from repo with `--repo`). Verified live with asset attached.
    - Reason: same URL pattern as R8.7 Beta; prerelease keeps R8.6 latest.
-4. Next: `git add PROGRESS.md`, commit, `git push origin R8.7_AdvShaders`.
+4. Ran `git add PROGRESS.md`, commit `2199ed3f`, `git push origin R8.7_AdvShaders` — succeeded.
    - Reason: complete "commit and push after each portion" for this release portion.
 
-Result: pending push (see next entry update after push).
+Result: `2199ed3f` pushed. Live: https://github.com/Lyky35/Heretic2Remastered/releases/tag/R8_7_TrailT1 (tag `R8_7_TrailT1`, 1 asset). Awaiting smoke test.
