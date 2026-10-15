@@ -483,7 +483,7 @@ Steps:
    - Reason: distortion composes in normal alpha order; T1 look is the automatic fallback everywhere.
 4. Built ALL targets mingw, zero warnings/errors.
    - Reason: no runtime here — compile-clean plus review is the verification available.
-5. Next: commit + push on `R8.7_AdvShaders` (no Beta release — testers get this when it merges).
+5. Ran `git add` (6 files), commit `1d7022a1` (+401), `git push origin R8.7_AdvShaders` — succeeded.
    - Reason: complete "commit and push after each portion" for T2.
 
-Result: pending push (see next entry update after push).
+Result: `1d7022a1` pushed to `origin/R8.7_AdvShaders`. T3 next (chromatic/core polish, taper, perf) or Windows smoke test of T1+T2 first — untested at runtime.
