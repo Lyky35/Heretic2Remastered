@@ -514,6 +514,19 @@ Steps:
    - Reason: complete "commit and push after each portion" for this merge portion.
 
 Result: `c60c8d29` pushed. Live: https://github.com/Lyky35/Heretic2Remastered/releases/tag/R8_7 (stable with trails). Note: tag `R8_7` sits on the merge `f452f007`; HEAD adds only this log.
+
+## 2026-10-13 — Pulled work to `main` (fast-forward to Beta)
+
+Request: pull all changes from `R8.7_AdvShaders` to `main`.
+Steps:
+1. Verified `git diff R8.7_AdvShaders Beta` = PROGRESS.md only (73 log lines) — i.e. Beta already contains the full AdvShaders tip via merge `f452f007`, plus the release logs. Merged Beta (superset) so `main` gets literally everything including the log.
+   - Reason: same code either way; this way the log arrives complete too.
+2. `git checkout main` + `git merge Beta` — fast-forward `d4495920..0ab04d96` (main was a strict ancestor; 19 files, +4142/-16, zero conflicts).
+   - Reason: nothing to resolve; linear history on main.
+3. Next: `git add PROGRESS.md`, commit, `git push origin main`.
+   - Reason: complete "commit and push after each portion" for this merge portion.
+
+Result: pending push (see next entry update after push).
 ## 2026-10-13 — T1 staff ribbon on `R8.7_AdvShaders` (plain additive, no distortion yet)
 
 Plan: `TRAIL_DISTORTION_PLAN.md` (`4684d12a` on this branch). Goal here: geometry only.
