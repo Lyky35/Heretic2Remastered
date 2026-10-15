@@ -581,7 +581,7 @@ Steps:
    - Reason: the white flash IS the select sprites; shaft streak is the motionless equivalent of the swing ribbon.
 4. Rebuilt all (no errors), repackaged TrailT1 (15 files), staged.
    - Reason: ship to tester.
-5. Next: commit + push, move `R8_7_TrailT1` tag, re-upload asset.
+5. Ran `git add` (fx_staff.c, q_shared.h, gl3_Sprite.c, gl3_Shaders.c, PROGRESS.md), commit `e058bc9b` (+70/-26), `git push origin R8.7_AdvShaders`; moved tag `R8_7_TrailT1`; `gh release upload --clobber` (6663656 bytes, updated 2026-10-15T03:43:15Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `e058bc9b` pushed, TrailT1 asset refreshed. Retest ask: L2 legacy, L3 fire+haze-without-body, select flash.
