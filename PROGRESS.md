@@ -534,3 +534,20 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `0ec1f870` pushed, TrailT1 asset refreshed. Retest ask: L2 size, L3 flames + haze.
+
+## 2026-10-13 — Trail feedback 3: smooth flow, no puff blocks, dimmer fire
+
+Report: L2 not smooth; big ugly smoke-like puffs; fire too bright/flame-sprite look; wants larger flame haze.
+Steps:
+1. Diagnosed: wide (18u) independent quads with hard strip ends read as discrete puffs — geometry, not colors. Fix is shorter pieces + faded ends, not new shapes.
+   - Reason: treat the disease (blocky segments), not symptoms.
+2. `fx_staff.c`: each frame chord now emits 2 half-length sub-segments (ends[] midpoint split); L2 width 18 -> 22 for a larger haze body.
+   - Reason: shorter quads corner-cut less and kink gentler; overlap + end fades keep joints seamless.
+3. Trail fragment (`gl3_Shaders.c`): added along-strip end fade (`smoothstep` both t ends, works with the overlap extensions), softened across-edge to 0.40/0.60; `r_trail_core` default 0.6 -> 0.35 (core was blowing out to white on bright L2 tints).
+   - Reason: haze needs soft volume, not hard quads or blown core.
+4. Rebuilt all (no errors), repackaged TrailT1 (15 files), staged.
+   - Reason: ship to tester.
+5. Next: commit + push, move `R8_7_TrailT1` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

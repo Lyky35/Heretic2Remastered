@@ -499,17 +499,18 @@ static const char* fragmentSourceTrail =
 	"out vec4 FragColor;\n"
 	"void main() {\n"
 	"    vec2 screenUV = vClipPos.xy / vClipPos.w * 0.5 + 0.5;\n"
-	"    float edge = smoothstep(0.0, 0.30, vUv.x) * smoothstep(1.0, 0.70, vUv.x);\n"
+	"    float edge = smoothstep(0.0, 0.40, vUv.x) * smoothstep(1.0, 0.60, vUv.x);\n"
+	"    float ends = smoothstep(0.0, 0.20, vUv.y) * smoothstep(1.0, 0.80, vUv.y);\n"
 	"    vec2 nuv = vec2(vUv.y * 3.0, vUv.x) + vec2(-uTime * 0.35, uTime * 0.05);\n"
-	"    vec2 off = (texture(uNoiseTex, nuv).rg - 0.5) * uStrength * edge;\n"
+	"    vec2 off = (texture(uNoiseTex, nuv).rg - 0.5) * uStrength * edge * ends;\n"
 	"    vec3 refr = texture(uTrailBg, screenUV + off).rgb;\n"
 	"    if (uChroma > 0.5) {\n"
 	"        refr.r = texture(uTrailBg, screenUV + off * 0.75).r;\n"
 	"        refr.b = texture(uTrailBg, screenUV + off * 1.35).b;\n"
 	"    }\n"
 	"    float center = smoothstep(0.5, 0.0, abs(vUv.x - 0.5));\n"
-	"    refr += (vColor.rgb * 2.0 + vec3(0.08)) * (center * center) * uCoreAmt * edge;\n"
-	"    FragColor = vec4(refr, edge * uFade);\n"
+	"    refr += (vColor.rgb * 2.0 + vec3(0.08)) * (center * center) * uCoreAmt * edge * ends;\n"
+	"    FragColor = vec4(refr, edge * ends * uFade);\n"
 	"}\n";
 
 static GLuint CompileShader(GLenum type, const char* source)

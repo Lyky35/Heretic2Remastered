@@ -113,32 +113,47 @@ static qboolean StaffRibbonSegment(client_entity_t* self, centity_t* owner, int 
 	// outside of every bend gaps open and reads as a second, separate trail.
 	// The overlap lens keeps bends connected (both sample the same clean
 	// background, so double-blend there is nearly invisible).
-	vec3_t segDir, segStart, segEnd;
-	VectorNormalize2(seg, segDir);
-	VectorMA(ribbon_prev_tip, -width * 0.5f, segDir, segStart);
-	VectorMA(tipWorld, width * 0.5f, segDir, segEnd);
+	// Split the chord in two: shorter quads follow the arc (less corner-cutting
+	// and kink per piece) and read as flow instead of discrete puffs.
+	vec3_t mid, segDir, segStart, segEnd;
+	vec3_t ends[3];
+	VectorAdd(ribbon_prev_tip, tipWorld, mid);
+	Vec3ScaleAssign(0.5f, mid);
+	VectorCopy(ribbon_prev_tip, ends[0]);
+	VectorCopy(mid, ends[1]);
+	VectorCopy(tipWorld, ends[2]);
 
-	client_entity_t* ribbon = ClientEntity_new(FX_SPELLHANDS, CEF_NOMOVE, tipWorld, NULL, RIBBON_SEG_LIFE);
-	ribbon->r.model = &staff_models[modelIdx];
-	ribbon->r.spriteType = SPRITE_LINE;
-	ribbon->r.flags = (RF_TRANSLUCENT | RF_TRANS_ADD | RF_TRANS_ADD_ALPHA | RF_DISTORT);
-	ribbon->r.scale = width;
-	ribbon->d_scale = -2.0f;
-	ribbon->alpha = alpha;
-	ribbon->d_alpha = -(alpha / ((float)RIBBON_SEG_LIFE / 1000.0f));
-	ribbon->r.color.c = color;
-	ribbon->r.tile = 1.0f;
-	VectorCopy(segStart, ribbon->r.startpos);
-	VectorCopy(segEnd, ribbon->r.endpos);
+	for (int s = 0; s < 2; s++)
+	{
+		vec3_t sub;
+		VectorSubtract(ends[s + 1], ends[s], sub);
+		VectorNormalize2(sub, segDir);
+		VectorMA(ends[s], -width * 0.5f, segDir, segStart);
+		VectorMA(ends[s + 1], width * 0.5f, segDir, segEnd);
 
-	// Cull by segment midpoint + half-length so long fast swings aren't
-	// point-culled at the tip.
-	VectorAdd(ribbon_prev_tip, tipWorld, ribbon->r.origin);
-	Vec3ScaleAssign(0.5f, ribbon->r.origin);
-	VectorCopy(ribbon->r.origin, ribbon->origin);
-	ribbon->radius = seg_len * 0.5f + width;
+		client_entity_t* ribbon = ClientEntity_new(FX_SPELLHANDS, CEF_NOMOVE, tipWorld, NULL, RIBBON_SEG_LIFE);
+		ribbon->r.model = &staff_models[modelIdx];
+		ribbon->r.spriteType = SPRITE_LINE;
+		ribbon->r.flags = (RF_TRANSLUCENT | RF_TRANS_ADD | RF_TRANS_ADD_ALPHA | RF_DISTORT);
+		ribbon->r.scale = width;
+		ribbon->d_scale = -2.0f;
+		ribbon->alpha = alpha;
+		ribbon->d_alpha = -(alpha / ((float)RIBBON_SEG_LIFE / 1000.0f));
+		ribbon->r.color.c = color;
+		ribbon->r.tile = 1.0f;
+		VectorCopy(segStart, ribbon->r.startpos);
+		VectorCopy(segEnd, ribbon->r.endpos);
 
-	AddEffect(NULL, ribbon);
+		// Cull by segment midpoint + half-length so long fast swings aren't
+		// point-culled at the tip.
+		VectorAdd(ends[s], ends[s + 1], ribbon->r.origin);
+		Vec3ScaleAssign(0.5f, ribbon->r.origin);
+		VectorCopy(ribbon->r.origin, ribbon->origin);
+		ribbon->radius = seg_len * 0.25f + width;
+
+		AddEffect(NULL, ribbon);
+	}
+
 	VectorCopy(tipWorld, ribbon_prev_tip);
 	return true;
 }
@@ -304,7 +319,7 @@ static qboolean StaffLevel2Update(client_entity_t* self, centity_t* owner) //mxd
 			COLOUR_SETA(ribbon_col, irand(236, 255), rc, rc, irand(80, 192));
 		else
 			COLOUR_SETA(ribbon_col, rc, rc, irand(236, 255), irand(80, 192));
-		return StaffRibbonSegment(self, owner, ref_index, STAFF_TRAIL3, ribbon_col.c, 18.0f, 0.75f);
+		return StaffRibbonSegment(self, owner, ref_index, STAFF_TRAIL3, ribbon_col.c, 22.0f, 0.75f);
 	}
 
 	//mxd. Clamp instead of removing the effect (see StaffLevel1Update).

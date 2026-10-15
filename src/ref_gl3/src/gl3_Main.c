@@ -344,7 +344,7 @@ static void R_Register(void)
 	r_trail_distort   = ri.Cvar_Get("r_trail_distort",   "1",   CVAR_ARCHIVE); // AdvShaders T1: staff ribbon (Client Effects reads it; absent on gl1 = puffs).
 	r_trail_strength  = ri.Cvar_Get("r_trail_strength",  "0.09",  0); // AdvShaders T2: distortion UV offset scale.
 	r_trail_chroma    = ri.Cvar_Get("r_trail_chroma",    "1",     0); // AdvShaders T2: chromatic fringing on the warp.
-	r_trail_core      = ri.Cvar_Get("r_trail_core",      "0.6",   0); // AdvShaders T2: hot-core additive amount.
+	r_trail_core      = ri.Cvar_Get("r_trail_core",      "0.35",  0); // AdvShaders T2: hot-core additive amount.
 
 	GL3_SkyDyn_RegisterCvars();
 
