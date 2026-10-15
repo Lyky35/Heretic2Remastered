@@ -510,10 +510,10 @@ Steps:
    - Reason: prove the dead URLs are really gone from the binary.
 3. Rebuilt all (quake2 clean; only pre-existing unrelated warnings), repackaged R8.7 (15 files), staged.
    - Reason: ship to tester per standing release rhythm.
-4. Next: commit + push, move `R8_7` tag, re-upload asset.
+4. Ran `git add` (menu_main.c/h, menu.c, PROGRESS.md), commit `c96a7c11` (+17/-127), `git push origin Beta`; moved tag `R8_7`; `gh release upload --clobber` (6662179 bytes, updated 2026-10-15T04:42:00Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `c96a7c11` pushed, R8.7 asset refreshed. Main menu is now Game/Options/Video/Sound/Maps-Objectives/Quit.
 
 ## 2026-10-13 — Merged trail line into R8.7 stable
 
