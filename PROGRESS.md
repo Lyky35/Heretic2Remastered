@@ -617,7 +617,7 @@ Steps:
    - Reason: haze where fire sustains; stated, not silently dropped.
 6. Rebuilt all (no errors), repackaged TrailT1 (15 files), staged + README weapon section.
    - Reason: ship to tester.
-7. Next: commit + push, move `R8_7_TrailT1` tag, re-upload asset.
+7. Ran `git add` (4 FX files, gl3_Sprite.c/Shaders.c/Local.h, PROGRESS.md), commit `42427483` (+223/-58), `git push origin R8.7_AdvShaders`; moved tag `R8_7_TrailT1`; `gh release upload --clobber` (6664669 bytes, updated 2026-10-15T04:09:15Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `42427483` pushed, TrailT1 asset refreshed. Retest ask: hellstaff growth, firewall linger, phoenix wake/blast per spec.
