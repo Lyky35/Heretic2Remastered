@@ -530,6 +530,21 @@ Steps:
 
 Result: `7b2fa715` pushed, R8.7 asset refreshed. Video menu is now hub -> Basic (7) / Advanced (9).
 
+## 2026-10-13 — Fixed overlapping menu rows (single-line spincontrols)
+
+Report: Video Resolution overlaps Target FPS (Basic); Renderer overlaps HD Mode (Advanced).
+Steps:
+1. Root-caused in `SpinControl_Draw` (`menu.c:1145`): rows WITHOUT `QMF_SINGLELINE` render label + value on two lines (~48px) inside 20px rows. The two overlapping pairs are exactly the only items missing the flag (`s_mode_list`, `s_ref_list`).
+   - Reason: fix the cause (row height contract), not the symptom (shifting y would just move the overlap).
+2. Added `QMF_SINGLELINE` to both (now "Label : value" on one row like every other item).
+   - Reason: consistent single-line rows everywhere, zero layout churn.
+3. Rebuilt all (no errors), repackaged R8.7 (15 files), staged.
+   - Reason: ship to tester per standing release rhythm.
+4. Next: commit + push, move `R8_7` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).
+
 ## 2026-10-13 — Merged trail line into R8.7 stable
 
 Request: merge AdvShaders (TrailT1 build) into R8.7.

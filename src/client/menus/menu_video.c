@@ -310,6 +310,7 @@ static void Basic_MenuInit(void)
 	s_mode_list.generic.y = 0;
 	s_mode_list.generic.name = name_vidmode;
 	s_mode_list.generic.width = re.BF_Strlen(name_vidmode);
+	s_mode_list.generic.flags = QMF_SINGLELINE; // Single row: multi-line label+value overlaps the next item.
 	s_mode_list.curvalue = initial_vid_mode;
 	s_mode_list.itemnames = vid_mode_titles;
 
@@ -427,6 +428,7 @@ static void Advanced_MenuInit(void)
 	s_ref_list.generic.y = 0;
 	s_ref_list.generic.name = name_driver;
 	s_ref_list.generic.width = re.BF_Strlen(name_driver);
+	s_ref_list.generic.flags = QMF_SINGLELINE; // Single row: multi-line label+value overlaps the next item.
 	s_ref_list.curvalue = initial_reflib_index;
 	s_ref_list.itemnames = ref_list_titles;
 
