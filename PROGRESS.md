@@ -495,7 +495,7 @@ Steps:
    - Reason: stable packaging, self-documenting.
 3. Tag `R8_7` on Beta HEAD (pushed) + `gh release create R8_7` targeting Beta, NOT prerelease (now latest; R8.6 superseded, R8.7 Beta prerelease left as history). Verified live with asset.
    - Reason: complete the release per request.
-4. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+4. Ran `git add PROGRESS.md`, commit `295b46b1`, `git push origin Beta` — succeeded. Tag `R8_7` deliberately stays on `2d39995a` (the exact code tree the binaries were built from; HEAD adds only this log).
    - Reason: complete "commit and push after each portion" for this release portion.
 
-Result: pending push (see next entry update after push).
+Result: `295b46b1` pushed. Live: https://github.com/Lyky35/Heretic2Remastered/releases/tag/R8_7 (stable, latest). AdvShaders trail work untouched on its branch.
