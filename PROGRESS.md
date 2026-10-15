@@ -514,6 +514,16 @@ Steps:
    - Reason: complete "commit and push after each portion" for this merge portion.
 
 Result: `c60c8d29` pushed. Live: https://github.com/Lyky35/Heretic2Remastered/releases/tag/R8_7 (stable with trails). Note: tag `R8_7` sits on the merge `f452f007`; HEAD adds only this log.
+
+## 2026-10-13 — Inspected "Check for Updates" + "Heretic II Online" (no code change)
+
+Locations: `src/client/menus/menu_main.c` (items + handlers), labels via `m_banner_updates`/`m_banner_online` (`src/client/menu.c:593-594`). Both main-menu-only (grayed in-game).
+Findings:
+1. Check for Updates (`MainCheckUpdatesFunc`, :54-125): WinInet fetch of VERSIONDATE, int-compare vs local `VERSION_DATE`, opens releases page if newer, else prints "Up to date!" and grays the item. Logic sound (empty/parse-fail paths handled); blocks UI thread while fetching (minor).
+2. WRONG REPO hardcoded: `UPDATES_URL` + `VERSIONDATE_URL` point to `spacefarergames/Heretic2Remastered`, but the project lives at `Lyky35/Heretic2Remastered` — the updater checks someone else's repo (or a dead one). Same stale owner on the Online URL (`spacefarergames.com/heretic2remastered/`).
+3. Heretic II Online (`MainOnlineFunc`, :49-52) is just a website link in the browser — no server browser/multiplayer function.
+4. Process gap: the updater only ever fires if `VERSIONDATE` on main is bumped per release (currently "1404" both sides) — needs a release-step convention.
+   - Reason: logged for the pending URL/behavior decision; no code touched until owner confirms targets.
 ## 2026-10-13 — T1 staff ribbon on `R8.7_AdvShaders` (plain additive, no distortion yet)
 
 Plan: `TRAIL_DISTORTION_PLAN.md` (`4684d12a` on this branch). Goal here: geometry only.
