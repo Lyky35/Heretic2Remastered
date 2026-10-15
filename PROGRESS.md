@@ -630,7 +630,7 @@ Steps:
    - Reason: never rewrite pushed history; keep the attempt documented.
 2. Rebuilt all (no errors), repackaged TrailT1 (15 files), staged.
    - Reason: ship the reverted binaries so TrailT1 matches pre-haze behavior + all accepted trail work.
-3. Next: push branch, move `R8_7_TrailT1` tag, re-upload asset, then log.
+3. Ran `git add PROGRESS.md`, commits `bd8bbaa1` (revert) + `56d42115` (log), `git push origin R8.7_AdvShaders`; moved tag `R8_7_TrailT1`; `gh release upload --clobber` (6663775 bytes, updated 2026-10-15T04:20:40Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: revert live on branch + TrailT1 asset refreshed (back to staff-ribbon behavior + hellstaff beam haze only).
