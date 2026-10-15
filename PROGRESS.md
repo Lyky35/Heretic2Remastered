@@ -545,6 +545,25 @@ Steps:
 
 Result: `5a6e94a3` pushed, R8.7 asset refreshed. Rows no longer overlap by construction.
 
+## 2026-10-13 — Integer scaling via GLSL (`r_int_scale`, Advanced under HD Mode)
+
+Request: implement (explored previously), menu under HD Mode, off default.
+Steps:
+1. `gl3_Local.h`/`Main.c`: `r_int_scale` (0 native default, archived); `GL3_IntScale()` helper (`Shaders.c/h`, 0 or 2..5). 3D chain (FBO+bloom+SSAO) sized to display/N at `RI_Init` + live rebuild in `RI_BeginFrame` on `modified` (precedent: `r_reflections_res`; shutdowns verified leak-free incl. programs). Viewport in `R_SetupGL3D` scaled 1/N (aspect/frustum untouched, reflection sets its own).
+   - Reason: all post FBOs follow stored sizes (SSAO/bloom verified), so one resize point keeps the chain consistent; clouds/Tier-A follow `fbo_width` automatically.
+2. Present in `fragmentSourcePost`: exact-`texelFetch` mapping + centered letterbox + black bars; bloom/AO/depth sampled at normalized internal UV; tonemap/gamut after fetch (unchanged look path). New uniforms cached + set per composite with a pending-rebuild guard. UI draws native after, untouched.
+   - Reason: `texelFetch` = exact texels (no filtering ambiguity); square pixels (same N both axes).
+3. Menu: "Integer Scaling" Off/2x..5x under HD Mode in Advanced (+20px shift below, rows re-verified); label cvar; `Effects Detail` rename kept from before. Placed in Advanced (HD Mode lives there) rather than Basic per the anchor instruction.
+   - Reason: follow the placement anchor exactly.
+4. Caught in review before shipping: present uniforms cached but never set per frame (would have stuck at 0 = silent native) — fixed + verified in binary strings.
+   - Reason: review, don't assume — no runtime here.
+5. Rebuilt all (no errors), repackaged R8.7 (15 files), staged + README line.
+   - Reason: ship to tester per standing release rhythm.
+6. Next: commit + push, move `R8_7` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).
+
 ## 2026-10-13 — Explored integer scaling via GLSL (no code change)
 
 Request: explore adding integer scaling using GLSL.

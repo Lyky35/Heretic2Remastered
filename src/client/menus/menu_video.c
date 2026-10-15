@@ -19,6 +19,7 @@ cvar_t* m_item_contrast;
 cvar_t* m_item_minlight; // YQ2
 cvar_t* m_item_detail;
 cvar_t* m_item_hd_mode;
+cvar_t* m_item_int_scaling; // "Integer Scaling".
 cvar_t* m_item_antialiasing;
 cvar_t* m_item_color_profile;
 cvar_t* m_item_water_reflections;
@@ -54,6 +55,7 @@ static menuslider_t s_contrast_slider;
 static menuslider_t s_minlight_slider; // YQ2
 static menuslider_t s_detail_slider;
 static menulist_t s_hd_mode_list;
+static menulist_t s_int_scaling_list;
 static menulist_t s_antialiasing_list;
 static menulist_t s_color_profile_list;
 static menulist_t s_water_reflections_list;
@@ -112,6 +114,14 @@ static void UpdateHDModeFunc(void* self)
 {
 	Cvar_SetValue("r_hd_textures", (float)s_hd_mode_list.curvalue);
 	vid_restart_required = true;
+}
+
+static void UpdateIntScalingFunc(void* self)
+{
+	static const int scale_values[] = { 0, 2, 3, 4, 5 };
+	const menulist_t* list = (menulist_t*)self;
+	const int idx = (list->curvalue < 0) ? 0 : (list->curvalue > 4 ? 4 : list->curvalue);
+	Cvar_SetValue("r_int_scale", (float)scale_values[idx]);
 }
 
 static void UpdateAntiAliasingFunc(void* self)
@@ -262,6 +272,7 @@ static void VID_MenuInit(void) // Video hub: Basic Settings / Advanced Options.
 	Cvar_SetValue("gl_dlight_scale", Clamp((float)(int)(Cvar_VariableValue("gl_dlight_scale") + 0.5f), 0.0f, 6.0f));
 	Cvar_SetValue("r_shadows", (Cvar_VariableValue("r_shadows") != 0.0f) ? 1.0f : 0.0f);
 	Cvar_SetValue("r_dynsky", (Cvar_VariableValue("r_dynsky") != 0.0f) ? 1.0f : 0.0f);
+	Cvar_SetValue("r_int_scale", Clamp(Cvar_VariableValue("r_int_scale"), 0.0f, 5.0f));
 
 	Com_sprintf(name_basic, sizeof(name_basic), "\x02%s", m_item_video_basic->string);
 	s_basic_action.generic.type = MTYPE_ACTION;
@@ -407,11 +418,14 @@ static void Basic_MenuInit(void)
 static void Advanced_MenuInit(void)
 {
 	static const char* on_off_names[] = { "On", "Off", NULL };
+	static const char* int_scaling_names[] = { "Off", "2x", "3x", "4x", "5x", NULL };
+	static const int int_scaling_values[] = { 0, 2, 3, 4, 5 };
 	static const char* reflection_res_names[] = { "Native", "Half", NULL };
 	static const char* light_emission_names[] = { "0", "1", "2", "3", "4", "5", "6", NULL };
 
 	static char name_driver[MAX_QPATH];
 	static char name_hd_mode[MAX_QPATH];
+	static char name_int_scaling[MAX_QPATH];
 	static char name_dynsky[MAX_QPATH];
 	static char name_water_reflections[MAX_QPATH];
 	static char name_water_reflection_res[MAX_QPATH];
@@ -443,10 +457,34 @@ static void Advanced_MenuInit(void)
 	s_hd_mode_list.curvalue = (int)(Cvar_VariableValue("r_hd_textures") != 0.0f);
 	s_hd_mode_list.itemnames = yes_no_names;
 
+	Com_sprintf(name_int_scaling, sizeof(name_int_scaling), "\x02%s", m_item_int_scaling->string);
+	s_int_scaling_list.generic.type = MTYPE_SPINCONTROL;
+	s_int_scaling_list.generic.x = 0;
+	s_int_scaling_list.generic.y = 40;
+	s_int_scaling_list.generic.name = name_int_scaling;
+	s_int_scaling_list.generic.width = re.BF_Strlen(name_int_scaling);
+	s_int_scaling_list.generic.flags = QMF_SINGLELINE;
+	s_int_scaling_list.generic.callback = UpdateIntScalingFunc;
+	s_int_scaling_list.itemnames = int_scaling_names;
+
+	// Find matching scale index.
+	s_int_scaling_list.curvalue = 0; // Default to Off.
+	{
+		const int cur = (int)Cvar_VariableValue("r_int_scale");
+		for (int i = 0; i < 5; i++)
+		{
+			if (cur == int_scaling_values[i])
+			{
+				s_int_scaling_list.curvalue = i;
+				break;
+			}
+		}
+	}
+
 	Com_sprintf(name_dynsky, sizeof(name_dynsky), "\x02%s", m_item_dynsky->string);
 	s_dynsky_list.generic.type = MTYPE_SPINCONTROL;
 	s_dynsky_list.generic.x = 0;
-	s_dynsky_list.generic.y = 40;
+	s_dynsky_list.generic.y = 60;
 	s_dynsky_list.generic.name = name_dynsky;
 	s_dynsky_list.generic.width = re.BF_Strlen(name_dynsky);
 	s_dynsky_list.generic.flags = QMF_SINGLELINE;
@@ -457,7 +495,7 @@ static void Advanced_MenuInit(void)
 	Com_sprintf(name_water_reflections, sizeof(name_water_reflections), "\x02%s", m_item_water_reflections->string);
 	s_water_reflections_list.generic.type = MTYPE_SPINCONTROL;
 	s_water_reflections_list.generic.x = 0;
-	s_water_reflections_list.generic.y = 60;
+	s_water_reflections_list.generic.y = 80;
 	s_water_reflections_list.generic.name = name_water_reflections;
 	s_water_reflections_list.generic.width = re.BF_Strlen(name_water_reflections);
 	s_water_reflections_list.generic.flags = QMF_SINGLELINE;
@@ -468,7 +506,7 @@ static void Advanced_MenuInit(void)
 	Com_sprintf(name_water_reflection_res, sizeof(name_water_reflection_res), "\x02%s", m_item_water_reflection_res->string);
 	s_water_reflection_res_list.generic.type = MTYPE_SPINCONTROL;
 	s_water_reflection_res_list.generic.x = 0;
-	s_water_reflection_res_list.generic.y = 80;
+	s_water_reflection_res_list.generic.y = 100;
 	s_water_reflection_res_list.generic.name = name_water_reflection_res;
 	s_water_reflection_res_list.generic.width = re.BF_Strlen(name_water_reflection_res);
 	s_water_reflection_res_list.generic.flags = QMF_SINGLELINE;
@@ -479,7 +517,7 @@ static void Advanced_MenuInit(void)
 	Com_sprintf(name_light_emission, sizeof(name_light_emission), "\x02%s", m_item_light_emission->string);
 	s_light_emission_list.generic.type = MTYPE_SPINCONTROL;
 	s_light_emission_list.generic.x = 0;
-	s_light_emission_list.generic.y = 100;
+	s_light_emission_list.generic.y = 120;
 	s_light_emission_list.generic.name = name_light_emission;
 	s_light_emission_list.generic.width = re.BF_Strlen(name_light_emission);
 	s_light_emission_list.generic.flags = QMF_SINGLELINE;
@@ -490,7 +528,7 @@ static void Advanced_MenuInit(void)
 	Com_sprintf(name_shadows, sizeof(name_shadows), "\x02%s", m_item_shadows->string);
 	s_shadows_list.generic.type = MTYPE_SPINCONTROL;
 	s_shadows_list.generic.x = 0;
-	s_shadows_list.generic.y = 120;
+	s_shadows_list.generic.y = 140;
 	s_shadows_list.generic.name = name_shadows;
 	s_shadows_list.generic.width = re.BF_Strlen(name_shadows);
 	s_shadows_list.generic.flags = QMF_SINGLELINE;
@@ -503,7 +541,7 @@ static void Advanced_MenuInit(void)
 	s_minlight_slider.generic.type = MTYPE_SLIDER;
 	s_minlight_slider.generic.flags = QMF_SELECT_SOUND;
 	s_minlight_slider.generic.x = 0;
-	s_minlight_slider.generic.y = 140;
+	s_minlight_slider.generic.y = 160;
 	s_minlight_slider.generic.name = name_minlight;
 	s_minlight_slider.generic.width = re.BF_Strlen(name_minlight);
 	s_minlight_slider.generic.callback = UpdateMinlightFunc;
@@ -515,7 +553,7 @@ static void Advanced_MenuInit(void)
 	s_detail_slider.generic.type = MTYPE_SLIDER;
 	s_detail_slider.generic.flags = QMF_SELECT_SOUND; //mxd. QMF_SELECT_SOUND flag was missing in original version.
 	s_detail_slider.generic.x = 0;
-	s_detail_slider.generic.y = 180;
+	s_detail_slider.generic.y = 200;
 	s_detail_slider.generic.name = name_detail;
 	s_detail_slider.generic.width = re.BF_Strlen(name_detail);
 	s_detail_slider.generic.callback = UpdateDetailFunc;
@@ -525,6 +563,7 @@ static void Advanced_MenuInit(void)
 
 	Menu_AddItem(&s_advanced_menu, &s_ref_list);
 	Menu_AddItem(&s_advanced_menu, &s_hd_mode_list);
+	Menu_AddItem(&s_advanced_menu, &s_int_scaling_list);
 	Menu_AddItem(&s_advanced_menu, &s_dynsky_list);
 	Menu_AddItem(&s_advanced_menu, &s_water_reflections_list);
 	Menu_AddItem(&s_advanced_menu, &s_water_reflection_res_list);

@@ -226,14 +226,31 @@ static const char* fragmentSourcePost =
 	"uniform float uFogStart;\n"
 	"uniform float uFogEnd;\n"
 	"uniform vec2 uFogNearFar;\n"
+	"uniform float uIntScale;\n"   // 0 = native 1:1, else integer upscale factor N
+	"uniform vec2 uInternalSize;\n" // scene FBO size (render res)
+	"uniform vec2 uDisplaySize;\n"  // backbuffer size (present res)
 	"out vec4 FragColor;\n"
 	"void main() {\n"
-	"    vec3  hdr   = texture(uHDRBuffer,   vTexCoord).rgb;\n"
-	"    vec3  bloom = texture(uBloomBuffer, vTexCoord).rgb;\n"
-	"    float ao    = mix(1.0, texture(uAOBuffer, vTexCoord).r, uAOStrength);\n"
+	"    vec2 suv = vTexCoord;\n"
+	"    vec3 hdr;\n"
+	"    if (uIntScale > 0.5) {\n"
+	"        vec2 span = uInternalSize * uIntScale;\n"
+	"        vec2 rel = gl_FragCoord.xy - floor((uDisplaySize - span) * 0.5);\n"
+	"        if (rel.x < 0.0 || rel.y < 0.0 || rel.x >= span.x || rel.y >= span.y) {\n"
+	"            FragColor = vec4(0.0, 0.0, 0.0, 1.0);\n"
+	"            return;\n"
+	"        }\n"
+	"        ivec2 src = ivec2(floor(rel / uIntScale));\n"
+	"        hdr = texelFetch(uHDRBuffer, src, 0).rgb;\n"
+	"        suv = (vec2(src) + 0.5) / uInternalSize;\n"
+	"    } else {\n"
+	"        hdr = texture(uHDRBuffer, vTexCoord).rgb;\n"
+	"    }\n"
+	"    vec3  bloom = texture(uBloomBuffer, suv).rgb;\n"
+	"    float ao    = mix(1.0, texture(uAOBuffer, suv).r, uAOStrength);\n"
 	"    vec3  color = hdr * ao + bloom * uBloomStrength;\n"
 	"    if (uFogEnabled != 0) {\n"
-	"        float depth_ndc = texture(uDepthMap, vTexCoord).r * 2.0 - 1.0;\n"
+	"        float depth_ndc = texture(uDepthMap, suv).r * 2.0 - 1.0;\n"
 	"        float near = uFogNearFar.x;\n"
 	"        float far  = uFogNearFar.y;\n"
 	"        float linearDist = (2.0 * near * far) / (far + near - depth_ndc * (far - near));\n"
@@ -674,6 +691,16 @@ void GL3_MemoryBarrierCompute(void)
 // Public API.
 // ============================================================
 
+// Integer render scale from r_int_scale: 0 = native, else 2..5 (scene renders
+// at display/N, integer-upscaled at present). Anything else reads as native.
+int GL3_IntScale(void)
+{
+	if (r_int_scale == NULL)
+		return 0;
+	const int n = (int)r_int_scale->value;
+	return (n >= 2 && n <= 5) ? n : 0;
+}
+
 static GLuint currentProgram = 0;
 
 void GL3_UseShader(const GLuint program)
@@ -884,6 +911,10 @@ qboolean GL3_InitShaders(void)
 	gl3state.uniPost_fogStart    = glGetUniformLocation(gl3state.shaderPost, "uFogStart");
 	gl3state.uniPost_fogEnd      = glGetUniformLocation(gl3state.shaderPost, "uFogEnd");
 	gl3state.uniPost_fogNearFar  = glGetUniformLocation(gl3state.shaderPost, "uFogNearFar");
+
+	gl3state.uniPost_intScale     = glGetUniformLocation(gl3state.shaderPost, "uIntScale");
+	gl3state.uniPost_internalSize = glGetUniformLocation(gl3state.shaderPost, "uInternalSize");
+	gl3state.uniPost_displaySize  = glGetUniformLocation(gl3state.shaderPost, "uDisplaySize");
 
 	GL3_UseShader(gl3state.shaderPost);
 	glUniform1i(gl3state.uniPost_hdrBuffer, 0);
@@ -1727,6 +1758,29 @@ void GL3_CompositeHDR(const int w, const int h, const float exposure, const floa
 	glUniform1f(gl3state.uniPost_exposure,      exposure);
 	glUniform1f(gl3state.uniPost_bloomStrength, bloom_strength);
 	glUniform1f(gl3state.uniPost_aoStrength,    ao_strength);
+
+	// Integer scaling: the scene FBO holds the internal render; present it
+	// with exact texelFetch mapping + letterbox. fbo_width IS the internal
+	// width (GL3_InitFBO sizes it down when scaled); the guard covers frames
+	// where a rebuild is still pending.
+	{
+		const int iscale = GL3_IntScale();
+		const qboolean scaled = (iscale >= 2 && gl3state.fbo_width > 0 && gl3state.fbo_width < w) ? true : false;
+		glUniform1f(gl3state.uniPost_intScale, scaled ? (float)iscale : 0.0f);
+		glUniform2f(gl3state.uniPost_internalSize, (float)gl3state.fbo_width, (float)gl3state.fbo_height);
+		glUniform2f(gl3state.uniPost_displaySize, (float)w, (float)h);
+	}
+
+	// Integer scaling: scene FBO holds the internal render; present it with
+	// exact texelFetch mapping + letterbox. fbo_width IS the internal width
+	// (GL3_InitFBO sizes it down when scaled); guard covers pending rebuilds.
+	{
+		const int iscale = GL3_IntScale();
+		const qboolean scaled = (iscale >= 2 && gl3state.fbo_width > 0 && gl3state.fbo_width < w) ? true : false;
+		glUniform1f(gl3state.uniPost_intScale, scaled ? (float)iscale : 0.0f);
+		glUniform2f(gl3state.uniPost_internalSize, (float)gl3state.fbo_width, (float)gl3state.fbo_height);
+		glUniform2f(gl3state.uniPost_displaySize, (float)w, (float)h);
+	}
 
 	// Color profile: map content into the wider primaries, then re-interpret as sRGB.
 	// (D65 white point is shared by all profiles, so white/neutral colors stay unchanged.)

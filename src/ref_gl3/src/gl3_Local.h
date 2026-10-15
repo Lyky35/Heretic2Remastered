@@ -71,6 +71,7 @@ extern cvar_t* r_caustics;
 extern cvar_t* r_caustics_strength;
 extern cvar_t* r_hd_textures;
 extern cvar_t* r_antialiasing;
+extern cvar_t* r_int_scale;      // Integer render scale: 0/1 native, 2..5 render at 1/N + integer upscale.
 extern cvar_t* r_trail_distort;  // AdvShaders T1: staff ribbon mode (Client Effects reads it).
 extern cvar_t* r_trail_strength; // Distortion UV offset scale.
 extern cvar_t* r_trail_chroma;   // 0/1 chromatic fringing on the warp.
@@ -310,6 +311,11 @@ typedef struct
 	GLint  uniPost_hdrBuffer;
 	GLint  uniPost_exposure;
 	GLint  uniPost_colorProfile;
+
+	// Integer-scaling present uniforms (0 = native 1:1 composite).
+	GLint  uniPost_intScale;
+	GLint  uniPost_internalSize;
+	GLint  uniPost_displaySize;
 
 	// Fog uniforms for shaderPost (depth-based post-process fog).
 	GLint  uniPost_depthMap;

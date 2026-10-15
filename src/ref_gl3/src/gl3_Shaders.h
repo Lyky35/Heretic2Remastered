@@ -79,6 +79,10 @@ extern void GL3_RenderSSAO(float radius, float bias);
 extern void GL3_UpdateDlights(void);
 extern void GL3_SetNumDlights(const int n);
 
+// Integer render scale from r_int_scale: 0 = native, else 2..5 (render at
+// display/N, integer-upscaled at present). Used for FBO sizing + viewport.
+extern int GL3_IntScale(void);
+
 // Compute-shader + image-texture helpers (Phase 2: dynamic sky / volumetric clouds).
 // New programs are #version 430+ (context is 4.6 Core); existing 330 programs untouched.
 // Callers must check GLAD_GL_VERSION_4_3 before use; helpers return 0 on bad input.

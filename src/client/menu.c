@@ -640,6 +640,7 @@ void M_Init(void)
 	m_item_minlight = Cvar_Get("m_item_minlight", "Min. light level", 0); //mxd
 	m_item_detail = Cvar_Get("m_item_detail", "Effects Detail", 0);
 	m_item_hd_mode = Cvar_Get("m_item_hd_mode", "HD Mode", 0);
+	m_item_int_scaling = Cvar_Get("m_item_int_scaling", "Integer Scaling", 0);
 	m_item_antialiasing = Cvar_Get("m_item_antialiasing", "Anti-Aliasing", 0);
 	m_item_color_profile = Cvar_Get("m_item_color_profile", "Color Profile", 0);
 	m_item_water_reflections = Cvar_Get("m_item_water_reflections", "Water Reflections", 0);

@@ -127,6 +127,7 @@ cvar_t* r_caustics;
 cvar_t* r_caustics_strength;
 cvar_t* r_hd_textures;
 cvar_t* r_antialiasing;
+cvar_t* r_int_scale;
 cvar_t* r_trail_distort;
 cvar_t* r_trail_strength;
 cvar_t* r_trail_chroma;
@@ -341,6 +342,7 @@ static void R_Register(void)
 	r_water_wave_sharp  = ri.Cvar_Get("r_water_wave_sharp",  "0.0", CVAR_ARCHIVE);
 	r_hd_textures     = ri.Cvar_Get("r_hd_textures",     "1",   CVAR_ARCHIVE);
 	r_antialiasing    = ri.Cvar_Get("r_antialiasing",    "0",   CVAR_ARCHIVE);
+	r_int_scale       = ri.Cvar_Get("r_int_scale",       "0",   CVAR_ARCHIVE); // 0/1 native, 2..5 render at 1/N + integer upscale.
 	r_trail_distort   = ri.Cvar_Get("r_trail_distort",   "1",   CVAR_ARCHIVE); // AdvShaders T1: staff ribbon (Client Effects reads it; absent on gl1 = puffs).
 	r_trail_strength  = ri.Cvar_Get("r_trail_strength",  "0.09",  0); // AdvShaders T2: distortion UV offset scale.
 	r_trail_chroma    = ri.Cvar_Get("r_trail_chroma",    "1",     0); // AdvShaders T2: chromatic fringing on the warp.
@@ -515,9 +517,17 @@ static qboolean RI_Init(void)
 		ri.Con_Printf(PRINT_ALL, "ref_gl3::RI_Init() - dynamic sky init failed (continuing with legacy sky)\n");
 	}
 
-	GL3_InitFBO(viddef.width, viddef.height);
-	GL3_InitBloom(viddef.width, viddef.height);
-	GL3_InitSSAO(viddef.width, viddef.height);
+	// 3D chain (scene + bloom + SSAO) at internal size when integer-scaled.
+	{
+		const int iscale0 = GL3_IntScale();
+		const int iw0 = (iscale0 >= 2) ? viddef.width / iscale0 : viddef.width;
+		const int ih0 = (iscale0 >= 2) ? viddef.height / iscale0 : viddef.height;
+		GL3_InitFBO(iw0 > 0 ? iw0 : 1, ih0 > 0 ? ih0 : 1);
+		GL3_InitBloom(iw0 > 0 ? iw0 : 1, ih0 > 0 ? ih0 : 1);
+		GL3_InitSSAO(iw0 > 0 ? iw0 : 1, ih0 > 0 ? ih0 : 1);
+		if (r_int_scale->modified)
+			r_int_scale->modified = false;
+	}
 
 	const int reflect_w = (int)r_reflections_res->value == 1 ? (viddef.width + 1) / 2 : viddef.width;
 	const int reflect_h = (int)r_reflections_res->value == 1 ? (viddef.height + 1) / 2 : viddef.height;
@@ -587,6 +597,22 @@ static void RI_BeginFrame(const float camera_separation)
 		GL3_ShutdownReflect();
 		GL3_InitReflect(rw, rh);
 		r_reflections_res->modified = false;
+	}
+
+	// Integer render scale changed: rebuild the 3D chain (scene + bloom +
+	// SSAO FBOs) at internal size. Reflection/refraction stay full-res.
+	if (r_int_scale->modified)
+	{
+		const int iscale = GL3_IntScale();
+		const int iw = (iscale >= 2) ? viddef.width / iscale : viddef.width;
+		const int ih = (iscale >= 2) ? viddef.height / iscale : viddef.height;
+		GL3_ShutdownFBO();
+		GL3_ShutdownBloom();
+		GL3_ShutdownSSAO();
+		GL3_InitFBO(iw > 0 ? iw : 1, ih > 0 ? ih : 1);
+		GL3_InitBloom(iw > 0 ? iw : 1, ih > 0 ? ih : 1);
+		GL3_InitSSAO(iw > 0 ? iw : 1, ih > 0 ? ih : 1);
+		r_int_scale->modified = false;
 	}
 
 	// Changed.
@@ -716,7 +742,23 @@ static void R_SetupGL3D(void)
 	const int yt = viddef.height - r_newrefdef.y;
 	const int yb = viddef.height - (r_newrefdef.y + r_newrefdef.height);
 
-	glViewport(xl, yb, xr - xl, yt - yb);
+	// Integer scaling: the scene FBO is display/N, so the viewport is the
+	// refdef rect scaled the same way (aspect from the unscaled refdef below).
+	{
+		const int iscale = GL3_IntScale();
+		if (iscale >= 2)
+		{
+			const float inv = 1.0f / (float)iscale;
+			const int vw = (xr - xl > 0) ? xr - xl : 1;
+			const int vh = (yt - yb > 0) ? yt - yb : 1;
+			glViewport((int)(xl * inv), (int)(yb * inv),
+				(vw / iscale > 0) ? vw / iscale : 1, (vh / iscale > 0) ? vh / iscale : 1);
+		}
+		else
+		{
+			glViewport(xl, yb, xr - xl, yt - yb);
+		}
+	}
 
 	// Projection: call GL3_UpdateProjection3D which also stores into r_projection_matrix.
 	static const float zNear = 1.0f;
