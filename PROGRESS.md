@@ -500,6 +500,21 @@ Steps:
 
 Result: `295b46b1` pushed. Live: https://github.com/Lyky35/Heretic2Remastered/releases/tag/R8_7 (stable, latest). AdvShaders trail work untouched on its branch.
 
+## 2026-10-13 — Removed "Check for Updates" + "Heretic II Online" menu items
+
+Request: remove both (follow-up to inspection finding wrong-repo URLs + link-only Online).
+Steps:
+1. `menu_main.h`: dropped the two cvar externs. `menu_main.c`: removed both actions, handlers (`MainCheckUpdatesFunc` WinInet updater, `MainOnlineFunc` browser link), URL defines, `name_updates` buffer, WinInet/windows/SDL includes + pragma; re-packed quit 224 -> 160 (no gap); dropped both `Menu_AddItem`s. `menu.c`: dropped the two label cvar registrations.
+   - Reason: full removal, not hiding — also kills the wininet dependency from this TU.
+2. Verified zero remaining references (`spacefarergames`, both handlers, both cvars) in source AND in shipped `quake2.dll` strings (0 hits).
+   - Reason: prove the dead URLs are really gone from the binary.
+3. Rebuilt all (quake2 clean; only pre-existing unrelated warnings), repackaged R8.7 (15 files), staged.
+   - Reason: ship to tester per standing release rhythm.
+4. Next: commit + push, move `R8_7` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).
+
 ## 2026-10-13 — Merged trail line into R8.7 stable
 
 Request: merge AdvShaders (TrailT1 build) into R8.7.
