@@ -487,3 +487,18 @@ Steps:
    - Reason: complete "commit and push after each portion" for T2.
 
 Result: `1d7022a1` pushed to `origin/R8.7_AdvShaders`. T3 next (chromatic/core polish, taper, perf) or Windows smoke test of T1+T2 first — untested at runtime.
+
+## 2026-10-13 — 2nd prerelease: `R8_7_TrailT1` trail-distortion test build
+
+Request: test build as a 2nd prerelease (R8.7 Beta untouched).
+Steps:
+1. Full AdvShaders HEAD build (all targets, no errors) + verified trail code in binaries (`trail FBO initialized`/`r_trail_strength` in ref_gl3.dll, `r_trail_distort` in Client Effects.dll).
+   - Reason: never ship unchecked-in code; strings prove T1+T2 are in.
+2. Staged `HereticIIRemastered_R87_TrailT1/` mirroring the R8.6 layout + trail-focused README.txt (startup line, swing checklist, knobs, fallback checks). Caught a missing SDL3.dll before zipping (14 vs 15 files — game wouldn't start); fixed and re-verified listing.
+   - Reason: a test build that doesn't launch wastes a whole test round.
+3. Created tag `R8_7_TrailT1` (target `R8.7_AdvShaders`, no clash with branch names) + prerelease `R8.7 TrailT1 (test)` with asset (first `gh release create` failed outside the repo — `GIT_DISCOVERY_ACROSS_FILESYSTEM`; reran from repo with `--repo`). Verified live with asset attached.
+   - Reason: same URL pattern as R8.7 Beta; prerelease keeps R8.6 latest.
+4. Next: `git add PROGRESS.md`, commit, `git push origin R8.7_AdvShaders`.
+   - Reason: complete "commit and push after each portion" for this release portion.
+
+Result: pending push (see next entry update after push).
