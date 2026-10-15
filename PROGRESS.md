@@ -470,3 +470,20 @@ Steps:
    - Reason: complete "commit and push after each portion" for T1.
 
 Result: `a9a03599` pushed to `origin/R8.7_AdvShaders`. T2 next (dedicated blit + distortion shader + noise + cvars). No Beta release from this branch.
+
+## 2026-10-13 — T2 trail distortion on `R8.7_AdvShaders` (blit + shader, no CE changes)
+
+Plan: `TRAIL_DISTORTION_PLAN.md` T2, dedicated-blit variant per approval.
+Steps:
+1. Read integration points directly: `R_HandleTransparency/Cleanup` (`gl3_Misc.c:241`, normal-blend restore reusable), `GL3_Draw3DPoly` (streaming-VBO pattern), `GL3_CopySceneToRefract` blit (`gl3_Shaders.c:1118`), `GL3_InitRefract` FBO pattern + RI lifecycle (`gl3_Main.c:518/553`), `r_framecount` once-per-frame (`:674`), state struct layout.
+   - Reason: mirror proven patterns instead of inventing plumbing.
+2. `gl3_Shaders.c/h`: `vertexSourceTrail`/`fragmentSourceTrail` (330; projective screenUV + noise-perturbed sample + optional chromatic 3-tap + hot core + edge/age alpha), program + 9 uniform locations in `GL3_InitShaders` (samplers pinned 0/1), `GL3_InitTrail/ShutdownTrail` (full-res RGBA16F tex + color-only FBO + CPU tileable 2-octave value-noise texture via deterministic LCG), `GL3_CopySceneForTrail()` (blits CURRENT draw target viewport→trail tex, guarded once-per-frame-per-pass via `(r_framecount, R_IsReflectionPass)` so main + mirror each capture correctly), `GL3_TrailDistortReady()` gate. `gl3_Local.h` state + 4 cvar externs; `gl3_Main.c` defines + `r_trail_strength 0.035` / `r_trail_chroma 1` / `r_trail_core 0.6` + init/shutdown calls.
+   - Reason: everything the draw needs, lifecycle-matched to refract.
+3. `gl3_Sprite.c`: `R_DrawDistortLineSprite()` (same strip geometry as line sprite, tint from entity color, own normal-blend/bind/cull/depth handling, degenerate-direction guard, cache invalidation per established pattern) + branch in `R_DrawSpriteModel` before transparency setup (non-LINE or not-ready falls through to the T1 plain path). gl1 untouched (ignores the flag).
+   - Reason: distortion composes in normal alpha order; T1 look is the automatic fallback everywhere.
+4. Built ALL targets mingw, zero warnings/errors.
+   - Reason: no runtime here — compile-clean plus review is the verification available.
+5. Next: commit + push on `R8.7_AdvShaders` (no Beta release — testers get this when it merges).
+   - Reason: complete "commit and push after each portion" for T2.
+
+Result: pending push (see next entry update after push).

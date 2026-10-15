@@ -88,6 +88,95 @@ static void R_DrawVariableSprite(const entity_t* e, const vec3_t up, const vec3_
 	GL3_Draw3DPoly(GL_TRIANGLE_FAN, vbuf, e->numVerts);
 }
 
+// AdvShaders T2: same strip geometry as R_DrawLineSprite, but sampling the
+// scene-minus-trail snapshot with a normal-perturbed UV (heat-haze refraction)
+// plus a faint hot core. Only for RF_DISTORT entities when the trail path is
+// ready; everything else (gl1, r_trail_distort 0) uses the plain line above.
+static void R_DrawDistortLineSprite(const entity_t* e)
+{
+	vec3_t diff;
+	VectorSubtract(e->endpos, e->startpos, diff);
+
+	vec3_t dir;
+	CrossProduct(diff, vpn, dir);
+	if (VectorNormalize(dir) == 0.0f)
+		return; // Degenerate (blade pointing at camera): skip, no NaNs.
+
+	vec3_t start_offset;
+	VectorScale(dir, e->scale * 0.5f, start_offset);
+
+	vec3_t end_offset;
+	VectorScale(dir, e->scale2 * 0.5f, end_offset);
+
+	const float tile = (e->tile > 0.0f ? e->tile : 1.0f);
+	const float tint_r = e->color.r / 255.0f;
+	const float tint_g = e->color.g / 255.0f;
+	const float tint_b = e->color.b / 255.0f;
+
+	vec3_t point;
+	float quad[4 * 9];
+
+	VectorSubtract(e->startpos, start_offset, point);
+	WriteSpriteVert(&quad[0], point, 0.0f, e->tileoffset, tint_r, tint_g, tint_b, 1.0f);
+
+	VectorAdd(e->startpos, start_offset, point);
+	WriteSpriteVert(&quad[9], point, 1.0f, e->tileoffset, tint_r, tint_g, tint_b, 1.0f);
+
+	VectorAdd(e->endpos, end_offset, point);
+	WriteSpriteVert(&quad[18], point, 1.0f, e->tileoffset + tile, tint_r, tint_g, tint_b, 1.0f);
+
+	VectorSubtract(e->endpos, end_offset, point);
+	WriteSpriteVert(&quad[27], point, 0.0f, e->tileoffset + tile, tint_r, tint_g, tint_b, 1.0f);
+
+	// Snapshot first (lazy once-per-frame-per-pass), then draw over it.
+	GL3_CopySceneForTrail();
+
+	GL3_UseShader(gl3state.shaderTrail);
+	glUniformMatrix4fv(gl3state.uniTrail_projection, 1, GL_FALSE, r_projection_matrix);
+	glUniformMatrix4fv(gl3state.uniTrail_modelview, 1, GL_FALSE, r_world_matrix);
+	glUniform1f(gl3state.uniTrail_strength, r_trail_strength->value);
+	glUniform1f(gl3state.uniTrail_time, r_newrefdef.time);
+	glUniform1f(gl3state.uniTrail_chroma, (r_trail_chroma != NULL && (int)r_trail_chroma->value != 0) ? 1.0f : 0.0f);
+	glUniform1f(gl3state.uniTrail_coreAmt, (r_trail_core != NULL) ? r_trail_core->value : 0.6f);
+	glUniform1f(gl3state.uniTrail_fade, e->color.a / 255.0f);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, gl3state.fboTexTrail);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, gl3state.trailNoiseTex);
+	glActiveTexture(GL_TEXTURE0);
+
+	// Strips face the camera ambiguously; like the sky panels, never cull them.
+	GLboolean cull_was_enabled;
+	glGetBooleanv(GL_CULL_FACE, &cull_was_enabled);
+	glDisable(GL_CULL_FACE);
+
+	if (e->flags & RF_NODEPTHTEST)
+		glDisable(GL_DEPTH_TEST);
+
+	// Normal blending (NOT additive): the fragment outputs refracted scene.
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+	glBindVertexArray(gl3state.vao3D);
+	glBindBuffer(GL_ARRAY_BUFFER, gl3state.vbo3D);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(quad), quad, GL_STREAM_DRAW);
+	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+	if (e->flags & RF_NODEPTHTEST)
+		glEnable(GL_DEPTH_TEST);
+
+	if (cull_was_enabled)
+		glEnable(GL_CULL_FACE);
+
+	R_CleanupTransparency(e);
+
+	// Raw sampler binds above bypass the 2D texture-unit cache: invalidate so
+	// the next R_Bind/R_BindImage re-binds instead of skipping on stale texnums.
+	gl_state.currenttextures[0] = -1;
+	gl_state.currenttextures[1] = -1;
+}
+
 // Long linear semi-oriented sprite with two verts (xyz start and end) and a width.
 static void R_DrawLineSprite(const entity_t* e, const vec3_t up)
 {
@@ -146,6 +235,15 @@ void R_DrawSpriteModel(entity_t* e)
 
 	if (mdl->skins[e->frame] == NULL)
 		return;
+
+	// AdvShaders T2: distortion ribbon. Own blend/bind/cleanup; falls through
+	// to the plain path when the trail setup isn't ready (T1 look) or the
+	// entity isn't a line strip.
+	if ((e->flags & RF_DISTORT) && e->spriteType == SPRITE_LINE && GL3_TrailDistortReady())
+	{
+		R_DrawDistortLineSprite(e);
+		return;
+	}
 
 	R_HandleTransparency(e);
 	R_BindImage(mdl->skins[e->frame]);

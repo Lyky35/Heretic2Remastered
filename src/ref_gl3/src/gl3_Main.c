@@ -128,6 +128,9 @@ cvar_t* r_caustics_strength;
 cvar_t* r_hd_textures;
 cvar_t* r_antialiasing;
 cvar_t* r_trail_distort;
+cvar_t* r_trail_strength;
+cvar_t* r_trail_chroma;
+cvar_t* r_trail_core;
 cvar_t* r_dynsky;
 cvar_t* r_volclouds;
 cvar_t* r_sky_preset;
@@ -339,6 +342,9 @@ static void R_Register(void)
 	r_hd_textures     = ri.Cvar_Get("r_hd_textures",     "1",   CVAR_ARCHIVE);
 	r_antialiasing    = ri.Cvar_Get("r_antialiasing",    "0",   CVAR_ARCHIVE);
 	r_trail_distort   = ri.Cvar_Get("r_trail_distort",   "1",   CVAR_ARCHIVE); // AdvShaders T1: staff ribbon (Client Effects reads it; absent on gl1 = puffs).
+	r_trail_strength  = ri.Cvar_Get("r_trail_strength",  "0.035", 0); // AdvShaders T2: distortion UV offset scale.
+	r_trail_chroma    = ri.Cvar_Get("r_trail_chroma",    "1",     0); // AdvShaders T2: chromatic fringing on the warp.
+	r_trail_core      = ri.Cvar_Get("r_trail_core",      "0.6",   0); // AdvShaders T2: hot-core additive amount.
 
 	GL3_SkyDyn_RegisterCvars();
 
@@ -517,6 +523,7 @@ static qboolean RI_Init(void)
 	const int reflect_h = (int)r_reflections_res->value == 1 ? (viddef.height + 1) / 2 : viddef.height;
 	GL3_InitReflect(reflect_w, reflect_h);
 	GL3_InitRefract(viddef.width, viddef.height);
+	GL3_InitTrail(viddef.width, viddef.height);
 
 	// Initialize job system for multithreading.
 	GL3_InitJobs(0);
@@ -550,6 +557,7 @@ static void RI_Shutdown(void)
 	R_ShutdownImages();
 	R_ShutdownShadows();
 	GL3_SkyDyn_Shutdown();
+	GL3_ShutdownTrail();
 	GL3_ShutdownRefract();
 	GL3_ShutdownReflect();
 	GL3_ShutdownSSAO();
