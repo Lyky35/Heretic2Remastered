@@ -540,10 +540,10 @@ Steps:
    - Reason: consistent single-line rows everywhere, zero layout churn.
 3. Rebuilt all (no errors), repackaged R8.7 (15 files), staged.
    - Reason: ship to tester per standing release rhythm.
-4. Next: commit + push, move `R8_7` tag, re-upload asset.
+4. Ran `git add` (menu_video.c, PROGRESS.md), commit `5a6e94a3` (+18/-1), `git push origin Beta`; moved tag `R8_7`; `gh release upload --clobber` (6663471 bytes, updated 2026-10-15T05:03:45Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `5a6e94a3` pushed, R8.7 asset refreshed. Rows no longer overlap by construction.
 
 ## 2026-10-13 — Merged trail line into R8.7 stable
 
