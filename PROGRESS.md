@@ -451,3 +451,19 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `b2e3219c` pushed, R8.7 Beta asset refreshed. Auto is now genuinely automatic, including for upgraders.
+
+## 2026-10-13 — Created branch `R8.7_AdvShaders` from Beta
+
+Steps:
+1. Verified Beta clean (only untracked `fxstaff_debug.log`) at `e54e8130` (== origin/Beta).
+   - Reason: branch must snapshot pushed HEAD exactly, no stray edits.
+2. Ran `git branch "R8.7 AdvShaders"` as requested — rejected: `git check-ref-format` (git 2.55) disallows spaces in ref names.
+   - Reason: document why the literal name couldn't be used.
+3. Asked user; chose `R8.7_AdvShaders` (underscore, matches `R8_7_Beta` tag style).
+   - Reason: closest valid spelling, user's call.
+4. Ran `git branch R8.7_AdvShaders` + `git push -u origin R8.7_AdvShaders` — succeeded (`[new branch]`); stayed on Beta (verified `git branch --show-current`).
+   - Reason: snapshot the full sky line (Phases 0-5 + fixes) for advanced-shader work without disturbing the Beta working branch.
+5. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion" for this branch-creation portion.
+
+Result: pending push (see next entry update after push).
