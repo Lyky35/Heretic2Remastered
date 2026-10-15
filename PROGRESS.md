@@ -452,6 +452,23 @@ Steps:
 
 Result: `b2e3219c` pushed, R8.7 Beta asset refreshed. Auto is now genuinely automatic, including for upgraders.
 
+## 2026-10-13 — Explored staff-trail distortion (Max Payne refraction over ribbon)
+
+Request: explore replacing staff trails with bullet-trail-style visual distortion.
+Steps:
+1. Mapped current trail via explore subagent (grounded in-tree): sprite-puff chain only (`fx_staff.c` `StaffLevel*Update`, additive `.sp2` billboards along pivot→tip, 500-2000 ms lifetimes); blade sampling already fixed (baked `refsForFrame`, `CORVUS_BLADE=5`); `FX_STAFF_SLASH`/debug log are removed history + untracked artifact; zero distortion code anywhere (only water refraction).
+   - Reason: know exactly what gets replaced and what feeds the replacement.
+2. Researched the technique (web): Max Payne 1 physical slowed bullets, MP2 screen-space velocity-skewed billboards, F.E.A.R./modern standard = screen-space refraction (scene texture S + normal-perturbed UVs + alpha mask; GPU Gems 2 Ch. 19 exact algorithm, chromatic taps, leakage guard); NeoFPS DistortionTrail / Trümpler one-shader same family.
+   - Reason: pick the proven algorithm, not a guess.
+3. Verified engine fit directly: `GL3_CopySceneToRefract()` (blit `fbo3D`→`fboRefract`, `gl3_Shaders.c:1118`) + water frag distorted projective UV (`:438-448`) = the needed primitive already in production; frame order world→entities→alpha→particles into HDR `fbo3D` before composite (`gl3_Main.c:1445-1502`). Chose dedicated `fboTrail` blit over reusing `fboRefract` (which lacks water = wrong backdrop where water is behind the trail).
+   - Reason: proposal grounded in actual pipeline facts, not subagent claims alone.
+4. Wrote `TRAIL_DISTORTION_PLAN.md` (ribbon builder, capture point, 330 shader w/ noise texture + cvars, `vid_ref`-gated gl1 fallback, T1-T3 phases, risks incl. degenerate segments + leakage + taste) and committed it on `R8.7_AdvShaders` (`4684d12a`, pushed) — implementation scoped there, not Beta. Back on Beta.
+   - Reason: keep Beta to shipped/tested work; advanced-shader experiments live on the new branch.
+5. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion" for this research portion.
+
+Result: pending push (see next entry update after push).
+
 ## 2026-10-13 — Created branch `R8.7_AdvShaders` from Beta
 
 Steps:
