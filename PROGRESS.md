@@ -519,3 +519,18 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `1305dec7` pushed, TrailT1 asset refreshed. Retest ask: warp presence + bends reading as one trail.
+
+## 2026-10-13 — Trail feedback 2: L2 double size, L3 flames restored
+
+Report: base (L1) good; powered-up (L2) should be twice the original size; L3 should still spawn flames, with heat haze.
+Steps:
+1. L2 width 12 -> 18 (2x the L1 base width of 9). Nothing else touched.
+   - Reason: exact ask; color/alpha/fade already approved implicitly.
+2. L3 ribbon branch changed from early-return to emit-and-fall-through: the ribbon segment goes out, then the original flame/smoke/dlight loop runs unchanged beneath it (classic fire look + distortion haze over the same arc).
+   - Reason: flames are the L3 identity; ribbon adds haze without removing anything. Flames stay non-distorting (fire should read as fire).
+3. Rebuilt all (no errors), repackaged TrailT1 (15 files), staged.
+   - Reason: ship to tester.
+4. Next: commit + push, move `R8_7_TrailT1` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

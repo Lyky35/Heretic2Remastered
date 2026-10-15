@@ -168,9 +168,11 @@ static qboolean StaffLevel3Update(client_entity_t* self, centity_t* owner) //mxd
 	if (VectorLengthSquared(diff) < 0.01f)
 		return true;
 
-	// T1 ribbon: chain world-space LINE segments instead of sprite puffs.
+	// T1 ribbon + legacy flames: the energy trail keeps its fire/smoke/dlight
+	// loop below (classic look + heat-haze ribbon over it), so emit the
+	// segment and fall through instead of returning.
 	if (ribbon_mode)
-		return StaffRibbonSegment(self, owner, ref_index, STAFF_TRAIL2, color_white.c, 14.0f, 0.75f);
+		StaffRibbonSegment(self, owner, ref_index, STAFF_TRAIL2, color_white.c, 14.0f, 0.75f);
 
 	//mxd. Clamp instead of removing the effect (see StaffLevel1Update).
 	int num_of_intervals = GetScaledCount((int)(VectorLength(diff) * 0.5f), 1.0f);
@@ -302,7 +304,7 @@ static qboolean StaffLevel2Update(client_entity_t* self, centity_t* owner) //mxd
 			COLOUR_SETA(ribbon_col, irand(236, 255), rc, rc, irand(80, 192));
 		else
 			COLOUR_SETA(ribbon_col, rc, rc, irand(236, 255), irand(80, 192));
-		return StaffRibbonSegment(self, owner, ref_index, STAFF_TRAIL3, ribbon_col.c, 12.0f, 0.75f);
+		return StaffRibbonSegment(self, owner, ref_index, STAFF_TRAIL3, ribbon_col.c, 18.0f, 0.75f);
 	}
 
 	//mxd. Clamp instead of removing the effect (see StaffLevel1Update).
