@@ -113,20 +113,22 @@ static void R_DrawDistortLineSprite(const entity_t* e)
 	const float tint_g = e->color.g / 255.0f;
 	const float tint_b = e->color.b / 255.0f;
 
+	const float core = (e->flags & RF_NOCORE) ? 0.0f : 1.0f;
+
 	vec3_t point;
 	float quad[4 * 9];
 
 	VectorSubtract(e->startpos, start_offset, point);
-	WriteSpriteVert(&quad[0], point, 0.0f, e->tileoffset, tint_r, tint_g, tint_b, 1.0f);
+	WriteSpriteVert(&quad[0], point, 0.0f, e->tileoffset, tint_r, tint_g, tint_b, core);
 
 	VectorAdd(e->startpos, start_offset, point);
-	WriteSpriteVert(&quad[9], point, 1.0f, e->tileoffset, tint_r, tint_g, tint_b, 1.0f);
+	WriteSpriteVert(&quad[9], point, 1.0f, e->tileoffset, tint_r, tint_g, tint_b, core);
 
 	VectorAdd(e->endpos, end_offset, point);
-	WriteSpriteVert(&quad[18], point, 1.0f, e->tileoffset + tile, tint_r, tint_g, tint_b, 1.0f);
+	WriteSpriteVert(&quad[18], point, 1.0f, e->tileoffset + tile, tint_r, tint_g, tint_b, core);
 
 	VectorSubtract(e->endpos, end_offset, point);
-	WriteSpriteVert(&quad[27], point, 0.0f, e->tileoffset + tile, tint_r, tint_g, tint_b, 1.0f);
+	WriteSpriteVert(&quad[27], point, 0.0f, e->tileoffset + tile, tint_r, tint_g, tint_b, core);
 
 	// Snapshot first (lazy once-per-frame-per-pass), then draw over it.
 	GL3_CopySceneForTrail();

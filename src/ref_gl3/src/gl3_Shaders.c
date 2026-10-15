@@ -487,7 +487,7 @@ static const char* vertexSourceTrail =
 static const char* fragmentSourceTrail =
 	"#version 330 core\n"
 	"in vec2 vUv;\n"
-	"in vec4 vColor;\n"
+	"in vec4 vColor;\n" // rgb = core tint, a = core kill switch (RF_NOCORE)
 	"in vec4 vClipPos;\n"
 	"uniform sampler2D uTrailBg;\n"
 	"uniform sampler2D uNoiseTex;\n"
@@ -509,7 +509,7 @@ static const char* fragmentSourceTrail =
 	"        refr.b = texture(uTrailBg, screenUV + off * 1.35).b;\n"
 	"    }\n"
 	"    float center = smoothstep(0.5, 0.0, abs(vUv.x - 0.5));\n"
-	"    refr += (vColor.rgb * 2.0 + vec3(0.08)) * (center * center) * uCoreAmt * edge * ends;\n"
+	"    refr += (vColor.rgb * 2.0 + vec3(0.08)) * (center * center) * uCoreAmt * edge * ends * vColor.a;\n"
 	"    FragColor = vec4(refr, edge * ends * uFade);\n"
 	"}\n";
 

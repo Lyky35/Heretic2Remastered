@@ -568,3 +568,20 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `aeb5fc3d` pushed, TrailT1 asset refreshed. Retest ask: L2 size, smokeless L3, hellbolt haze.
+
+## 2026-10-13 — Trail feedback 5: L2 legacy, L3 coreless, select ribbon
+
+Requests: L2 back to original (no haze); L3 ribbon out, flames + haze stay; L1-select white sprites become L1 trail.
+Steps:
+1. L2: deleted the ribbon branch — pure legacy puff loop again (puffs were never the complaint there; size handled last round).
+   - Reason: exact revert, no behavior delta possible.
+2. New `RF_NOCORE` (0x01000000, RF-domain verified free): `StaffRibbonSegment` takes `noCore`, L3 passes true (L1/hell false); `R_DrawDistortLineSprite` packs it into vertex alpha, fragment multiplies the hot-core term by it (mask/alpha path untouched).
+   - Reason: per-entity core kill — warp stays, bright body goes, flames underneath carry the look.
+3. Mapped select path: `FXStaffCreate` controller + shaft-walk `StaffCreateOrRemoveUpdate` (white sprites, white default color) + endpoint `FXStaffCreatePoof` halo flashes (poof is only a materialize handler — safe to gate). Ribbon mode now emits one world-space shaft streak (L1 width, staff-type color) instead of the sprite walk, skips poofs, gate re-read in `FXStaffCreate`; deselect path shares the function so it matches.
+   - Reason: the white flash IS the select sprites; shaft streak is the motionless equivalent of the swing ribbon.
+4. Rebuilt all (no errors), repackaged TrailT1 (15 files), staged.
+   - Reason: ship to tester.
+5. Next: commit + push, move `R8_7_TrailT1` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

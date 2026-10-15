@@ -580,6 +580,7 @@ typedef struct
 										// a significant amount of screen real-estate, the poly will be culled. Used for particles in software.
 #define RF_DISTORT			0x00800000		// Distortion-trail ribbon: ref_gl3 refracts the background behind it
 										// (r_trail_distort); renderers without distortion draw a normal line sprite.
+#define RF_NOCORE			0x01000000		// With RF_DISTORT: warp only, no hot-core add (e.g. under flames).
 
 #define RF_TRANS_ANY		(RF_TRANS_ADD | RF_TRANS_GHOST | RF_TRANSLUCENT)
 
