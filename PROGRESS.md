@@ -564,7 +564,7 @@ Steps:
    - Reason: haze where fire sustains; debris/sparks would just add noise; billboard fire is a separate feature, stated not silently dropped.
 4. Rebuilt all (no errors), verified fresh DLL timestamps + zip md5 match, repackaged (15 files), staged.
    - Reason: ship to tester with proof the binaries are current.
-5. Next: commit + push, move `R8_7_TrailT1` tag, re-upload asset.
+5. Ran `git add` (fx_staff.c, fx_HellStaff.c, PROGRESS.md), commit `aeb5fc3d` (+40/-3), `git push origin R8.7_AdvShaders`; moved tag `R8_7_TrailT1`; `gh release upload --clobber` (6663176 bytes, updated 2026-10-15T03:31:56Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `aeb5fc3d` pushed, TrailT1 asset refreshed. Retest ask: L2 size, smokeless L3, hellbolt haze.
