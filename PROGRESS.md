@@ -510,10 +510,10 @@ Steps:
    - Reason: prove the stable asset is exactly the merge, not a stale mix.
 3. Moved tag `R8_7` to merge (`6ea4a91f..c8b3ad74`, forced); `gh release upload --clobber` (6663626 bytes, updated 2026-10-15T04:28:50Z); rewrote notes with trail paragraph — verified live. R8.7 Beta/TrailT1 prereleases + AdvShaders branch left alone.
    - Reason: "into R8.7" = same release updated in place, per established pattern.
-4. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+4. Ran `git add PROGRESS.md`, commit `c60c8d29`, `git push origin Beta` — succeeded.
    - Reason: complete "commit and push after each portion" for this merge portion.
 
-Result: pending push (see next entry update after push).
+Result: `c60c8d29` pushed. Live: https://github.com/Lyky35/Heretic2Remastered/releases/tag/R8_7 (stable with trails). Note: tag `R8_7` sits on the merge `f452f007`; HEAD adds only this log.
 ## 2026-10-13 — T1 staff ribbon on `R8.7_AdvShaders` (plain additive, no distortion yet)
 
 Plan: `TRAIL_DISTORTION_PLAN.md` (`4684d12a` on this branch). Goal here: geometry only.
