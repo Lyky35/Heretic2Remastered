@@ -480,7 +480,22 @@ Steps:
    - Reason: closest valid spelling, user's call.
 4. Ran `git branch R8.7_AdvShaders` + `git push -u origin R8.7_AdvShaders` — succeeded (`[new branch]`); stayed on Beta (verified `git branch --show-current`).
    - Reason: snapshot the full sky line (Phases 0-5 + fixes) for advanced-shader work without disturbing the Beta working branch.
-5. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+5. Ran `git add PROGRESS.md`, commit `12729ebe`, `git push origin Beta` — succeeded (branch-creation log; the R8.7_AdvShaders branch push itself also done).
    - Reason: complete "commit and push after each portion" for this branch-creation portion.
+
+Result: `12729ebe` pushed (branch-creation entry closed retroactively; exploration logged separately as `2d39995a`).
+
+## 2026-10-13 — Released full R8.7 (stable) from Beta
+
+Request: release as-is as full R8.7 (trail work stays on R8.7_AdvShaders, unmerged).
+Steps:
+1. On Beta at `2d39995a` (== origin, clean), full rebuild from Beta sources. Verified Beta purity of binaries (`volumetric clouds on` present, `r_trail_distort` absent in Client Effects) — the repo `build/` dir previously held AdvShaders binaries, so this check was load-bearing, not ceremonial.
+   - Reason: a stable release must contain exactly Beta HEAD, nothing from the experimental branch.
+2. Fresh stage `HereticIIRemastered_R8_7/` (R8.6-compatible 15-file layout) + final-toned README.txt (feature summary + console quickstart, no beta language).
+   - Reason: stable packaging, self-documenting.
+3. Tag `R8_7` on Beta HEAD (pushed) + `gh release create R8_7` targeting Beta, NOT prerelease (now latest; R8.6 superseded, R8.7 Beta prerelease left as history). Verified live with asset.
+   - Reason: complete the release per request.
+4. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion" for this release portion.
 
 Result: pending push (see next entry update after push).
