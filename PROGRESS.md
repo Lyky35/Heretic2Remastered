@@ -530,7 +530,7 @@ Steps:
    - Reason: flames are the L3 identity; ribbon adds haze without removing anything. Flames stay non-distorting (fire should read as fire).
 3. Rebuilt all (no errors), repackaged TrailT1 (15 files), staged.
    - Reason: ship to tester.
-4. Next: commit + push, move `R8_7_TrailT1` tag, re-upload asset.
+4. Ran `git add` (fx_staff.c, PROGRESS.md), commit `0ec1f870` (+20/-3), `git push origin R8.7_AdvShaders`; moved tag `R8_7_TrailT1`; `gh release upload --clobber` (6662829 bytes, updated 2026-10-15T03:12:07Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `0ec1f870` pushed, TrailT1 asset refreshed. Retest ask: L2 size, L3 flames + haze.
