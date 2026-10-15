@@ -794,3 +794,16 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: pending build/release (see next entry update after push).
+
+## 2026-10-13 — Explored sprite-guided water ripples (no code change)
+
+Request: ripples where player/monsters meet water; existing splash sprites as guides.
+Findings (subagent mapped + I verified the integration points):
+1. Guides already exist with traced surface positions: swim/wade wakes (`p_view.c:465` player with `waterheight` Z; ssithra `m_plagueSsithra.c:1660` + fish `m_fish.c:298` with `trace.endpos` Z), entry/exit splashes (`p_view.c:395,434`, `g_Physics.c:49`, ssithra 1932+, projectile hits in `Utilities.c:301`), drips (`fx_Ripples.c`, `fx_Dripper.c`). Water Z always comes from `MASK_WATER` traces — no `(x,y)->z` query exists or is needed.
+2. Current ripple visuals are flat textured quads (`waterentryripple.sp2` expanding + fading; `wake_add.sp2` foam streaks 5s). No refraction anywhere near water spray. Water itself = Gerstner-vertex warp surfaces sampling `fboRefract`.
+3. Proposed design (matches the ask literally): at each guide site, emit a warp-only distortion ring twin (DYNAMIC roll billboard via `RE_SetupRollSprite`, exact world size, `RF_DISTORT|RF_NOCORE`) sampling the existing `fboTrail` capture — same machinery as staff ribbons, new shape only. Wake rings ~56u/1.2s at `FXWaterWake`; entry/exit rings sized to the splash (120-160u); drip rings ~40u. Cvar-gated per site on `r_trail_distort` (gl1/off paths byte-identical, no duplication ever).
+   - Reason: positions/timing/sizes all inherited from proven spawn sites; fallback free; zero new data paths (uniform-array water-vertex ripples were considered and rejected: cross-DLL plumbing + Gerstner interplay for little visual gain).
+4. Prerequisite (small, on Beta): re-add the billboard radial path (`uRadial` + `R_DrawDistortBillboard`) — it came in with the reverted weapon-haze commit, but the LINE-only path that survived can't draw billboards. Resurrect just that slice, not the weapon haze.
+   - Reason: logged so the revert isn't accidentally re-litigated; the slice is independently needed here.
+5. Cost: ~120 lines (helper + 4 hooks + renderer slice), no new files/libs, entity counts bounded by existing spawn rates.
+   - Reason: logged for the implement decision; nothing committed beyond this note.
