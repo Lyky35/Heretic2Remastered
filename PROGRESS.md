@@ -547,7 +547,7 @@ Steps:
    - Reason: haze needs soft volume, not hard quads or blown core.
 4. Rebuilt all (no errors), repackaged TrailT1 (15 files), staged.
    - Reason: ship to tester.
-5. Next: commit + push, move `R8_7_TrailT1` tag, re-upload asset.
+5. Ran `git add` (fx_staff.c, gl3_Shaders.c, gl3_Main.c, PROGRESS.md), commit `050fd880` (+62/-29), `git push origin R8.7_AdvShaders`; moved tag `R8_7_TrailT1`; `gh release upload --clobber` (6663030 bytes, updated 2026-10-15T03:19:32Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `050fd880` pushed, TrailT1 asset refreshed. Retest ask: smooth L2 flow, fire brightness, haze size.
