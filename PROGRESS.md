@@ -499,6 +499,21 @@ Steps:
    - Reason: complete "commit and push after each portion" for this release portion.
 
 Result: `295b46b1` pushed. Live: https://github.com/Lyky35/Heretic2Remastered/releases/tag/R8_7 (stable, latest). AdvShaders trail work untouched on its branch.
+
+## 2026-10-13 — Merged trail line into R8.7 stable
+
+Request: merge AdvShaders (TrailT1 build) into R8.7.
+Steps:
+1. `git merge --no-ff R8.7_AdvShaders` — code merged with zero hand-merging (Beta touched only PROGRESS.md since the branch point); single PROGRESS.md conflict resolved by keeping both histories + this entry. Committed as `f452f007`, pushed to Beta.
+   - Reason: no-ff preserves the experimental line for review.
+2. Rebuilt from merge (no errors); verified merged binaries carry BOTH lines (`volumetric clouds on` + `r_trail_distort` present); repackaged R8.7 (md5-verified stage, 15 files) + README trail section.
+   - Reason: prove the stable asset is exactly the merge, not a stale mix.
+3. Moved tag `R8_7` to merge (`6ea4a91f..c8b3ad74`, forced); `gh release upload --clobber` (6663626 bytes, updated 2026-10-15T04:28:50Z); rewrote notes with trail paragraph — verified live. R8.7 Beta/TrailT1 prereleases + AdvShaders branch left alone.
+   - Reason: "into R8.7" = same release updated in place, per established pattern.
+4. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion" for this merge portion.
+
+Result: pending push (see next entry update after push).
 ## 2026-10-13 — T1 staff ribbon on `R8.7_AdvShaders` (plain additive, no distortion yet)
 
 Plan: `TRAIL_DISTORTION_PLAN.md` (`4684d12a` on this branch). Goal here: geometry only.
