@@ -551,3 +551,20 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `050fd880` pushed, TrailT1 asset refreshed. Retest ask: smooth L2 flow, fire brightness, haze size.
+
+## 2026-10-13 — Trail feedback 4: L2 -30%, L3 smokeless, hellstaff haze
+
+Requests: L2 trail+haze 30% smaller; L3 smoke removed; proportional fire haze on all fire effects.
+Steps:
+1. L2 width 22 -> 15.4 (exactly -30%; haze follows width via proportional edge fade). L1/L3 untouched.
+   - Reason: exact ask.
+2. L3 smoke block now `if (!ribbon_mode && ...)` — flames/smoke/dlight legacy loop otherwise intact, so non-ribbon paths pixel-identical.
+   - Reason: smallest possible removal, fallback preserved.
+3. Audited LINE fire emitters: hellstaff bolt (sustained fire -> haze sibling), mork fire streaks (transient debris bursts -> excluded), StaffHit sparks (impact, not fire -> excluded), flamethrower/phoenix/fire sprites (billboard-based -> needs STANDARD distortion path, deferred). Added hellstaff haze sibling (same endpoints, 2.2x width, warm tint, tile 1.0 — caught that tiled streak UVs would break the distortion end-fade, so haze uses unit tiling).
+   - Reason: haze where fire sustains; debris/sparks would just add noise; billboard fire is a separate feature, stated not silently dropped.
+4. Rebuilt all (no errors), verified fresh DLL timestamps + zip md5 match, repackaged (15 files), staged.
+   - Reason: ship to tester with proof the binaries are current.
+5. Next: commit + push, move `R8_7_TrailT1` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

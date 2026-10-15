@@ -245,8 +245,8 @@ static qboolean StaffLevel3Update(client_entity_t* self, centity_t* owner) //mxd
 
 		AddEffect(NULL, trail);
 
-		// Create smoke?
-		if (irand(0, 3) == 0)
+		// No smoke in ribbon mode (the haze ribbon replaces it).
+		if (!ribbon_mode && irand(0, 3) == 0)
 		{
 			client_entity_t* smoke = ClientEntity_new(FX_SPELLHANDS, (int)(self->flags & ~CEF_NO_DRAW), trail_org, NULL, 5000);
 
@@ -319,7 +319,7 @@ static qboolean StaffLevel2Update(client_entity_t* self, centity_t* owner) //mxd
 			COLOUR_SETA(ribbon_col, irand(236, 255), rc, rc, irand(80, 192));
 		else
 			COLOUR_SETA(ribbon_col, rc, rc, irand(236, 255), irand(80, 192));
-		return StaffRibbonSegment(self, owner, ref_index, STAFF_TRAIL3, ribbon_col.c, 22.0f, 0.75f);
+		return StaffRibbonSegment(self, owner, ref_index, STAFF_TRAIL3, ribbon_col.c, 15.4f, 0.75f);
 	}
 
 	//mxd. Clamp instead of removing the effect (see StaffLevel1Update).
