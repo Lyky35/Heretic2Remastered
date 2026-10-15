@@ -499,3 +499,196 @@ Steps:
    - Reason: complete "commit and push after each portion" for this release portion.
 
 Result: `295b46b1` pushed. Live: https://github.com/Lyky35/Heretic2Remastered/releases/tag/R8_7 (stable, latest). AdvShaders trail work untouched on its branch.
+## 2026-10-13 — T1 staff ribbon on `R8.7_AdvShaders` (plain additive, no distortion yet)
+
+Plan: `TRAIL_DISTORTION_PLAN.md` (`4684d12a` on this branch). Goal here: geometry only.
+Steps:
+1. Verified the cheap path exists: `SPRITE_LINE` semi-oriented strips in both renderers (`gl3_Sprite.c:91`, `gl1_Sprite.c:98` — gl1 fallback safe), established FX pattern (`fx_StaffHit.c` streaks), `OffsetLinkedEntityUpdatePlacement` transforms only `origin` (so ribbon segments go world-space static, `AddEffect(NULL)`), `CEF_NOMOVE` in `qcommon/EffectFlags.h`, free `RF_` bit `0x00800000` (CONTENTS_* reuse of the value is a separate domain).
+   - Reason: zero renderer changes for T1; distortion flag honored in T2.
+2. `src/game/q_shared.h`: `RF_DISTORT 0x00800000` (gl3 refracts later; others draw normal line).
+   - Reason: the only cross-DLL contract T1+T2 need.
+3. `src/client effects/fx_staff.c`: file-static ribbon state (single owner = player staff), `StaffTipToWorld` (same pivot+27*dir tip formula, owner-angles transform like L3), `StaffRibbonSegment` (prev→cur world chord, 0.5-unit hold-anchor, `SPRITE_LINE` + `RF_DISTORT`, midpoint culling, 300 ms fade, per-level model/color/width/alpha mirroring L1/L2/L3), gate in `FXStaff` (per-swing `Cvar_Get("r_trail_distort","0",0)` read — ref_gl3 registers default 1 first at vid init, so gl1 absence correctly yields puffs), branches in all three `StaffLevel*Update` after the movement gate (+ `q_Sprite.h` include; fixed the one compile error it caused).
+   - Reason: puff loops byte-untouched for the fallback path; ribbon reuses proven field patterns.
+4. `ref_gl3` `gl3_Local.h`/`gl3_Main.c`: `r_trail_distort` default 1 archived. gl1 untouched.
+   - Reason: renderer-side master switch lives where T2 will read it too.
+5. Built ALL targets mingw (only pre-existing warnings, e.g. `input.h` inline note); fixed the missing include from the single error.
+   - Reason: `q_shared.h` edit rebuilds the world — verify everything links.
+6. Ran `git add` (q_shared.h, fx_staff.c, gl3_Local.h, gl3_Main.c, PROGRESS.md), commit `a9a03599` (+124/-1), `git push origin R8.7_AdvShaders` — succeeded.
+   - Reason: complete "commit and push after each portion" for T1.
+
+Result: `a9a03599` pushed to `origin/R8.7_AdvShaders`. T2 next (dedicated blit + distortion shader + noise + cvars). No Beta release from this branch.
+
+## 2026-10-13 — T2 trail distortion on `R8.7_AdvShaders` (blit + shader, no CE changes)
+
+Plan: `TRAIL_DISTORTION_PLAN.md` T2, dedicated-blit variant per approval.
+Steps:
+1. Read integration points directly: `R_HandleTransparency/Cleanup` (`gl3_Misc.c:241`, normal-blend restore reusable), `GL3_Draw3DPoly` (streaming-VBO pattern), `GL3_CopySceneToRefract` blit (`gl3_Shaders.c:1118`), `GL3_InitRefract` FBO pattern + RI lifecycle (`gl3_Main.c:518/553`), `r_framecount` once-per-frame (`:674`), state struct layout.
+   - Reason: mirror proven patterns instead of inventing plumbing.
+2. `gl3_Shaders.c/h`: `vertexSourceTrail`/`fragmentSourceTrail` (330; projective screenUV + noise-perturbed sample + optional chromatic 3-tap + hot core + edge/age alpha), program + 9 uniform locations in `GL3_InitShaders` (samplers pinned 0/1), `GL3_InitTrail/ShutdownTrail` (full-res RGBA16F tex + color-only FBO + CPU tileable 2-octave value-noise texture via deterministic LCG), `GL3_CopySceneForTrail()` (blits CURRENT draw target viewport→trail tex, guarded once-per-frame-per-pass via `(r_framecount, R_IsReflectionPass)` so main + mirror each capture correctly), `GL3_TrailDistortReady()` gate. `gl3_Local.h` state + 4 cvar externs; `gl3_Main.c` defines + `r_trail_strength 0.035` / `r_trail_chroma 1` / `r_trail_core 0.6` + init/shutdown calls.
+   - Reason: everything the draw needs, lifecycle-matched to refract.
+3. `gl3_Sprite.c`: `R_DrawDistortLineSprite()` (same strip geometry as line sprite, tint from entity color, own normal-blend/bind/cull/depth handling, degenerate-direction guard, cache invalidation per established pattern) + branch in `R_DrawSpriteModel` before transparency setup (non-LINE or not-ready falls through to the T1 plain path). gl1 untouched (ignores the flag).
+   - Reason: distortion composes in normal alpha order; T1 look is the automatic fallback everywhere.
+4. Built ALL targets mingw, zero warnings/errors.
+   - Reason: no runtime here — compile-clean plus review is the verification available.
+5. Ran `git add` (6 files), commit `1d7022a1` (+401), `git push origin R8.7_AdvShaders` — succeeded.
+   - Reason: complete "commit and push after each portion" for T2.
+
+Result: `1d7022a1` pushed to `origin/R8.7_AdvShaders`. T3 next (chromatic/core polish, taper, perf) or Windows smoke test of T1+T2 first — untested at runtime.
+
+## 2026-10-13 — 2nd prerelease: `R8_7_TrailT1` trail-distortion test build
+
+Request: test build as a 2nd prerelease (R8.7 Beta untouched).
+Steps:
+1. Full AdvShaders HEAD build (all targets, no errors) + verified trail code in binaries (`trail FBO initialized`/`r_trail_strength` in ref_gl3.dll, `r_trail_distort` in Client Effects.dll).
+   - Reason: never ship unchecked-in code; strings prove T1+T2 are in.
+2. Staged `HereticIIRemastered_R87_TrailT1/` mirroring the R8.6 layout + trail-focused README.txt (startup line, swing checklist, knobs, fallback checks). Caught a missing SDL3.dll before zipping (14 vs 15 files — game wouldn't start); fixed and re-verified listing.
+   - Reason: a test build that doesn't launch wastes a whole test round.
+3. Created tag `R8_7_TrailT1` (target `R8.7_AdvShaders`, no clash with branch names) + prerelease `R8.7 TrailT1 (test)` with asset (first `gh release create` failed outside the repo — `GIT_DISCOVERY_ACROSS_FILESYSTEM`; reran from repo with `--repo`). Verified live with asset attached.
+   - Reason: same URL pattern as R8.7 Beta; prerelease keeps R8.6 latest.
+4. Ran `git add PROGRESS.md`, commit `2199ed3f`, `git push origin R8.7_AdvShaders` — succeeded.
+   - Reason: complete "commit and push after each portion" for this release portion.
+
+Result: `2199ed3f` pushed. Live: https://github.com/Lyky35/Heretic2Remastered/releases/tag/R8_7_TrailT1 (tag `R8_7_TrailT1`, 1 asset). Awaiting smoke test.
+
+## 2026-10-13 — Trail feedback: stronger warp + connected bends
+
+Report: distort effect too small; direction changes spawn a disconnected second trail instead of bending as one.
+Steps:
+1. Diagnosed disconnect: segments are independent quads sharing no edge verts, so the outside of every bend gaps open (reads as a separate trail). Not an anchor bug (sub-threshold hold keeps position continuous) — a joint-coverage bug.
+   - Reason: fix coverage, not tracking.
+2. `fx_staff.c` `StaffRibbonSegment`: extend each segment half a width past both ends along its axis (overlap lens over the joint; both sides sample the same clean background so double-blend is nearly invisible). Per-frame bends are gentle (fast sampling; reversals pass through the sub-threshold hold), so half-width overlap covers them.
+   - Reason: connected-bend read without multi-point ribbon surgery (T3 candidate if this proves insufficient).
+3. Presence: `r_trail_strength` default 0.035 -> 0.09; widths 6/8/10 -> 9/12/14 world units (L1/L2/L3). All still live-tunable.
+   - Reason: "too small" addressed on both axes (warp amount + ribbon body).
+4. Rebuilt all (no errors), refreshed TrailT1 stage + README default, repackaged (15 files verified).
+   - Reason: ship to tester.
+5. Ran `git add` (fx_staff.c, gl3_Main.c, PROGRESS.md), commit `1305dec7` (+33/-6), `git push origin R8.7_AdvShaders`; moved tag `R8_7_TrailT1`; `gh release upload --clobber` (6662828 bytes, updated 2026-10-15T03:06:55Z) — all succeeded.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: `1305dec7` pushed, TrailT1 asset refreshed. Retest ask: warp presence + bends reading as one trail.
+
+## 2026-10-13 — Trail feedback 2: L2 double size, L3 flames restored
+
+Report: base (L1) good; powered-up (L2) should be twice the original size; L3 should still spawn flames, with heat haze.
+Steps:
+1. L2 width 12 -> 18 (2x the L1 base width of 9). Nothing else touched.
+   - Reason: exact ask; color/alpha/fade already approved implicitly.
+2. L3 ribbon branch changed from early-return to emit-and-fall-through: the ribbon segment goes out, then the original flame/smoke/dlight loop runs unchanged beneath it (classic fire look + distortion haze over the same arc).
+   - Reason: flames are the L3 identity; ribbon adds haze without removing anything. Flames stay non-distorting (fire should read as fire).
+3. Rebuilt all (no errors), repackaged TrailT1 (15 files), staged.
+   - Reason: ship to tester.
+4. Ran `git add` (fx_staff.c, PROGRESS.md), commit `0ec1f870` (+20/-3), `git push origin R8.7_AdvShaders`; moved tag `R8_7_TrailT1`; `gh release upload --clobber` (6662829 bytes, updated 2026-10-15T03:12:07Z) — all succeeded.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: `0ec1f870` pushed, TrailT1 asset refreshed. Retest ask: L2 size, L3 flames + haze.
+
+## 2026-10-13 — Trail feedback 3: smooth flow, no puff blocks, dimmer fire
+
+Report: L2 not smooth; big ugly smoke-like puffs; fire too bright/flame-sprite look; wants larger flame haze.
+Steps:
+1. Diagnosed: wide (18u) independent quads with hard strip ends read as discrete puffs — geometry, not colors. Fix is shorter pieces + faded ends, not new shapes.
+   - Reason: treat the disease (blocky segments), not symptoms.
+2. `fx_staff.c`: each frame chord now emits 2 half-length sub-segments (ends[] midpoint split); L2 width 18 -> 22 for a larger haze body.
+   - Reason: shorter quads corner-cut less and kink gentler; overlap + end fades keep joints seamless.
+3. Trail fragment (`gl3_Shaders.c`): added along-strip end fade (`smoothstep` both t ends, works with the overlap extensions), softened across-edge to 0.40/0.60; `r_trail_core` default 0.6 -> 0.35 (core was blowing out to white on bright L2 tints).
+   - Reason: haze needs soft volume, not hard quads or blown core.
+4. Rebuilt all (no errors), repackaged TrailT1 (15 files), staged.
+   - Reason: ship to tester.
+5. Ran `git add` (fx_staff.c, gl3_Shaders.c, gl3_Main.c, PROGRESS.md), commit `050fd880` (+62/-29), `git push origin R8.7_AdvShaders`; moved tag `R8_7_TrailT1`; `gh release upload --clobber` (6663030 bytes, updated 2026-10-15T03:19:32Z) — all succeeded.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: `050fd880` pushed, TrailT1 asset refreshed. Retest ask: smooth L2 flow, fire brightness, haze size.
+
+## 2026-10-13 — Trail feedback 4: L2 -30%, L3 smokeless, hellstaff haze
+
+Requests: L2 trail+haze 30% smaller; L3 smoke removed; proportional fire haze on all fire effects.
+Steps:
+1. L2 width 22 -> 15.4 (exactly -30%; haze follows width via proportional edge fade). L1/L3 untouched.
+   - Reason: exact ask.
+2. L3 smoke block now `if (!ribbon_mode && ...)` — flames/smoke/dlight legacy loop otherwise intact, so non-ribbon paths pixel-identical.
+   - Reason: smallest possible removal, fallback preserved.
+3. Audited LINE fire emitters: hellstaff bolt (sustained fire -> haze sibling), mork fire streaks (transient debris bursts -> excluded), StaffHit sparks (impact, not fire -> excluded), flamethrower/phoenix/fire sprites (billboard-based -> needs STANDARD distortion path, deferred). Added hellstaff haze sibling (same endpoints, 2.2x width, warm tint, tile 1.0 — caught that tiled streak UVs would break the distortion end-fade, so haze uses unit tiling).
+   - Reason: haze where fire sustains; debris/sparks would just add noise; billboard fire is a separate feature, stated not silently dropped.
+4. Rebuilt all (no errors), verified fresh DLL timestamps + zip md5 match, repackaged (15 files), staged.
+   - Reason: ship to tester with proof the binaries are current.
+5. Ran `git add` (fx_staff.c, fx_HellStaff.c, PROGRESS.md), commit `aeb5fc3d` (+40/-3), `git push origin R8.7_AdvShaders`; moved tag `R8_7_TrailT1`; `gh release upload --clobber` (6663176 bytes, updated 2026-10-15T03:31:56Z) — all succeeded.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: `aeb5fc3d` pushed, TrailT1 asset refreshed. Retest ask: L2 size, smokeless L3, hellbolt haze.
+
+## 2026-10-13 — Trail feedback 5: L2 legacy, L3 coreless, select ribbon
+
+Requests: L2 back to original (no haze); L3 ribbon out, flames + haze stay; L1-select white sprites become L1 trail.
+Steps:
+1. L2: deleted the ribbon branch — pure legacy puff loop again (puffs were never the complaint there; size handled last round).
+   - Reason: exact revert, no behavior delta possible.
+2. New `RF_NOCORE` (0x01000000, RF-domain verified free): `StaffRibbonSegment` takes `noCore`, L3 passes true (L1/hell false); `R_DrawDistortLineSprite` packs it into vertex alpha, fragment multiplies the hot-core term by it (mask/alpha path untouched).
+   - Reason: per-entity core kill — warp stays, bright body goes, flames underneath carry the look.
+3. Mapped select path: `FXStaffCreate` controller + shaft-walk `StaffCreateOrRemoveUpdate` (white sprites, white default color) + endpoint `FXStaffCreatePoof` halo flashes (poof is only a materialize handler — safe to gate). Ribbon mode now emits one world-space shaft streak (L1 width, staff-type color) instead of the sprite walk, skips poofs, gate re-read in `FXStaffCreate`; deselect path shares the function so it matches.
+   - Reason: the white flash IS the select sprites; shaft streak is the motionless equivalent of the swing ribbon.
+4. Rebuilt all (no errors), repackaged TrailT1 (15 files), staged.
+   - Reason: ship to tester.
+5. Ran `git add` (fx_staff.c, q_shared.h, gl3_Sprite.c, gl3_Shaders.c, PROGRESS.md), commit `e058bc9b` (+70/-26), `git push origin R8.7_AdvShaders`; moved tag `R8_7_TrailT1`; `gh release upload --clobber` (6663656 bytes, updated 2026-10-15T03:43:15Z) — all succeeded.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: `e058bc9b` pushed, TrailT1 asset refreshed. Retest ask: L2 legacy, L3 fire+haze-without-body, select flash.
+
+## 2026-10-13 — Trail feedback 6: select ribbon L1-only, L1 color
+
+Report: materialize change hit L2/L3 too (L1 only, please); L1 flash shows green, should match L1 trail.
+Steps:
+1. Shaft-ribbon branch now requires `self->classID == STAFF_TRAIL` (normal/L1; blue/flames types keep legacy sprites); poof skip requires neither `CEF_FLAG7` nor `CEF_FLAG8` (same normal-only rule, flags already used in-file).
+   - Reason: exact scoping, no behavior delta for L2/L3.
+2. Shaft ribbon color: was the per-type `color` (green 0xff20ff20 for sword) — now hardcoded `0x02201010`, the actual L1 trail color set in `FXStaff` case 1 (commented at use).
+   - Reason: "same as L1 trail" means the trail's color, not the staff-type flash color.
+3. Rebuilt (no errors), verified fresh DLL timestamp + zip md5 match (zip size coincidence double-checked, not assumed), repackaged (15 files).
+   - Reason: ship to tester with proof of freshness.
+4. Ran `git add` (fx_staff.c, PROGRESS.md), commit `34b35389` (+25/-7), `git push origin R8.7_AdvShaders`; moved tag `R8_7_TrailT1`; `gh release upload --clobber` (6663664 bytes, updated 2026-10-15T03:49:48Z) — all succeeded.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: `34b35389` pushed, TrailT1 asset refreshed. Retest ask: L1 select flash color/scope.
+
+## 2026-10-13 — Weapon heat haze: hellstaff charge, firewall linger, phoenix
+
+Requests: hellstaff haze grows with sustained fire; firewall (base+powered) large lingering haze; phoenix arrow wake + sized explosion haze (powered: no flight haze, big 5s linger).
+Steps:
+1. Renderer first (all three need it): `uRadial` uniform + `R_DrawDistortPoly` shared tail extracted from the line path + `R_DrawDistortBillboard` (copies `R_DrawDynamicSprite` math for `RE_SetupRollSprite` world-size quads, radial mask); branch accepts LINE + DYNAMIC (others fall through plain). Warp-only via `RF_NOCORE`; masks need no texture reads.
+   - Reason: billboards can't reuse strip UV logic; one program, one flag more.
+2. Hellstaff (`fx_HellStaff.c`): file-static heat 0..1 (+0.12/shot, ~2s cool, capped) bumped in both `FXHellbolt` and `FXHellstaffPower`. Muzzle warp-only billboard per bolt (16u x growth, 700ms); power-beam haze width x growth (up to 2.5x sustained).
+   - Reason: no persistent entities/thinks — heat derived on demand from shot timing; works for tap and hold alike.
+3. Firewall (`fx_Wall.c`): one warp-only billboard per `FireWaveUpdate` at wall center sized `min(radius*2.5, 350)` (2s life outlives flames = linger) + one per `FireBurstUpdate` (110u, 1.5s). Covers powered wall + base burst proportionally by construction.
+   - Reason: lingering falls out of lifespan, no expiry special-casing; ~120-180 extra quads worst case.
+4. Phoenix: base `PhoenixMissileUpdate` wake billboard (48u, 400ms) — power update untouched per spec; base explode haze 160u/2s; powered explode haze 220u/5s per spec.
+   - Reason: exact spec compliance (powered arrow clean in flight, big long linger on blast).
+5. Excluded with reason: mork/StaffHit debris streaks + impact sparks (transient, haze would add noise), flamethrower/phoenix-trail sprite fire (needs fire-visible+mixed billboards — bigger feature, offered next).
+   - Reason: haze where fire sustains; stated, not silently dropped.
+6. Rebuilt all (no errors), repackaged TrailT1 (15 files), staged + README weapon section.
+   - Reason: ship to tester.
+7. Ran `git add` (4 FX files, gl3_Sprite.c/Shaders.c/Local.h, PROGRESS.md), commit `42427483` (+223/-58), `git push origin R8.7_AdvShaders`; moved tag `R8_7_TrailT1`; `gh release upload --clobber` (6664669 bytes, updated 2026-10-15T04:09:15Z) — all succeeded.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: `42427483` pushed, TrailT1 asset refreshed. Retest ask: hellstaff growth, firewall linger, phoenix wake/blast per spec.
+
+## 2026-10-13 — Reverted weapon heat haze (`bd8bbaa1`)
+
+Report: not good — revert to prior commit.
+Steps:
+1. `git revert --no-commit 42427483` (forward-history revert, no rewrite: branch + tag stay clean). Resolved the one conflict in `PROGRESS.md` by keeping HEAD (full log history) — the revert commit touches only the 7 code files.
+   - Reason: never rewrite pushed history; keep the attempt documented.
+2. Rebuilt all (no errors), repackaged TrailT1 (15 files), staged.
+   - Reason: ship the reverted binaries so TrailT1 matches pre-haze behavior + all accepted trail work.
+3. Ran `git add PROGRESS.md`, commits `bd8bbaa1` (revert) + `56d42115` (log), `git push origin R8.7_AdvShaders`; moved tag `R8_7_TrailT1`; `gh release upload --clobber` (6663775 bytes, updated 2026-10-15T04:20:40Z) — all succeeded.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: revert live on branch + TrailT1 asset refreshed (back to staff-ribbon behavior + hellstaff beam haze only).
+
+## 2026-10-13 — Merged `R8.7_AdvShaders` into Beta (trail line joins R8.7)
+
+Request: merge the TrailT1 trail build into R8.7.
+Steps:
+1. `git merge --no-ff R8.7_AdvShaders` — code merged cleanly (Beta touched only PROGRESS.md since the branch point); resolved the single PROGRESS.md conflict by keeping both histories (Beta entries first, branch entries after, this note last).
+   - Reason: no-ff preserves the experimental line for review; no code needed hand-merging.
+2. Next: rebuild from merge, verify trail strings in binaries, repackage, move `R8_7` tag, re-upload asset, rewrite notes.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending build/release (see next entry update after push).

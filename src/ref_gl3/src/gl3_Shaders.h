@@ -55,6 +55,16 @@ extern qboolean GL3_InitRefract(int width, int height);
 extern void GL3_ShutdownRefract(void);
 extern void GL3_CopySceneToRefract(void);
 
+// Distortion-trail resources (AdvShaders T2): full-res scene snapshot FBO,
+// tiling noise texture, and the ribbon distortion program (all in Shaders.c).
+extern qboolean GL3_InitTrail(int width, int height);
+extern void GL3_ShutdownTrail(void);
+// Blit the current scene target into the trail FBO (once per frame per pass;
+// later calls this frame are no-ops). Must precede distortion draws.
+extern void GL3_CopySceneForTrail(void);
+// True when the distortion path is fully usable (program + textures + cvar).
+extern qboolean GL3_TrailDistortReady(void);
+
 // Bloom post-process: bright-pass extract + separable Gaussian blur.
 extern qboolean GL3_InitBloom(int width, int height);
 extern void GL3_ShutdownBloom(void);

@@ -6,7 +6,9 @@
 
 #include "gl3_Shaders.h"
 #include "gl3_SkyDyn.h"
+#include "gl3_Surface.h"
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifndef M_PI
@@ -462,6 +464,55 @@ static const char* fragmentSourceWater =
 	"    FragColor = vec4(blended, waterColor.a);\n"
 	"}\n";
 
+// --- Distortion-trail shader (AdvShaders T2): ribbon verts are pos3 +
+// ribbonUV2 (u along, v across) + tint3 + strength1. Screen-space refraction
+// (GPU Gems 2 Ch. 19 family): background snapshot + normal-map-perturbed UV.
+static const char* vertexSourceTrail =
+	"#version 330 core\n"
+	"layout(location = 0) in vec3 aPos;\n"
+	"layout(location = 1) in vec2 aTexCoord;\n"
+	"layout(location = 2) in vec4 aColor;\n"
+	"uniform mat4 uProjection;\n"
+	"uniform mat4 uModelview;\n"
+	"out vec2 vUv;\n"
+	"out vec4 vColor;\n"
+	"out vec4 vClipPos;\n"
+	"void main() {\n"
+	"    gl_Position = uProjection * uModelview * vec4(aPos, 1.0);\n"
+	"    vClipPos = gl_Position;\n"
+	"    vUv = aTexCoord;\n"
+	"    vColor = aColor;\n"
+	"}\n";
+
+static const char* fragmentSourceTrail =
+	"#version 330 core\n"
+	"in vec2 vUv;\n"
+	"in vec4 vColor;\n" // rgb = core tint, a = core kill switch (RF_NOCORE)
+	"in vec4 vClipPos;\n"
+	"uniform sampler2D uTrailBg;\n"
+	"uniform sampler2D uNoiseTex;\n"
+	"uniform float uStrength;\n"
+	"uniform float uTime;\n"
+	"uniform float uChroma;\n"
+	"uniform float uCoreAmt;\n"
+	"uniform float uFade;\n"
+	"out vec4 FragColor;\n"
+	"void main() {\n"
+	"    vec2 screenUV = vClipPos.xy / vClipPos.w * 0.5 + 0.5;\n"
+	"    float edge = smoothstep(0.0, 0.40, vUv.x) * smoothstep(1.0, 0.60, vUv.x);\n"
+	"    float ends = smoothstep(0.0, 0.20, vUv.y) * smoothstep(1.0, 0.80, vUv.y);\n"
+	"    vec2 nuv = vec2(vUv.y * 3.0, vUv.x) + vec2(-uTime * 0.35, uTime * 0.05);\n"
+	"    vec2 off = (texture(uNoiseTex, nuv).rg - 0.5) * uStrength * edge * ends;\n"
+	"    vec3 refr = texture(uTrailBg, screenUV + off).rgb;\n"
+	"    if (uChroma > 0.5) {\n"
+	"        refr.r = texture(uTrailBg, screenUV + off * 0.75).r;\n"
+	"        refr.b = texture(uTrailBg, screenUV + off * 1.35).b;\n"
+	"    }\n"
+	"    float center = smoothstep(0.5, 0.0, abs(vUv.x - 0.5));\n"
+	"    refr += (vColor.rgb * 2.0 + vec3(0.08)) * (center * center) * uCoreAmt * edge * ends * vColor.a;\n"
+	"    FragColor = vec4(refr, edge * ends * uFade);\n"
+	"}\n";
+
 static GLuint CompileShader(GLenum type, const char* source)
 {
 	const GLuint shader = glCreateShader(type);
@@ -897,6 +948,28 @@ qboolean GL3_InitShaders(void)
 		GL3_UpdateBumpScale(1.0f, 1.0f);
 	}
 
+	// --- Trail distortion shader (AdvShaders T2) ---
+	gl3state.shaderTrail = CreateProgram(vertexSourceTrail, fragmentSourceTrail);
+	if (gl3state.shaderTrail == 0)
+	{
+		ri.Con_Printf(PRINT_ALL, "GL3_InitShaders: failed to create trail distortion shader program\n");
+		return false;
+	}
+
+	gl3state.uniTrail_projection = glGetUniformLocation(gl3state.shaderTrail, "uProjection");
+	gl3state.uniTrail_modelview  = glGetUniformLocation(gl3state.shaderTrail, "uModelview");
+	gl3state.uniTrail_bg         = glGetUniformLocation(gl3state.shaderTrail, "uTrailBg");
+	gl3state.uniTrail_noise      = glGetUniformLocation(gl3state.shaderTrail, "uNoiseTex");
+	gl3state.uniTrail_strength   = glGetUniformLocation(gl3state.shaderTrail, "uStrength");
+	gl3state.uniTrail_time       = glGetUniformLocation(gl3state.shaderTrail, "uTime");
+	gl3state.uniTrail_chroma     = glGetUniformLocation(gl3state.shaderTrail, "uChroma");
+	gl3state.uniTrail_coreAmt    = glGetUniformLocation(gl3state.shaderTrail, "uCoreAmt");
+	gl3state.uniTrail_fade       = glGetUniformLocation(gl3state.shaderTrail, "uFade");
+
+	GL3_UseShader(gl3state.shaderTrail);
+	glUniform1i(gl3state.uniTrail_bg, 0);    // TMU0: background snapshot.
+	glUniform1i(gl3state.uniTrail_noise, 1); // TMU1: distortion noise.
+
 	ri.Con_Printf(PRINT_ALL, "GL3 shaders initialized.\n");
 
 	return true;
@@ -923,6 +996,7 @@ void GL3_ShutdownShaders(void)
 
 	if (gl3state.shaderPost != 0) { glDeleteProgram(gl3state.shaderPost); gl3state.shaderPost = 0; }
 	if (gl3state.shaderWater != 0) { glDeleteProgram(gl3state.shaderWater); gl3state.shaderWater = 0; }
+	if (gl3state.shaderTrail != 0) { glDeleteProgram(gl3state.shaderTrail); gl3state.shaderTrail = 0; }
 
 	if (gl3state.whiteTexture != 0) { glDeleteTextures(1, &gl3state.whiteTexture); gl3state.whiteTexture = 0; }
 
@@ -1132,6 +1206,178 @@ void GL3_CopySceneToRefract(void)
 
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, (GLuint)cur_read_fb);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, (GLuint)cur_draw_fb);
+}
+
+// ============================================================
+// Distortion-trail resources (AdvShaders T2).
+// ============================================================
+
+// Deterministic LCG (no rand() dependency, identical noise every run).
+static unsigned TrailRand(unsigned* seed)
+{
+	*seed = *seed * 1664525u + 1013904223u;
+	return (*seed >> 9) & 0xFFFFu;
+}
+
+// Tileable two-octave value noise, R/G independent channels for XY offsets.
+static GLuint GL3_MakeTrailNoise(void)
+{
+#define TRAIL_NOISE_SIZE 256
+#define TRAIL_LATTICE 32
+	static float lattice[2][TRAIL_LATTICE * TRAIL_LATTICE];
+	unsigned seed = 0xC0FFEEu;
+	unsigned char* pixels;
+	GLuint tex;
+	int x, y, c;
+
+	for (c = 0; c < 2; c++)
+		for (int i = 0; i < TRAIL_LATTICE * TRAIL_LATTICE; i++)
+			lattice[c][i] = (float)TrailRand(&seed) / 65535.0f;
+
+	pixels = (unsigned char*)malloc(TRAIL_NOISE_SIZE * TRAIL_NOISE_SIZE * 4);
+	if (pixels == NULL)
+		return 0;
+
+	for (y = 0; y < TRAIL_NOISE_SIZE; y++)
+	{
+		for (x = 0; x < TRAIL_NOISE_SIZE; x++)
+		{
+			unsigned char* p = &pixels[(y * TRAIL_NOISE_SIZE + x) * 4];
+			for (c = 0; c < 2; c++)
+			{
+				// Two octaves (32 + 64 cells over 256px), wrapping lattice, smoothstep interp.
+				float v = 0.0f;
+				float amp = 0.65f;
+				int cells = TRAIL_LATTICE;
+				for (int o = 0; o < 2; o++)
+				{
+					const float gx = (float)x / (float)TRAIL_NOISE_SIZE * (float)cells;
+					const float gy = (float)y / (float)TRAIL_NOISE_SIZE * (float)cells;
+					int x0 = ((int)gx) % cells;
+					int y0 = ((int)gy) % cells;
+					int x1 = (x0 + 1) % cells;
+					int y1 = (y0 + 1) % cells;
+					float fx = gx - floorf(gx);
+					float fy = gy - floorf(gy);
+					fx = fx * fx * (3.0f - 2.0f * fx);
+					fy = fy * fy * (3.0f - 2.0f * fy);
+					const float v00 = lattice[c][y0 * cells + x0];
+					const float v10 = lattice[c][y0 * cells + x1];
+					const float v01 = lattice[c][y1 * cells + x0];
+					const float v11 = lattice[c][y1 * cells + x1];
+					v += ((v00 * (1.0f - fx) + v10 * fx) * (1.0f - fy) +
+					      (v01 * (1.0f - fx) + v11 * fx) * fy) * amp;
+					amp *= 0.35f;
+					cells *= 2;
+				}
+				if (v < 0.0f) v = 0.0f;
+				if (v > 1.0f) v = 1.0f;
+				p[c] = (unsigned char)(v * 255.0f);
+			}
+			p[2] = 0;
+			p[3] = 255;
+		}
+	}
+
+	glGenTextures(1, &tex);
+	glBindTexture(GL_TEXTURE_2D, tex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, TRAIL_NOISE_SIZE, TRAIL_NOISE_SIZE, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	free(pixels);
+	return tex;
+}
+
+qboolean GL3_InitTrail(const int width, const int height)
+{
+	gl3state.trail_width  = (width  > 0) ? width  : 1;
+	gl3state.trail_height = (height > 0) ? height : 1;
+
+	glGenTextures(1, &gl3state.fboTexTrail);
+	glBindTexture(GL_TEXTURE_2D, gl3state.fboTexTrail);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, gl3state.trail_width, gl3state.trail_height, 0, GL_RGBA, GL_FLOAT, NULL);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	glGenFramebuffers(1, &gl3state.fboTrail);
+	glBindFramebuffer(GL_FRAMEBUFFER, gl3state.fboTrail);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gl3state.fboTexTrail, 0);
+
+	const GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	if (status != GL_FRAMEBUFFER_COMPLETE)
+	{
+		ri.Con_Printf(PRINT_ALL, "GL3_InitTrail: framebuffer incomplete (status 0x%x)\n", (unsigned)status);
+		GL3_ShutdownTrail();
+		return false;
+	}
+
+	gl3state.trailNoiseTex = GL3_MakeTrailNoise();
+	if (gl3state.trailNoiseTex == 0)
+	{
+		ri.Con_Printf(PRINT_ALL, "GL3_InitTrail: noise texture failed\n");
+		GL3_ShutdownTrail();
+		return false;
+	}
+
+	ri.Con_Printf(PRINT_ALL, "GL3 trail FBO initialized (%dx%d RGBA16F).\n", gl3state.trail_width, gl3state.trail_height);
+	return true;
+}
+
+void GL3_ShutdownTrail(void)
+{
+	if (gl3state.fboTrail != 0) { glDeleteFramebuffers(1, &gl3state.fboTrail); gl3state.fboTrail = 0; }
+	if (gl3state.fboTexTrail != 0) { glDeleteTextures(1, &gl3state.fboTexTrail); gl3state.fboTexTrail = 0; }
+	if (gl3state.trailNoiseTex != 0) { glDeleteTextures(1, &gl3state.trailNoiseTex); gl3state.trailNoiseTex = 0; }
+	gl3state.trail_width = gl3state.trail_height = 0;
+}
+
+// Blit the current scene target into the trail FBO (scene-minus-trailif called
+// before any distortion draw). Once per frame per pass; later calls are no-ops.
+// The source is whatever framebuffer is currently bound for drawing (fbo3D in
+// the main pass, fboReflect in the reflection pass), viewport-sized.
+void GL3_CopySceneForTrail(void)
+{
+	static int lastFrame = -1;
+	static qboolean lastRefl = false;
+	qboolean refl = R_IsReflectionPass();
+	GLint curFB, vp[4];
+
+	if (lastFrame == r_framecount && lastRefl == refl)
+		return;
+	lastFrame = r_framecount;
+	lastRefl = refl;
+
+	if (gl3state.fboTrail == 0 || gl3state.fboTexTrail == 0)
+		return;
+
+	glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &curFB);
+	glGetIntegerv(GL_VIEWPORT, vp);
+
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, (GLuint)curFB);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, gl3state.fboTrail);
+	glBlitFramebuffer(vp[0], vp[1], vp[0] + vp[2], vp[1] + vp[3],
+	                  0, 0, gl3state.trail_width, gl3state.trail_height,
+	                  GL_COLOR_BUFFER_BIT, GL_LINEAR);
+
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, (GLuint)curFB);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, (GLuint)curFB);
+}
+
+qboolean GL3_TrailDistortReady(void)
+{
+	if (r_trail_distort == NULL || (int)r_trail_distort->value == 0)
+		return false;
+	return (gl3state.shaderTrail != 0 && gl3state.fboTexTrail != 0 && gl3state.trailNoiseTex != 0) ? true : false;
 }
 
 // Draw a water polygon using shaderWater (same 9 floats/vert as GL3_Draw3DPoly).

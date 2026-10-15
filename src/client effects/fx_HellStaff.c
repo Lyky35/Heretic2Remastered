@@ -189,6 +189,26 @@ void FXHellstaffPower(centity_t* owner, int type, const int flags, vec3_t origin
 
 	AddEffect(NULL, beam);
 
+	// AdvShaders haze envelope: distortion-only sibling at ~2.2x the beam width
+	// (proportional to the fire). The beam itself stays a plain textured bolt;
+	// tile is 1.0 here (the distortion end-fade expects a 0..1 strip param).
+	client_entity_t* haze = ClientEntity_new(-1, CEF_DONT_LINK | CEF_ABSOLUTE_PARTS | CEF_ADDITIVE_PARTS | CEF_NOMOVE, origin, NULL, 333);
+
+	haze->r.model = &hell_models[1];
+	haze->r.spriteType = SPRITE_LINE;
+	haze->r.flags = (RF_TRANSLUCENT | RF_TRANS_ADD | RF_TRANS_ADD_ALPHA | RF_DISTORT);
+	haze->r.scale = beam->r.scale * 2.2f;
+	haze->r.tile = 1.0f;
+	haze->r.tileoffset = 0.0f;
+	haze->radius = 40.0f;
+	haze->alpha = 0.6f;
+	haze->d_alpha = -1.8f;
+	COLOUR_SETA(haze->r.color, 255, 200, 150, 128);
+	VectorCopy(origin, haze->r.startpos);
+	VectorCopy(endpos, haze->r.endpos);
+
+	AddEffect(NULL, haze);
+
 	// Make the line beam halo.
 	client_entity_t* beam2 = ClientEntity_new(-1, CEF_DONT_LINK, origin, NULL, 500);
 

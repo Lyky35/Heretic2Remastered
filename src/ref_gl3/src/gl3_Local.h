@@ -71,6 +71,10 @@ extern cvar_t* r_caustics;
 extern cvar_t* r_caustics_strength;
 extern cvar_t* r_hd_textures;
 extern cvar_t* r_antialiasing;
+extern cvar_t* r_trail_distort;  // AdvShaders T1: staff ribbon mode (Client Effects reads it).
+extern cvar_t* r_trail_strength; // Distortion UV offset scale.
+extern cvar_t* r_trail_chroma;   // 0/1 chromatic fringing on the warp.
+extern cvar_t* r_trail_core;     // Hot-core additive amount.
 extern cvar_t* r_shadows;
 
 // Dynamic sky + volumetric clouds (gl3_SkyDyn.c, Phase 0 scaffold).
@@ -384,6 +388,26 @@ typedef struct
 	GLuint rboRefractDepth;   // Depth renderbuffer (not sampled).
 	int    refract_width;
 	int    refract_height;
+
+	// Distortion-trail FBO (full-res trail_width x trail_height, RGBA16F, no depth):
+	// scene-minus-trail snapshot sampled by the trail distortion shader.
+	GLuint fboTrail;
+	GLuint fboTexTrail;
+	int    trail_width;
+	int    trail_height;
+
+	// Trail distortion shader (ribbon verts: pos3 + ribbonUV2 + tint3 + strength1).
+	GLuint shaderTrail;
+	GLint  uniTrail_projection;
+	GLint  uniTrail_modelview;
+	GLint  uniTrail_bg;        // unit 0: trail background snapshot.
+	GLint  uniTrail_noise;     // unit 1: distortion noise texture.
+	GLint  uniTrail_strength;
+	GLint  uniTrail_time;
+	GLint  uniTrail_chroma;    // 0/1 chromatic fringing.
+	GLint  uniTrail_coreAmt;   // hot-core additive amount.
+	GLint  uniTrail_fade;      // entity fade (alpha).
+	GLuint trailNoiseTex;      // tiling CPU-generated value noise.
 
 	// Water surface shader (same 9-float vertex layout as shader3D, adds projective reflection).
 	GLuint shaderWater;
