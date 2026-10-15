@@ -502,3 +502,20 @@ Steps:
    - Reason: complete "commit and push after each portion" for this release portion.
 
 Result: `2199ed3f` pushed. Live: https://github.com/Lyky35/Heretic2Remastered/releases/tag/R8_7_TrailT1 (tag `R8_7_TrailT1`, 1 asset). Awaiting smoke test.
+
+## 2026-10-13 — Trail feedback: stronger warp + connected bends
+
+Report: distort effect too small; direction changes spawn a disconnected second trail instead of bending as one.
+Steps:
+1. Diagnosed disconnect: segments are independent quads sharing no edge verts, so the outside of every bend gaps open (reads as a separate trail). Not an anchor bug (sub-threshold hold keeps position continuous) — a joint-coverage bug.
+   - Reason: fix coverage, not tracking.
+2. `fx_staff.c` `StaffRibbonSegment`: extend each segment half a width past both ends along its axis (overlap lens over the joint; both sides sample the same clean background so double-blend is nearly invisible). Per-frame bends are gentle (fast sampling; reversals pass through the sub-threshold hold), so half-width overlap covers them.
+   - Reason: connected-bend read without multi-point ribbon surgery (T3 candidate if this proves insufficient).
+3. Presence: `r_trail_strength` default 0.035 -> 0.09; widths 6/8/10 -> 9/12/14 world units (L1/L2/L3). All still live-tunable.
+   - Reason: "too small" addressed on both axes (warp amount + ribbon body).
+4. Rebuilt all (no errors), refreshed TrailT1 stage + README default, repackaged (15 files verified).
+   - Reason: ship to tester.
+5. Next: commit + push, move `R8_7_TrailT1` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

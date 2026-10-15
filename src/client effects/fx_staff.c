@@ -108,6 +108,16 @@ static qboolean StaffRibbonSegment(client_entity_t* self, centity_t* owner, int 
 		return true;
 	}
 
+	// Overlap joints: extend each segment half a width past both ends along
+	// its axis. Adjacent segments are independent quads, so without this the
+	// outside of every bend gaps open and reads as a second, separate trail.
+	// The overlap lens keeps bends connected (both sample the same clean
+	// background, so double-blend there is nearly invisible).
+	vec3_t segDir, segStart, segEnd;
+	VectorNormalize2(seg, segDir);
+	VectorMA(ribbon_prev_tip, -width * 0.5f, segDir, segStart);
+	VectorMA(tipWorld, width * 0.5f, segDir, segEnd);
+
 	client_entity_t* ribbon = ClientEntity_new(FX_SPELLHANDS, CEF_NOMOVE, tipWorld, NULL, RIBBON_SEG_LIFE);
 	ribbon->r.model = &staff_models[modelIdx];
 	ribbon->r.spriteType = SPRITE_LINE;
@@ -118,8 +128,8 @@ static qboolean StaffRibbonSegment(client_entity_t* self, centity_t* owner, int 
 	ribbon->d_alpha = -(alpha / ((float)RIBBON_SEG_LIFE / 1000.0f));
 	ribbon->r.color.c = color;
 	ribbon->r.tile = 1.0f;
-	VectorCopy(ribbon_prev_tip, ribbon->r.startpos);
-	VectorCopy(tipWorld, ribbon->r.endpos);
+	VectorCopy(segStart, ribbon->r.startpos);
+	VectorCopy(segEnd, ribbon->r.endpos);
 
 	// Cull by segment midpoint + half-length so long fast swings aren't
 	// point-culled at the tip.
@@ -160,7 +170,7 @@ static qboolean StaffLevel3Update(client_entity_t* self, centity_t* owner) //mxd
 
 	// T1 ribbon: chain world-space LINE segments instead of sprite puffs.
 	if (ribbon_mode)
-		return StaffRibbonSegment(self, owner, ref_index, STAFF_TRAIL2, color_white.c, 10.0f, 0.75f);
+		return StaffRibbonSegment(self, owner, ref_index, STAFF_TRAIL2, color_white.c, 14.0f, 0.75f);
 
 	//mxd. Clamp instead of removing the effect (see StaffLevel1Update).
 	int num_of_intervals = GetScaledCount((int)(VectorLength(diff) * 0.5f), 1.0f);
@@ -292,7 +302,7 @@ static qboolean StaffLevel2Update(client_entity_t* self, centity_t* owner) //mxd
 			COLOUR_SETA(ribbon_col, irand(236, 255), rc, rc, irand(80, 192));
 		else
 			COLOUR_SETA(ribbon_col, rc, rc, irand(236, 255), irand(80, 192));
-		return StaffRibbonSegment(self, owner, ref_index, STAFF_TRAIL3, ribbon_col.c, 8.0f, 0.75f);
+		return StaffRibbonSegment(self, owner, ref_index, STAFF_TRAIL3, ribbon_col.c, 12.0f, 0.75f);
 	}
 
 	//mxd. Clamp instead of removing the effect (see StaffLevel1Update).
@@ -382,7 +392,7 @@ static qboolean StaffLevel1Update(client_entity_t* self, centity_t* owner) //mxd
 	// T1 ribbon: chain world-space LINE segments instead of sprite puffs.
 	if (ribbon_mode)
 		return StaffRibbonSegment(self, owner, ref_index, STAFF_TRAIL,
-			((owner->current.effects & EF_BLOOD_ENABLED) ? 0x50000018 : self->color.c), 6.0f, 0.5f);
+			((owner->current.effects & EF_BLOOD_ENABLED) ? 0x50000018 : self->color.c), 9.0f, 0.5f);
 
 	//mxd. Clamp instead of removing the effect: a fast swing used to push this past 40 and kill the whole
 	//trail mid-attack, so it only tracked the blade for the first frame or two.
