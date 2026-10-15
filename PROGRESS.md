@@ -559,10 +559,12 @@ Steps:
    - Reason: review, don't assume — no runtime here.
 5. Rebuilt all (no errors), repackaged R8.7 (15 files), staged + README line.
    - Reason: ship to tester per standing release rhythm.
-6. Next: commit + push, move `R8_7` tag, re-upload asset.
+6. Ran `git add` (8 files), commit `d22a7526` (+898/-732, see below), `git push origin Beta`; moved tag `R8_7`; `gh release upload --clobber` (6664878 bytes, updated 2026-10-15T05:22:41Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
+7. Post-commit hygiene: the +898/-732 was line-ending churn (a python edit normalized menu_video.c LF vs repo CRLF) — real change is +47/-8. Restored CRLF in fixup `f1b0de61`, pushed. Binaries identical (endings don't compile), so no re-release; tag stays on `d22a7526`. Lesson: repo files only via the preserving Edit tool, never script rewrites.
+   - Reason: keep blame/diffs reviewable going forward.
 
-Result: pending push/upload (see next entry update after push).
+Result: `f1b0de61` pushed, R8.7 asset refreshed with integer scaling. Retest ask: upscale crispness at 2x/3x/4x, UI crispness, letterbox bars, FPS gain.
 
 ## 2026-10-13 — Explored integer scaling via GLSL (no code change)
 
