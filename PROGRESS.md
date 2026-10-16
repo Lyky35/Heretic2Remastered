@@ -1033,4 +1033,4 @@ Steps:
 4. Next: `git add` (shader + PROGRESS.md), commit, `git push origin Beta`, move tag `R8_8_Beta`, re-upload asset.
    - Reason: complete "commit and push after each portion" + tag hygiene.
 
-Result: pending push (see next entry update after push).
+Result: `65bbceb9` pushed to `origin/Beta`; tag on it; asset re-uploaded (6705934 bytes, 2026-10-16T02:26:47Z). Retest ask: `r_pbr 1` — baked light + dynamic lights (fires, dlights) must show their variation again while spec/preset tint rides on top; `r_pbr_debug 2` visible at night too.
