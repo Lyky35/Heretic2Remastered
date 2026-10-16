@@ -365,6 +365,26 @@ void WeaponThink_SwordStaff(edict_t* caster, char* format, ...)
 
 			T_Damage(trace.ent, caster, caster, fwd, trace.endpos, hit_dir, (int)damage, (int)(damage * 4.0f), dflags, MOD_STAFF);
 
+			// Constant bleed on staff-struck monsters (visual drips, refreshed per hit).
+			// Wound offset stored rel monster angles (pos1/movedir); drips emitted in
+			// CheckContinuousAutomaticEffects while bleed_time holds. Dies with the
+			// monster (state on the victim: no extra edict, no cleanup, no save).
+			if ((trace.ent->svflags & SVF_MONSTER) && trace.ent->health > 0 &&
+				(trace.ent->materialtype == MAT_FLESH || trace.ent->materialtype == MAT_INSECT) &&
+				BLOOD_LEVEL > VIOLENCE_NONE)
+			{
+				vec3_t bfwd, bright, bup, boff;
+				AngleVectors(trace.ent->s.angles, bfwd, bright, bup);
+				VectorSubtract(trace.endpos, trace.ent->s.origin, boff);
+				trace.ent->pos1[0] = DotProduct(boff, bfwd);
+				trace.ent->pos1[1] = DotProduct(boff, bright);
+				trace.ent->pos1[2] = DotProduct(boff, bup);
+				trace.ent->movedir[0] = DotProduct(hit_dir, bfwd);
+				trace.ent->movedir[1] = DotProduct(hit_dir, bright);
+				trace.ent->movedir[2] = DotProduct(hit_dir, bup);
+				trace.ent->bleed_time = level.time + 7.0f;
+			}
+
 			// If we hit a monster, stick a trail of blood on the staff...
 			if (trace.ent->svflags & SVF_MONSTER)
 			{

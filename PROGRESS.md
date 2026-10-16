@@ -854,3 +854,20 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `a72d854c` pushed, R8.7 asset refreshed. Retest ask: filtering ladder look + fallback mapping.
+
+## 2026-10-13 — Implemented constant staff-hit bleed (visual, server-driven)
+
+Approved proposal (design improved during reads: state on victim, no new edict).
+Steps:
+1. `g_Edict.h`: one field `bleed_time` (wound offset reuses generic `pos1`/`movedir`). No save entry (transient like `fire_damage_time`, which also isn't saved — bleed just ends on load).
+   - Reason: minimal footprint; no save-format touch.
+2. `g_weapon.c` hook post-`T_Damage`: living `SVF_MONSTER`, flesh/insect, violence on → wound offset/dir stored rel monster angles, `bleed_time = +7s` refreshed per hit. Players excluded (own bleeder system).
+   - Reason: exact wound point captured where the trace exists.
+3. `g_main.c` `CheckContinuousAutomaticEffects`: drip block every ~0.2s (`FX_BLOOD`, amount 3, insect flag preserved) while time holds + alive; health gate stops on death; state dies with the monster — zero cleanup code, zero UAF surface (this killed the separate-thinker design).
+   - Reason: piggybacks the per-entity tick every monster already runs.
+4. Rebuilt all (only pre-existing `g_save_x86.c` warning), repackaged R8.8 Beta (15 files), staged.
+   - Reason: ship to tester.
+5. Next: commit + push, move `R8_8_Beta` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

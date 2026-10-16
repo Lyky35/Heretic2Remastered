@@ -522,6 +522,26 @@ void CheckContinuousAutomaticEffects(edict_t* self)
 		self->fire_damage_time = 0.0f;
 		self->s.effects &= ~EF_ON_FIRE; // Notify the fire to stop.
 	}
+
+	// Staff-wound bleed: periodic visual drips from the stored wound offset
+	// (see g_weapon.c). Visual only, no damage. Stops on death automatically
+	// (health gate); state dies with the monster, nothing to clean up.
+	if (self->bleed_time > level.time && self->health > 0 &&
+		(self->svflags & SVF_MONSTER) && !((byte)(level.time * 10) & 1))
+	{
+		vec3_t bfwd, bright, bup, bleed_pos, bleed_dir;
+		AngleVectors(self->s.angles, bfwd, bright, bup);
+		VectorMA(self->s.origin, self->pos1[0], bfwd, bleed_pos);
+		VectorMA(bleed_pos, self->pos1[1], bright, bleed_pos);
+		VectorMA(bleed_pos, self->pos1[2], bup, bleed_pos);
+		VectorScale(bfwd, self->movedir[0], bleed_dir);
+		VectorMA(bleed_dir, self->movedir[1], bright, bleed_dir);
+		VectorMA(bleed_dir, self->movedir[2], bup, bleed_dir);
+		Vec3ScaleAssign(30.0f, bleed_dir);
+
+		const int bflags = (self->materialtype == MAT_INSECT) ? CEF_FLAG8 : 0;
+		gi.CreateEffect(NULL, FX_BLOOD, bflags, bleed_pos, "ub", bleed_dir, 3);
+	}
 }
 
 static void EntityThink(edict_t* self)

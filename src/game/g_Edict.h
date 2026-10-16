@@ -424,6 +424,7 @@ struct edict_s
 
 	float fire_damage_time;	// Fire damage length.
 	float fire_timestamp;	// Timestamp weapons and damaged entities, so that the same weapon can't hurt an entity twice.
+	float bleed_time;	// Staff-wound bleed length (visual drips via CheckContinuousAutomaticEffects; wound offset in pos1/movedir).
 
 	// Used by shrines.
 	void (*oldtouch)(edict_t* self, edict_t* other, cplane_t* plane, csurface_t* surf);
