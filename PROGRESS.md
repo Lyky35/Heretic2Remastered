@@ -1063,4 +1063,4 @@ Steps:
 4. Next: `git add` (4 sources + PROGRESS.md), commit, `git push origin Beta`, move tag `R8_8_Beta`, re-upload asset.
    - Reason: complete "commit and push after each portion" + tag hygiene.
 
-Result: pending push (see next entry update after push).
+Result: `6d1d9d55` pushed to `origin/Beta`; tag on it; asset re-uploaded (6706013 bytes, 2026-10-16T02:46:51Z). Retest ask: preset 3 night — moonlit surfaces should show sky shading + spec variation (not flat); other presets unchanged.
