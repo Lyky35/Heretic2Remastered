@@ -855,16 +855,3 @@ Steps:
    - Reason: complete "commit and push after each portion" for this prep portion.
 
 Result: `24ab4990` pushed. No release refresh (prep only).
-
-## 2026-10-13 — Warp polys 16u -> 8u (ripple grid density)
-
-Request: yet denser, to the point W1 detail has something to stand on.
-Steps:
-1. Set 8u: the 8.0f minimum-split guard makes this the effective floor (~8-16u pieces, ~2-4x the 16u count) with zero guard changes. Below 8u would need guard surgery for diminishing returns — declined, stated.
-   - Reason: W1 ring wavelength will be designed >= 24u (3+ quads per wave); grid + wavelength matched by construction, normals carry sharpness.
-2. Rebuilt all (no errors). No release (prep; rides next R8.8 Beta refresh).
-   - Reason: same standing rule as the 16u step.
-3. Ran `git add` (gl3_Warp.c, PROGRESS.md), commit `1cc745c9` (+18/-4), `git push origin Beta` — succeeded.
-   - Reason: complete "commit and push after each portion" for this prep portion.
-
-Result: `1cc745c9` pushed. Grid is as dense as the subdivider goes without guard surgery.
