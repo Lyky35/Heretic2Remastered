@@ -19,9 +19,19 @@ It uses same effect as 3dmark01 lobby scene for water.
 (There are still some issues with water.)
 (Since its still on old OpenGL, there's significant CPU load on draw calls.)
 
+* Dynamic Skyboxes
+Fully dynamic volumetric sky with clouds
+(has implementation for different time of the day.)
+
+* Staff trail effects
+Restored original effects for up tiered staff
+Added distortion effects instead of original base staff.
+(The same effect you had in Max Payne *bullet distortion.)
+
 * Bump mapping
 Currently disabled, lack of proper textures, and water texture to do decent visuals.
-(Can be played with r_bump_scale_world 0.3 and higher, and r_bump_scale_water 0.5 and higher.)
+(Note1: Can be played with r_bump_scale_world 0.3 and higher, and r_bump_scale_water 0.5 and higher.)
+(Note2: PBR pipe has been created, ORM companion textures haven't been implemented - needs art assets for pbr)
 
 * Rebuild in mingw-w64 cross compiler
 Now it can be compiled with cmake, no longer needs msvc.
@@ -110,16 +120,13 @@ The engine loads content from `base.pak`, `Htic2-0.pak` through `Htic2-9.pak`, a
 
 * Vulkan rewrite + test technology
 * Test First-Person-Perspective
-* Re-do skyboxes
 * Re-create 3d models to make them look more up to date.
-* Create PBR workflow textures.
 * SSAO for objects (Not for water)
 * Gentle GI (potentially pre-baking light planes.)
 * Create nicer particle effects with physical collisions
 * Add water displacement when play or mobs move in it.
 * Add water refraction things underwater.
 * Get water caustics to work.
-* Re-add staff effects that are currently ?gone? or aren't working.
 * HDR?
 * 3D Sound
 
