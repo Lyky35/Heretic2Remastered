@@ -1424,7 +1424,7 @@ void GL3_SkyDyn_PbrSky(float* top, float* bottom, float* lightDirW, float* light
 // brush-model rotations are ignored — main-view sun, noted Beta limitation).
 void GL3_SkyDyn_UpdatePbr(void)
 {
-	float top[3], bottom[3], lw[3], lc[3], lv[3];
+	float top[3], bottom[3], lw[3], lc[3], lv[3], up[3];
 	float vx, vy, vz, len, strength;
 	int debug;
 
@@ -1435,7 +1435,11 @@ void GL3_SkyDyn_UpdatePbr(void)
 		strength = 0.0f;
 	if (strength > 1.5f)
 		strength = 1.5f;
-	debug = (r_pbr_debug != NULL && (int)r_pbr_debug->value == 1) ? 1 : 0;
+	debug = (r_pbr_debug != NULL) ? (int)r_pbr_debug->value : 0;
+	if (debug < 0)
+		debug = 0;
+	if (debug > 2)
+		debug = 2;
 
 	GL3_SkyDyn_PbrSky(top, bottom, lw, lc);
 
@@ -1452,7 +1456,19 @@ void GL3_SkyDyn_UpdatePbr(void)
 		lv[0] = 0.3f; lv[1] = 0.5f; lv[2] = 0.8f;
 	}
 
-	GL3_UpdatePbrSky(top, bottom, lv, lc, strength, debug);
+	// World-up (H2 +Z) in view space = third row of the view matrix.
+	vx = r_world_matrix[2]; vy = r_world_matrix[6]; vz = r_world_matrix[10];
+	len = sqrtf(vx * vx + vy * vy + vz * vz);
+	if (len > 1e-6f)
+	{
+		up[0] = vx / len; up[1] = vy / len; up[2] = vz / len;
+	}
+	else
+	{
+		up[0] = 0.0f; up[1] = 0.0f; up[2] = 1.0f;
+	}
+
+	GL3_UpdatePbrSky(top, bottom, lv, lc, up, strength, debug);
 }
 
 qboolean GL3_SkyDyn_DrawDebug(void)

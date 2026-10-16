@@ -68,7 +68,7 @@ extern cvar_t* r_bump;
 extern cvar_t* r_bump_scale_world;
 extern cvar_t* r_bump_scale_water;
 extern cvar_t* r_pbr;        // Per-surface PBR specular strength (0 = off, pixel-identical).
-extern cvar_t* r_pbr_debug;  // 0 off, 1 tint world by material ID (gravel/metal/stone/wood).
+extern cvar_t* r_pbr_debug;  // 0 off, 1 tint by material ID, 2 sky-ambient feed test.
 extern cvar_t* r_caustics;
 extern cvar_t* r_caustics_strength;
 extern cvar_t* r_hd_textures;
@@ -292,6 +292,7 @@ typedef struct
 	GLint uni3DLM_skyBottom;		// vec3: PBR sky ambient bottom.
 	GLint uni3DLM_sunDirV;		// vec3: PBR sun/moon dir, view space.
 	GLint uni3DLM_sunColor;		// vec3: PBR sun/moon color.
+	GLint uni3DLM_worldUpV;		// vec3: PBR world-up axis in view space.
 
 	// VAO/VBO for 2D drawing
 	GLuint vao2D;

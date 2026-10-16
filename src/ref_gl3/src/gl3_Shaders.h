@@ -25,10 +25,10 @@ extern void GL3_SetWorldSpace(int world_space);
 extern void GL3_UpdateCaustics(float water_z, float strength, float time);
 
 // Per-surface PBR (P0/P1): per-poly material ID + per-frame sky/sun feed
-// for shader3DLightmap. Sun dir is passed in view space (normalized).
+// for shader3DLightmap. Sun dir and world-up are passed in view space.
 extern void GL3_SetPbrMaterial(const int material);
 extern void GL3_UpdatePbrSky(const float* skyTop, const float* skyBottom,
-	const float* sunDirV, const float* sunColor,
+	const float* sunDirV, const float* sunColor, const float* worldUpV,
 	const float strength, const int debug);
 
 // Per-draw color helpers.

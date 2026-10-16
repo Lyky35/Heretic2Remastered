@@ -986,4 +986,21 @@ Steps:
 6. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
    - Reason: complete "commit and push after each portion" for this release portion.
 
+Result: `f698c65a` pushed to `origin/Beta`. Tag `R8_8_Beta` on the PBR code commit; HEAD adds only this log.
+
+## 2026-10-16 — PBR preset response fix (directional sky ambient + debug 2)
+
+Report: `r_sky_preset` changes nothing with `r_pbr 1` and/or `r_pbr_debug 1`; debug 1 shows all 4 material tints (green/brown/tan-white/light-blue) — IDs work.
+Steps:
+1. Diagnosed: feed plumbing verified correct (`PbrSky` resolves live preset incl. auto, same-call upload as the working debug uniform in `UpdatePbr`). Two real causes: (a) `r_pbr_debug 1` is flat tints BY DESIGN (preset-independent audit) — correct, documented; (b) at strength 1.0 the preset response was genuinely subtle (flat 0.15 sky-avg ambient + weak broad spec on mostly-rough gravel/stone; only night would read clearly).
+   - Reason: fix visibility, not plumbing.
+2. `fragmentSource3DLM`: ambient is now directional — `reflect(-V,Nf)` sampled along new `uWorldUpV` (`mix(uSkyBottom,uSkyTop,upness)`, strength 0.15 -> 0.30); added `r_pbr_debug 2` sky-ambient feed view (`diffuse * skyAvg`, preset-driven, no spec) as the decisive feed test. `gl3_Local.h`/`Shaders.c` location + init default `(0,0,1)` + `GL3_UpdatePbrSky` carries `worldUpV`; header decl updated.
+   - Reason: floors catch horizon color, walls catch zenith — preset switches re-tint every surface; debug 2 proves the feed independent of spec angles.
+3. `GL3_SkyDyn_UpdatePbr`: world-up (H2 +Z) to view space via third view-matrix row; debug clamped 0..2.
+   - Reason: same rotation-only transform as the sun; reflection pass stays correct (current `r_world_matrix` per pass).
+4. Rebuilt all (zero warnings/errors), verified `uWorldUpV` in fresh DLL, restaged (md5-verified), re-zipped, re-uploaded asset, updated in-zip README (debug 1 by-design note + debug 2).
+   - Reason: tester needs new binaries; caught a staging mis-fire (wrong workdir → stale DLLs zipped, then redone with absolute paths + md5 proof) before publishing.
+5. Next: `git add` (3 sources + PROGRESS.md), commit, `git push origin Beta`; move tag `R8_8_Beta` to the code commit.
+   - Reason: complete "commit and push after each portion" + tag hygiene (tag = code tree).
+
 Result: pending push (see next entry update after push).

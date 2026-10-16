@@ -175,6 +175,7 @@ static const char* fragmentSource3DLM =
 	"uniform vec3 uSkyBottom;\n"
 	"uniform vec3 uSunDirV;\n"      // PBR sun/moon dir, view space, normalized.
 	"uniform vec3 uSunColor;\n"     // PBR sun/moon color (night = dim moon blue).
+	"uniform vec3 uWorldUpV;\n"     // PBR world-up axis in view space (sky gradient direction).
 	"out vec4 FragColor;\n"
 	"void main() {\n"
 	"    vec4 diffuse = texture(uDiffuse, vTexCoord);\n"
@@ -186,6 +187,11 @@ static const char* fragmentSource3DLM =
 	"        else if (uMaterial == 2) dbg = vec3(0.75, 0.72, 0.68);\n" // 2 stone: warm gray
 	"        else if (uMaterial == 3) dbg = vec3(0.55, 0.38, 0.22);\n" // 3 wood: brown
 	"        FragColor = vec4(dbg, diffuse.a) * uColor;\n"
+	"        return;\n"
+	"    }\n"
+	"    if (uPbrDebug == 2) {\n" // sky-ambient feed test: preset-driven, no sun spec
+	"        vec3 skyAvg = (uSkyTop + uSkyBottom) * 0.5;\n"
+	"        FragColor = vec4(diffuse.rgb * skyAvg, diffuse.a) * uColor;\n"
 	"        return;\n"
 	"    }\n"
 	"    float h = dot(diffuse.rgb, vec3(0.299, 0.587, 0.114));\n"
@@ -224,8 +230,13 @@ static const char* fragmentSource3DLM =
 	"        vec3 Fr = F0 + (vec3(1.0) - F0) * pow(1.0 - max(dot(Ph, V), 0.0), 5.0);\n"
 	"        float specAmt = pow(max(dot(Nf, Ph), 0.0), specPow) * (0.25 + 0.75 * (1.0 - pRough));\n"
 	"        if (pMetal > 0.5) specAmt *= 1.5;\n"
-	"        vec3 skyAvg = (uSkyTop + uSkyBottom) * 0.5;\n"
-	"        vec3 pAmb = diffuse.rgb * skyAvg * 0.15 * (1.0 - pMetal * 0.5);\n"
+	// Directional sky ambient: reflect the view ray off the face and sample
+	// the preset gradient along world-up, so r_sky_preset visibly re-tints
+	// every surface (floors catch horizon color, walls catch zenith).
+	"        vec3 Rv = reflect(-V, Nf);\n"
+	"        float upness = clamp(dot(Rv, normalize(uWorldUpV)) * 0.5 + 0.5, 0.0, 1.0);\n"
+	"        vec3 skyRef = mix(uSkyBottom, uSkyTop, upness);\n"
+	"        vec3 pAmb = diffuse.rgb * skyRef * 0.30 * (1.0 - pMetal * 0.5);\n"
 	"        lit += (uSunColor * (Fr * specAmt) + pAmb) * uPbrStrength;\n"
 	"    }\n"
 	"    FragColor = vec4(lit, diffuse.a) * uColor;\n"
@@ -820,6 +831,7 @@ qboolean GL3_InitShaders(void)
 	gl3state.uni3DLM_skyBottom  = glGetUniformLocation(gl3state.shader3DLightmap, "uSkyBottom");
 	gl3state.uni3DLM_sunDirV    = glGetUniformLocation(gl3state.shader3DLightmap, "uSunDirV");
 	gl3state.uni3DLM_sunColor   = glGetUniformLocation(gl3state.shader3DLightmap, "uSunColor");
+	gl3state.uni3DLM_worldUpV   = glGetUniformLocation(gl3state.shader3DLightmap, "uWorldUpV");
 
 	// Bind sampler units once
 	GL3_UseShader(gl3state.shader2D);
@@ -846,6 +858,7 @@ qboolean GL3_InitShaders(void)
 	glUniform3f(gl3state.uni3DLM_skyBottom, 0.9f, 0.9f, 0.95f);
 	glUniform3f(gl3state.uni3DLM_sunDirV, 0.3f, 0.5f, 0.8f);
 	glUniform3f(gl3state.uni3DLM_sunColor, 1.0f, 1.0f, 1.0f);
+	glUniform3f(gl3state.uni3DLM_worldUpV, 0.0f, 0.0f, 1.0f);
 
 	// --- Create shared 2D VAO/VBO ---
 	glGenVertexArrays(1, &gl3state.vao2D);
@@ -1252,9 +1265,10 @@ void GL3_SetPbrMaterial(const int material)
 }
 
 // PBR (P1): per-frame sky/sun feed from the dynamic-sky presets + master.
-// `sunDirV` is the sun/moon direction in view space (normalized on upload).
+// `sunDirV` is the sun/moon direction in view space, `worldUpV` the world-up
+// axis in view space (both normalized on upload).
 void GL3_UpdatePbrSky(const float* skyTop, const float* skyBottom,
-	const float* sunDirV, const float* sunColor,
+	const float* sunDirV, const float* sunColor, const float* worldUpV,
 	const float strength, const int debug)
 {
 	GL3_UseShader(gl3state.shader3DLightmap);
@@ -1262,6 +1276,7 @@ void GL3_UpdatePbrSky(const float* skyTop, const float* skyBottom,
 	glUniform3f(gl3state.uni3DLM_skyBottom, skyBottom[0], skyBottom[1], skyBottom[2]);
 	glUniform3f(gl3state.uni3DLM_sunDirV, sunDirV[0], sunDirV[1], sunDirV[2]);
 	glUniform3f(gl3state.uni3DLM_sunColor, sunColor[0], sunColor[1], sunColor[2]);
+	glUniform3f(gl3state.uni3DLM_worldUpV, worldUpV[0], worldUpV[1], worldUpV[2]);
 	glUniform1f(gl3state.uni3DLM_pbrStrength, strength);
 	glUniform1i(gl3state.uni3DLM_pbrDebug, debug);
 }
