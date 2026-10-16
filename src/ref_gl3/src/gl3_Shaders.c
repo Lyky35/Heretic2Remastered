@@ -189,9 +189,11 @@ static const char* fragmentSource3DLM =
 	"        FragColor = vec4(dbg, diffuse.a) * uColor;\n"
 	"        return;\n"
 	"    }\n"
-	"    if (uPbrDebug == 2) {\n" // sky-ambient feed test: preset tints the lit world
-	"        vec3 skyAvg = max((uSkyTop + uSkyBottom) * 0.5 * 2.0, vec3(0.35));\n"
-	"        vec3 dblit = diffuse.rgb * lm.rgb * skyAvg;\n"
+	"    if (uPbrDebug == 2) {\n" // sky feed test: full-strength lights, preset as gentle hue tint
+	"        vec3 skyTint = (uSkyTop + uSkyBottom) * 0.5;\n"
+	"        float luma = max(dot(skyTint, vec3(0.299, 0.587, 0.114)), 0.08);\n"
+	"        vec3 tint = vec3(1.0) + (skyTint / luma - vec3(1.0)) * 0.5;\n"
+	"        vec3 dblit = diffuse.rgb * lm.rgb * tint;\n"
 	"        FragColor = vec4(dblit, diffuse.a) * uColor;\n"
 	"        return;\n"
 	"    }\n"

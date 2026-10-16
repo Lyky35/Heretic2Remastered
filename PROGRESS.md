@@ -1034,3 +1034,18 @@ Steps:
    - Reason: complete "commit and push after each portion" + tag hygiene.
 
 Result: `65bbceb9` pushed to `origin/Beta`; tag on it; asset re-uploaded (6705934 bytes, 2026-10-16T02:26:47Z). Retest ask: `r_pbr 1` — baked light + dynamic lights (fires, dlights) must show their variation again while spec/preset tint rides on top; `r_pbr_debug 2` visible at night too.
+
+## 2026-10-16 — Debug 2 keeps lights at full strength (hue tint, not dimming multiplier)
+
+Report: with `r_pbr_debug 2`, baked/dynamic light emission still too weak.
+Steps:
+1. Root cause (static): debug 2 multiplied the lit world by the preset's RAW brightness (`max(skyAvg*2, 0.35)`), so at night (skyAvg ~0.1) the baked/dynamic lights were scaled to ~35% — the feed test itself was dimming the very lights it was meant to show. `diffuse*lm` was present but under a dark multiplier.
+   - Reason: a feed test must not dim the subject.
+2. `fragmentSource3DLM` debug 2: preset is now applied as a gentle HUE tint around 1.0 — `tint = 1 + (skyTint/luma - 1)*0.5` (luminance-normalized so overall brightness is preserved) — and `dblit = diffuse * lm * tint`. Baked/dynamic lights render at full strength; preset shows as a color shift (day near-neutral, night blue, sunset magenta).
+   - Reason: lights stay full-strength, preset still clearly visible.
+3. Rebuilt all (zero warnings/errors), verified GLSL, restaged (md5-verified), re-zipped.
+   - Reason: ship to tester.
+4. Next: `git add` (shader + PROGRESS.md), commit, `git push origin Beta`, move tag `R8_8_Beta`, re-upload asset.
+   - Reason: complete "commit and push after each portion" + tag hygiene.
+
+Result: pending push (see next entry update after push).
