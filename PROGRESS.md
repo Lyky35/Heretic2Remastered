@@ -1004,3 +1004,18 @@ Steps:
    - Reason: complete "commit and push after each portion" + tag hygiene (tag = code tree).
 
 Result: `fc6687b2` pushed to `origin/Beta`; tag `R8_8_Beta` corrected onto it (was briefly on the pre-commit HEAD during staging — binaries match the code tree either way). Notes rewritten with debug-2 block. Retest ask: `r_pbr_debug 2` + cycle presets (feed proof), then `r_pbr 1` + presets (ambient re-tint), preset 3 night.
+
+## 2026-10-16 — Fixed debug 2 dropping baked/dynamic lights
+
+Report: `r_pbr_debug 2` works (preset tints) but dynamic/baked lights no longer render over surfaces.
+Steps:
+1. Root cause (static): debug-2 early-return computed `diffuse * skyAvg`, skipping the `lm` sample — and the lightmap texture is what carries BOTH baked lightmaps and dynamic lights (dynamics rebuild it via `R_BuildLightMap`). One-line disease, not plumbing.
+   - Reason: fix the formula, nothing else.
+2. `fragmentSource3DLM` debug 2 is now `diffuse * lm * skyAvg * 2.0` (light preserved, preset tint multiplies, x2 keeps energy near base; night goes dark = correct feed proof). Main `r_pbr 1` path already kept `diffuse*lm` — untouched.
+   - Reason: debug must stay truthful to lighting while showing the tint.
+3. Rebuilt all (zero warnings/errors), restaged (md5-verified), re-zipped, moved tag `R8_8_Beta`, re-uploaded asset. No notes change (debug-2 description still accurate).
+   - Reason: ship to tester.
+4. Next: `git add` (shader + PROGRESS.md), commit, `git push origin Beta`; tag already moved to the code commit below.
+   - Reason: complete "commit and push after each portion" + tag hygiene.
+
+Result: pending push (see next entry update after push).
