@@ -54,6 +54,7 @@ static void R_ProfileColor(const byte in_r, const byte in_g, const byte in_b, by
 
 int gl_filter_min = GL_NEAREST_MIPMAP_LINEAR; // Q2: GL_LINEAR_MIPMAP_NEAREST; H2: GL_NEAREST.
 int gl_filter_max = GL_LINEAR;
+float gl_filter_aniso = 0.0f; // 0 = leave driver default; set by R_TextureMode.
 
 //mxd
 static paletteRGBA_t* upload_buffer = NULL;
@@ -64,16 +65,20 @@ typedef struct
 	char* name;
 	int	minimize;
 	int maximize;
+	float anisotropy; // 0 = leave driver default; else explicit level (clamped to max).
 } glmode_t;
 
 static glmode_t modes[] =
 {
-	{ "GL_NEAREST", GL_NEAREST, GL_NEAREST },
-	{ "GL_LINEAR", GL_LINEAR, GL_LINEAR },
-	{ "GL_NEAREST_MIPMAP_NEAREST", GL_NEAREST_MIPMAP_NEAREST, GL_NEAREST },
-	{ "GL_LINEAR_MIPMAP_NEAREST", GL_LINEAR_MIPMAP_NEAREST, GL_LINEAR },
-	{ "GL_NEAREST_MIPMAP_LINEAR", GL_NEAREST_MIPMAP_LINEAR, GL_NEAREST },
-	{ "GL_LINEAR_MIPMAP_LINEAR", GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR }
+	{ "GL_NEAREST", GL_NEAREST, GL_NEAREST, 0.0f },
+	{ "GL_LINEAR", GL_LINEAR, GL_LINEAR, 0.0f },
+	{ "GL_NEAREST_MIPMAP_NEAREST", GL_NEAREST_MIPMAP_NEAREST, GL_NEAREST, 0.0f },
+	{ "GL_LINEAR_MIPMAP_NEAREST", GL_LINEAR_MIPMAP_NEAREST, GL_LINEAR, 0.0f },
+	{ "GL_NEAREST_MIPMAP_LINEAR", GL_NEAREST_MIPMAP_LINEAR, GL_NEAREST, 0.0f },
+	{ "GL_LINEAR_MIPMAP_LINEAR", GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, 0.0f },
+	{ "GL_TRILINEAR", GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, 1.0f },
+	{ "GL_ANISOTROPIC_X8", GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, 8.0f },
+	{ "GL_ANISOTROPIC_X16", GL_LINEAR_MIPMAP_LINEAR, GL_LINEAR, 16.0f }
 };
 
 #define NUM_GL_MODES ((int)(sizeof(modes) / sizeof(glmode_t))) //mxd. Added int cast.
@@ -238,6 +243,7 @@ void R_TextureMode(const char* string) // Q2: GL_TextureMode()
 
 	gl_filter_min = modes[cur_mode].minimize;
 	gl_filter_max = modes[cur_mode].maximize;
+	gl_filter_aniso = modes[cur_mode].anisotropy;
 
 	// Change all the existing mipmap texture objects.
 	image_t* glt = &gltextures[0];
@@ -249,6 +255,17 @@ void R_TextureMode(const char* string) // Q2: GL_TextureMode()
 
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter_min); // H2_1.07: GL_TEXTURE_MIN_FILTER -> 0x84fe //mxd. Q2/H2: qglTexParameterf
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter_max); // H2_1.07: GL_TEXTURE_MAG_FILTER -> 0x84fe //mxd. Q2/H2: qglTexParameterf
+
+			if (gl_filter_aniso > 0.0f && gl_config.max_anisotropy > 0.0f)
+			{
+				float eff = gl_filter_aniso;
+				if (eff > gl_config.max_anisotropy)
+				{
+					eff = gl_config.max_anisotropy;
+					ri.Con_Printf(PRINT_ALL, "R_TextureMode: clamped anisotropy to driver max %.0f.\n", (double)eff);
+				}
+				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, eff);
+			}
 		} //TODO: add 'texture has no mipmaps' YQ2 logic?
 	}
 }
@@ -271,6 +288,11 @@ void R_SetFilter(const image_t* image)
 		default:
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, gl_filter_min);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, gl_filter_max);
+			if (gl_filter_aniso > 0.0f && gl_config.max_anisotropy > 0.0f)
+			{
+				float eff = (gl_filter_aniso < gl_config.max_anisotropy) ? gl_filter_aniso : gl_config.max_anisotropy;
+				glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, eff);
+			}
 			break;
 	}
 }

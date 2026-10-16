@@ -822,3 +822,20 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `9ae30073` pushed, R8.8 Beta asset refreshed to R8.7-equivalent water. The ripple line is fully reverted; R8.7 stable was never affected.
+
+## 2026-10-13 — Texture Filtering menu (Nearest/Trilinear/Aniso x8/x16, both renderers)
+
+Request: options between gl_nearest and anisotropic x8/x16, in video options.
+Steps:
+1. Found the gap: both renderers resolve `gl_texturemode` through a shared 6-mode table, and gl3 forces max-aniso ONLY on HD uploads (normal textures never get aniso) — no user control anywhere.
+   - Reason: extend the existing mechanism instead of a parallel cvar.
+2. `glmode_t` gains `anisotropy` (0 = leave driver default, preserving all 6 legacy modes bit-identically); new `GL_TRILINEAR` (1.0), `GL_ANISOTROPIC_X8` (8.0), `GL_ANISOTROPIC_X16` (16.0). `R_TextureMode` applies min/mag + aniso (clamped to driver max with console note) across mipmapped textures; `R_SetFilter` applies it to new uploads (pic/sky paths untouched). Mirrored fully in gl1 (enums present in both GLAD headers; unknown names fall back safely there by construction).
+   - Reason: one cvar (`gl_texturemode`) stays the single source of truth; legacy behavior provably unchanged.
+3. Menu: "Texture Filtering" spincontrol in Basic under Anti-Aliasing (Nearest/Bilinear/Trilinear/Aniso x8/Aniso x16, Bilinear = stock default fallback); client-side `gl_texturemode` pointer plumbed via `vid_dll.h/.c` like `vid_gamma` (ref DLLs own theirs; engine cvar struct is shared).
+   - Reason: follow the existing label/callback/init-map pattern; no build-system changes.
+4. Rebuilt all (no errors), repackaged R8.7 (15 files), staged.
+   - Reason: ship to tester per standing release rhythm.
+5. Next: commit + push, move `R8_7` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

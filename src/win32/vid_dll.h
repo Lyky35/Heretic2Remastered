@@ -31,6 +31,7 @@ extern vidmode_t* vid_modes; //mxd. Static array in Q2 / H2. H2 has no mode 10.
 extern int num_vid_modes; //mxd
 
 extern cvar_t* vid_gamma;
+extern cvar_t* gl_texturemode; // Active texture filter mode (registered by ref; read by menus).
 extern cvar_t* vid_brightness; // H2
 extern cvar_t* vid_contrast; // H2
 extern cvar_t* vid_textures_refresh_required; //mxd

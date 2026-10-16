@@ -20,6 +20,7 @@ cvar_t* m_item_minlight; // YQ2
 cvar_t* m_item_detail;
 cvar_t* m_item_hd_mode;
 cvar_t* m_item_int_scaling; // "Integer Scaling".
+cvar_t* m_item_texfilter; // "Texture Filtering".
 cvar_t* m_item_antialiasing;
 cvar_t* m_item_color_profile;
 cvar_t* m_item_water_reflections;
@@ -58,6 +59,7 @@ static menulist_t s_hd_mode_list;
 static menulist_t s_int_scaling_list;
 static menulist_t s_antialiasing_list;
 static menulist_t s_color_profile_list;
+static menulist_t s_texfilter_list;
 static menulist_t s_water_reflections_list;
 static menulist_t s_water_reflection_res_list;
 static menulist_t s_light_emission_list;
@@ -128,6 +130,17 @@ static void UpdateAntiAliasingFunc(void* self)
 {
 	Cvar_SetValue("r_antialiasing", (float)s_antialiasing_list.curvalue);
 	vid_restart_required = true;
+}
+
+static void UpdateTexfilterFunc(void* self)
+{
+	static const char* mode_values[] = {
+		"GL_NEAREST", "GL_LINEAR_MIPMAP_NEAREST", "GL_TRILINEAR",
+		"GL_ANISOTROPIC_X8", "GL_ANISOTROPIC_X16"
+	};
+	const menulist_t* list = (menulist_t*)self;
+	const int idx = (list->curvalue < 0) ? 0 : (list->curvalue > 4 ? 4 : list->curvalue);
+	Cvar_Set("gl_texturemode", mode_values[idx]);
 }
 
 static void UpdateColorProfileFunc(void* self)
@@ -304,6 +317,7 @@ static void Basic_MenuInit(void)
 	static const int target_fps_values[] = { 30, 60, 90, 120, 144, 240 };
 	static const char* antialiasing_names[] = { "Off", "MSAA", "FXAA", NULL };
 	static const char* color_profile_names[] = { "sRGB", "Adobe RGB", "DCI-P3", "Rec.2020", NULL };
+	static const char* texfilter_names[] = { "Nearest", "Bilinear", "Trilinear", "Anisotropic x8", "Anisotropic x16", NULL };
 
 	static char name_vidmode[MAX_QPATH];
 	static char name_target_fps[MAX_QPATH]; //mxd
@@ -312,6 +326,7 @@ static void Basic_MenuInit(void)
 	static char name_contrast[MAX_QPATH];
 	static char name_antialiasing[MAX_QPATH];
 	static char name_color_profile[MAX_QPATH];
+	static char name_texfilter[MAX_QPATH];
 
 	s_basic_menu.nitems = 0;
 
@@ -404,6 +419,33 @@ static void Basic_MenuInit(void)
 	s_antialiasing_list.curvalue = (int)Cvar_VariableValue("r_antialiasing");
 	s_antialiasing_list.itemnames = antialiasing_names;
 
+	Com_sprintf(name_texfilter, sizeof(name_texfilter), "\x02%s", m_item_texfilter->string);
+	s_texfilter_list.generic.type = MTYPE_SPINCONTROL;
+	s_texfilter_list.generic.x = 0;
+	s_texfilter_list.generic.y = 200;
+	s_texfilter_list.generic.name = name_texfilter;
+	s_texfilter_list.generic.width = re.BF_Strlen(name_texfilter);
+	s_texfilter_list.generic.flags = QMF_SINGLELINE;
+	s_texfilter_list.generic.callback = UpdateTexfilterFunc;
+	s_texfilter_list.itemnames = texfilter_names;
+
+	// Find matching filter mode index (default to Bilinear).
+	s_texfilter_list.curvalue = 1;
+	{
+		static const char* mode_strings[] = {
+			"GL_NEAREST", "GL_LINEAR_MIPMAP_NEAREST", "GL_TRILINEAR",
+			"GL_ANISOTROPIC_X8", "GL_ANISOTROPIC_X16"
+		};
+		for (int i = 0; i < 5; i++)
+		{
+			if (Q_stricmp(gl_texturemode->string, mode_strings[i]) == 0)
+			{
+				s_texfilter_list.curvalue = i;
+				break;
+			}
+		}
+	}
+
 	Menu_AddItem(&s_basic_menu, &s_mode_list);
 	Menu_AddItem(&s_basic_menu, &s_target_fps_list);
 	Menu_AddItem(&s_basic_menu, &s_gamma_slider);
@@ -411,6 +453,7 @@ static void Basic_MenuInit(void)
 	Menu_AddItem(&s_basic_menu, &s_contrast_slider);
 	Menu_AddItem(&s_basic_menu, &s_color_profile_list);
 	Menu_AddItem(&s_basic_menu, &s_antialiasing_list);
+	Menu_AddItem(&s_basic_menu, &s_texfilter_list);
 
 	Menu_Center(&s_basic_menu);
 }

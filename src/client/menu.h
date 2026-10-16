@@ -40,6 +40,7 @@ extern cvar_t* m_item_detail;
 
 extern cvar_t* m_item_hd_mode;
 extern cvar_t* m_item_int_scaling;
+extern cvar_t* m_item_texfilter;
 extern cvar_t* m_item_antialiasing;
 extern cvar_t* m_item_color_profile;
 extern cvar_t* m_item_water_reflections;
