@@ -835,7 +835,7 @@ Steps:
    - Reason: follow the existing label/callback/init-map pattern; no build-system changes.
 4. Rebuilt all (no errors), repackaged R8.7 (15 files), staged.
    - Reason: ship to tester per standing release rhythm.
-5. Next: commit + push, move `R8_7` tag, re-upload asset.
+5. Ran `git add` (gl3/gl1 Image, menu.c/h, menu_video.c, vid_dll.c/h, PROGRESS.md), commit `a72d854c` (+121/-12), `git push origin Beta`; moved tag `R8_7`; `gh release upload --clobber` (6665463 bytes, updated 2026-10-16T00:41:52Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `a72d854c` pushed, R8.7 asset refreshed. Retest ask: filtering ladder look + fallback mapping.
