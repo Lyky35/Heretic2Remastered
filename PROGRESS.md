@@ -927,3 +927,12 @@ Findings (subagent mapped full `gl3_Shadow.c:1-363`, key claims verified):
    - Reason: soft-via-blur needs a map that doesn't exist (VSM/PCF = architecture change, deferred); blob is low-risk and covers "projection" fully.
 4. Recommended order: blob first (visible win, both renderers), B1 second, B2 only on demand; VSM/PCF explicitly out for Beta.
    - Reason: logged for the implement decision; nothing committed beyond this note.
+
+## 2026-10-13 — Explored per-surface materials + PBR feasibility (no code change)
+
+Question: do floors/walls/boxes carry stone/wood/etc. IDs, and can we add PBR?
+Findings (subagent mapped, key claims verified):
+1. YES, one exists: `flags>>24` on `csurface`/`mtexinfo` = 2-bit material (gravel/metal/stone/wood, `H2Common/SurfaceProps.c:11`), baked by the BSP compiler, plumbed to game + renderer, consumed today only for footsteps. Directly usable as a PBR material ID.
+2. Everything else is NOT usable: `MaterialID_t` (12 mats) lives only on monsters/props; decals/sparks don't branch on surface; texture paths never parsed; `.m8` paletted + HD PNG with zero companion-map (`_n/_r/_m`) loading; `r_bump` is procedural luminance-derivative (no real normal maps); no IBL (water mirror only), no roughness/metalness anywhere.
+3. PBR verdict: feasible in phases WITHOUT new assets — (P1) map the 2-bit ID to 4 PBR presets (roughness/metalness pairs) in the lightmapped world shader + analytic sky-IBL (we own the Tier-A gradient: sample by reflect dir) + keep baked lightmaps/dlights; HDR pipeline already float. (P2) HD ORM companion textures via the existing override scanner for per-pixel control. Limits stated: 4 materials max without recompiling maps (compiler-baked byte), mapper discipline unknown, paletted albedo banding (HD PNG path mitigates).
+   - Reason: logged for the implement decision; nothing committed beyond this note.
