@@ -62,7 +62,7 @@ extern void GL3_SkyDyn_DrawClouds(void);
 // Per-surface PBR sky feed (P1): live preset colors + sun/moon light in H2
 // Z-up world space (moon at night, dimmed). Presets are static data, so this
 // works with r_dynsky 0 too.
-extern void GL3_SkyDyn_PbrSky(float* top, float* bottom, float* lightDirW, float* lightColor);
+extern void GL3_SkyDyn_PbrSky(float* top, float* bottom, float* lightDirW, float* lightColor, float* night);
 // Per-frame PBR uniform upload (strength from r_pbr, debug from r_pbr_debug;
 // sun transformed to view space via r_world_matrix). Call from R_DrawWorld.
 extern void GL3_SkyDyn_UpdatePbr(void);

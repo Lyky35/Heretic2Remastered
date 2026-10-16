@@ -1049,3 +1049,18 @@ Steps:
    - Reason: complete "commit and push after each portion" + tag hygiene.
 
 Result: `3a3444ea` pushed to `origin/Beta`; tag on it; asset re-uploaded (6705935 bytes, 2026-10-16T02:36:00Z). Retest ask: `r_pbr_debug 2` — baked/dynamic lights at full strength with preset as hue tint; `r_pbr 1` lights variation preserved.
+
+## 2026-10-16 — Night PBR flatness fix (brighter night gradient + moon boost)
+
+Report: night (preset 3) lights read very flat; other presets fine.
+Steps:
+1. Root cause (static): the night preset gradient is near-uniform and near-black (top ~0.04, bottom ~0.08), so the directional sky ambient `mix(bottom,top,upness)` is ~0 at every upness — no sky-driven variation — and the moon spec was dim (0.35x). The world collapsed to flat baked light, unlike day where ambient+spec add visible shading. `r_sky_preset 3` auto-maps Silverspring/Hive, so testers hit it often.
+   - Reason: give night a usable sky response without touching other presets.
+2. `SkyDyn_Preset` night row: top (0.012,0.025,0.07)->(0.022,0.045,0.12), bottom (0.045,0.07,0.14)->(0.085,0.13,0.24) (~2x, still dark; Tier-A horizon gets a subtle glow). `PbrSky` moon light 0.35x -> 0.55x. New `uNight` uniform (threaded `PbrSky`->`UpdatePbr`->`UpdatePbrSky`) boosts the whole sky response `natt = 1 + uNight*2.5` so moonlit surfaces match other presets' shading level.
+   - Reason: ambient+spec present and varied at night; PBR-only boost (sky sky-change is subtle).
+3. Rebuilt all (zero warnings/errors), verified GLSL + `uNight` in binary, restaged (md5-verified), re-zipped.
+   - Reason: ship to tester.
+4. Next: `git add` (4 sources + PROGRESS.md), commit, `git push origin Beta`, move tag `R8_8_Beta`, re-upload asset.
+   - Reason: complete "commit and push after each portion" + tag hygiene.
+
+Result: pending push (see next entry update after push).

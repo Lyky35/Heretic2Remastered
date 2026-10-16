@@ -273,8 +273,8 @@ static void SkyDyn_Preset(int preset, float* top, float* bottom, float* sunDir,
 {
 	if (preset == 3) // night: dark sky, moon disc + stars, dim blue clouds
 	{
-		top[0] = 0.012f; top[1] = 0.025f; top[2] = 0.07f;
-		bottom[0] = 0.045f; bottom[1] = 0.07f; bottom[2] = 0.14f;
+		top[0] = 0.022f; top[1] = 0.045f; top[2] = 0.12f;
+		bottom[0] = 0.085f; bottom[1] = 0.13f; bottom[2] = 0.24f;
 		sunDir[0] = 0.35f; sunDir[1] = -0.5f; sunDir[2] = 0.30f; // below horizon
 		sunColor[0] = 0.0f; sunColor[1] = 0.0f; sunColor[2] = 0.0f;
 		moonDir[0] = -0.45f; moonDir[1] = 0.62f; moonDir[2] = -0.30f;
@@ -1390,24 +1390,26 @@ void GL3_SkyDyn_Update(void)
 // and return sky colors + the sun/moon light in H2 Z-up world space.
 // At night the moon is the light (dim cool blue); otherwise the preset sun.
 // Works with r_dynsky 0 too (presets are static data, not the drawn sky).
-void GL3_SkyDyn_PbrSky(float* top, float* bottom, float* lightDirW, float* lightColor)
+void GL3_SkyDyn_PbrSky(float* top, float* bottom, float* lightDirW, float* lightColor, float* night)
 {
-	float sunDir[3], sunColor[3], moonDir[3], moonColor[3], night;
+	float sunDir[3], sunColor[3], moonDir[3], moonColor[3], nightVal;
 	int preset = (r_sky_preset != NULL) ? (int)r_sky_preset->value : 2;
 
 	if (preset < 0 || preset > 5)
 		preset = 2;
 	if (preset == 2)
 		preset = SkyDyn_LevelPreset(); // auto follows the level table, live
-	SkyDyn_Preset(preset, top, bottom, sunDir, sunColor, moonDir, moonColor, &night);
+	SkyDyn_Preset(preset, top, bottom, sunDir, sunColor, moonDir, moonColor, &nightVal);
+	if (night != NULL)
+		*night = nightVal;
 
 	if (preset == 3)
 	{
 		// H2 Z-up swizzle, same as the Tier-A upload (x, z, y).
 		lightDirW[0] = moonDir[0]; lightDirW[1] = moonDir[2]; lightDirW[2] = moonDir[1];
-		lightColor[0] = moonColor[0] * 0.35f;
-		lightColor[1] = moonColor[1] * 0.35f;
-		lightColor[2] = moonColor[2] * 0.35f;
+		lightColor[0] = moonColor[0] * 0.55f;
+		lightColor[1] = moonColor[1] * 0.55f;
+		lightColor[2] = moonColor[2] * 0.55f;
 	}
 	else
 	{
@@ -1425,7 +1427,7 @@ void GL3_SkyDyn_PbrSky(float* top, float* bottom, float* lightDirW, float* light
 void GL3_SkyDyn_UpdatePbr(void)
 {
 	float top[3], bottom[3], lw[3], lc[3], lv[3], up[3];
-	float vx, vy, vz, len, strength;
+	float vx, vy, vz, len, strength, night;
 	int debug;
 
 	if (r_pbr == NULL)
@@ -1441,7 +1443,7 @@ void GL3_SkyDyn_UpdatePbr(void)
 	if (debug > 2)
 		debug = 2;
 
-	GL3_SkyDyn_PbrSky(top, bottom, lw, lc);
+	GL3_SkyDyn_PbrSky(top, bottom, lw, lc, &night);
 
 	vx = r_world_matrix[0] * lw[0] + r_world_matrix[4] * lw[1] + r_world_matrix[8] * lw[2];
 	vy = r_world_matrix[1] * lw[0] + r_world_matrix[5] * lw[1] + r_world_matrix[9] * lw[2];
@@ -1468,7 +1470,7 @@ void GL3_SkyDyn_UpdatePbr(void)
 		up[0] = 0.0f; up[1] = 0.0f; up[2] = 1.0f;
 	}
 
-	GL3_UpdatePbrSky(top, bottom, lv, lc, up, strength, debug);
+	GL3_UpdatePbrSky(top, bottom, lv, lc, up, strength, debug, night);
 }
 
 qboolean GL3_SkyDyn_DrawDebug(void)

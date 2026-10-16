@@ -293,6 +293,7 @@ typedef struct
 	GLint uni3DLM_sunDirV;		// vec3: PBR sun/moon dir, view space.
 	GLint uni3DLM_sunColor;		// vec3: PBR sun/moon color.
 	GLint uni3DLM_worldUpV;		// vec3: PBR world-up axis in view space.
+	GLint uni3DLM_night;		// float: PBR night flag (boosts sky response).
 
 	// VAO/VBO for 2D drawing
 	GLuint vao2D;

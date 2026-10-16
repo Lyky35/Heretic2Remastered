@@ -29,7 +29,7 @@ extern void GL3_UpdateCaustics(float water_z, float strength, float time);
 extern void GL3_SetPbrMaterial(const int material);
 extern void GL3_UpdatePbrSky(const float* skyTop, const float* skyBottom,
 	const float* sunDirV, const float* sunColor, const float* worldUpV,
-	const float strength, const int debug);
+	const float strength, const int debug, const float night);
 
 // Per-draw color helpers.
 extern void GL3_SetLMColor(float r, float g, float b, float a);

@@ -176,6 +176,7 @@ static const char* fragmentSource3DLM =
 	"uniform vec3 uSunDirV;\n"      // PBR sun/moon dir, view space, normalized.
 	"uniform vec3 uSunColor;\n"     // PBR sun/moon color (night = dim moon blue).
 	"uniform vec3 uWorldUpV;\n"     // PBR world-up axis in view space (sky gradient direction).
+	"uniform float uNight;\n"       // PBR night flag (1 = moonlit): boosts ambient/spec.
 	"out vec4 FragColor;\n"
 	"void main() {\n"
 	"    vec4 diffuse = texture(uDiffuse, vTexCoord);\n"
@@ -240,10 +241,10 @@ static const char* fragmentSource3DLM =
 	"        float upness = clamp(dot(Rv, normalize(uWorldUpV)) * 0.5 + 0.5, 0.0, 1.0);\n"
 	"        vec3 skyRef = mix(uSkyBottom, uSkyTop, upness);\n"
 	"        vec3 pAmb = diffuse.rgb * skyRef * 0.20 * (1.0 - pMetal * 0.5);\n"
-	// Modulate the PBR contribution by the lightmap: baked/dynamic lights
-	// keep their contrast ratio (total = lm * (diffuse + pbr*k)) instead of
-	// being flattened by a constant add. 0.4 floor keeps spec readable in shadow.
-	"        lit += (uSunColor * (Fr * specAmt) + pAmb) * uPbrStrength * max(lm.rgb, vec3(0.4));\n"
+	// Night boost: the night gradient is dark, so scale the sky response up to
+	// keep moonlit surfaces from reading flat (moon spec + ambient).
+	"        float natt = 1.0 + uNight * 2.5;\n"
+	"        lit += (uSunColor * (Fr * specAmt) * natt + pAmb * natt) * uPbrStrength * max(lm.rgb, vec3(0.4));\n"
 	"    }\n"
 	"    FragColor = vec4(lit, diffuse.a) * uColor;\n"
 	"    if (FragColor.a < 0.01) discard;\n"
@@ -838,6 +839,7 @@ qboolean GL3_InitShaders(void)
 	gl3state.uni3DLM_sunDirV    = glGetUniformLocation(gl3state.shader3DLightmap, "uSunDirV");
 	gl3state.uni3DLM_sunColor   = glGetUniformLocation(gl3state.shader3DLightmap, "uSunColor");
 	gl3state.uni3DLM_worldUpV   = glGetUniformLocation(gl3state.shader3DLightmap, "uWorldUpV");
+	gl3state.uni3DLM_night      = glGetUniformLocation(gl3state.shader3DLightmap, "uNight");
 
 	// Bind sampler units once
 	GL3_UseShader(gl3state.shader2D);
@@ -865,6 +867,7 @@ qboolean GL3_InitShaders(void)
 	glUniform3f(gl3state.uni3DLM_sunDirV, 0.3f, 0.5f, 0.8f);
 	glUniform3f(gl3state.uni3DLM_sunColor, 1.0f, 1.0f, 1.0f);
 	glUniform3f(gl3state.uni3DLM_worldUpV, 0.0f, 0.0f, 1.0f);
+	glUniform1f(gl3state.uni3DLM_night, 0.0f);
 
 	// --- Create shared 2D VAO/VBO ---
 	glGenVertexArrays(1, &gl3state.vao2D);
@@ -1275,7 +1278,7 @@ void GL3_SetPbrMaterial(const int material)
 // axis in view space (both normalized on upload).
 void GL3_UpdatePbrSky(const float* skyTop, const float* skyBottom,
 	const float* sunDirV, const float* sunColor, const float* worldUpV,
-	const float strength, const int debug)
+	const float strength, const int debug, const float night)
 {
 	GL3_UseShader(gl3state.shader3DLightmap);
 	glUniform3f(gl3state.uni3DLM_skyTop, skyTop[0], skyTop[1], skyTop[2]);
@@ -1285,6 +1288,7 @@ void GL3_UpdatePbrSky(const float* skyTop, const float* skyBottom,
 	glUniform3f(gl3state.uni3DLM_worldUpV, worldUpV[0], worldUpV[1], worldUpV[2]);
 	glUniform1f(gl3state.uni3DLM_pbrStrength, strength);
 	glUniform1i(gl3state.uni3DLM_pbrDebug, debug);
+	glUniform1f(gl3state.uni3DLM_night, night);
 }
 
 // ============================================================
