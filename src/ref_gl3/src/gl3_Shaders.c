@@ -190,8 +190,8 @@ static const char* fragmentSource3DLM =
 	"        return;\n"
 	"    }\n"
 	"    if (uPbrDebug == 2) {\n" // sky-ambient feed test: preset tints the lit world
-	"        vec3 skyAvg = (uSkyTop + uSkyBottom) * 0.5;\n"
-	"        vec3 dblit = diffuse.rgb * lm.rgb * skyAvg * 2.0;\n"
+	"        vec3 skyAvg = max((uSkyTop + uSkyBottom) * 0.5 * 2.0, vec3(0.35));\n"
+	"        vec3 dblit = diffuse.rgb * lm.rgb * skyAvg;\n"
 	"        FragColor = vec4(dblit, diffuse.a) * uColor;\n"
 	"        return;\n"
 	"    }\n"
@@ -237,8 +237,11 @@ static const char* fragmentSource3DLM =
 	"        vec3 Rv = reflect(-V, Nf);\n"
 	"        float upness = clamp(dot(Rv, normalize(uWorldUpV)) * 0.5 + 0.5, 0.0, 1.0);\n"
 	"        vec3 skyRef = mix(uSkyBottom, uSkyTop, upness);\n"
-	"        vec3 pAmb = diffuse.rgb * skyRef * 0.30 * (1.0 - pMetal * 0.5);\n"
-	"        lit += (uSunColor * (Fr * specAmt) + pAmb) * uPbrStrength;\n"
+	"        vec3 pAmb = diffuse.rgb * skyRef * 0.20 * (1.0 - pMetal * 0.5);\n"
+	// Modulate the PBR contribution by the lightmap: baked/dynamic lights
+	// keep their contrast ratio (total = lm * (diffuse + pbr*k)) instead of
+	// being flattened by a constant add. 0.4 floor keeps spec readable in shadow.
+	"        lit += (uSunColor * (Fr * specAmt) + pAmb) * uPbrStrength * max(lm.rgb, vec3(0.4));\n"
 	"    }\n"
 	"    FragColor = vec4(lit, diffuse.a) * uColor;\n"
 	"    if (FragColor.a < 0.01) discard;\n"

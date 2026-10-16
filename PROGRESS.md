@@ -1019,3 +1019,18 @@ Steps:
    - Reason: complete "commit and push after each portion" + tag hygiene.
 
 Result: `5a1a1512` pushed to `origin/Beta`; tag on it; asset re-uploaded (6705885 bytes, 2026-10-16T02:16:09Z), prerelease verified. Retest ask: `r_pbr_debug 2` should keep baked + dynamic lights under the preset tint; then `r_pbr 1` + presets + preset 3.
+
+## 2026-10-16 — PBR now preserves baked/dynamic light contrast (lightmap-modulated)
+
+Report: debug 2 works, but baked/dynamic lights no longer show on level surfaces.
+Steps:
+1. Root cause (static, from reading the diff): the PBR block ADDED a near-constant term on flat surfaces (faceted normal => uniform spec + uniform ambient), which compressed the lightmap's baked/dynamic-light contrast through the HDR tonemap — light/shadow variation flattened, so lights stopped reading. The `diffuse*lm` base was never removed (r_pbr 0 verified intact); the add was the swamp.
+   - Reason: preserve contrast structurally, not by tuning.
+2. `fragmentSource3DLM`: the PBR contribution is now modulated by the lightmap — `(spec + amb) * uPbrStrength * max(lm.rgb, vec3(0.4))` — so total = `lm * (diffuse + pbr*k)` and the lightmap's contrast ratio is preserved (lit vs shadow ~4:1 instead of compressed). Ambient coefficient 0.30 -> 0.20 (it was the main constant term). `r_pbr 0` path unchanged (strength 0). Debug 2 floored at `max(skyAvg*2, 0.35)` so the feed view stays visible at night preset.
+   - Reason: PBR becomes a modulation of existing lighting instead of a flat add; spec still readable in shadow via the 0.4 floor.
+3. Rebuilt all (zero warnings/errors), restaged (md5-verified), re-zipped. Asset/tag update next.
+   - Reason: ship to tester.
+4. Next: `git add` (shader + PROGRESS.md), commit, `git push origin Beta`, move tag `R8_8_Beta`, re-upload asset.
+   - Reason: complete "commit and push after each portion" + tag hygiene.
+
+Result: pending push (see next entry update after push).
