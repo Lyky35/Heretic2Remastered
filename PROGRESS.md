@@ -967,4 +967,4 @@ Steps:
 6. Next: `git add` (7 sources + PROGRESS.md), commit, `git push origin Beta`. No release refresh (PBR defaults off; R8.8 Beta asset stays valid).
    - Reason: complete "commit and push after each portion"; tester enables via `r_pbr 1` / `r_pbr_debug 1`.
 
-Result: pending push (see next entry update after push).
+Result: `b10f9c86` pushed to `origin/Beta`. Retest ask: `r_pbr 0` identical; `r_pbr 1` metal spec pop vs matte wood/stone; `r_pbr_debug 1` 4-color audit; preset 3 dim/cool.
