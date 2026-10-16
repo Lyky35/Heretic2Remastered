@@ -840,3 +840,18 @@ Design (all renderer-side, `ref_gl3` only; zero game/CE changes — twins alread
 6. Explicitly OUT vs Evan: wave-wave interference, persistent sloshing/rain accumulation, pool-floor caustic shadows (ours are overlay-style already). Stated so "same effects" expectations stay honest.
 7. Cost: ~150 lines, no new textures/FBOs/compute/libs/files-of-note. Phases: W1 pool+VS/FS rings, W2 reflect mip-blur + tune/ship.
    - Reason: logged for the implement decision; nothing committed beyond this note.
+
+## 2026-10-13 — Warp polys 32u -> 16u (ripple displacement prep)
+
+Request: increase warp poly density.
+Steps:
+1. Verified bounds before touching: recursion terminates via the 8.0f minimum-split guard regardless of size; per-piece vert counts shrink (not grow) with finer splits, so the 60-vert error cap and 64-vert `vbuf`/arrays are unaffected; only warp faces use `SUBDIVIDE_SIZE` (sky/tall-wall paths separate).
+   - Reason: density is safe to raise; the limits constrain input complexity, not output fineness.
+2. `gl3_Warp.c`: 32 -> 16 (~4x water tris; vertex Gerstner is cheap). Stated plainly: 16u still undersamples short ripple wavelengths for *displacement* — per-pixel normals (W1 plan) remain the detail carrier; this gives displacement something to stand on without aliasing the existing waves.
+   - Reason: needed groundwork for W1 either way; 8u held in reserve pending perf eyeballs (8x more tris from here).
+3. Rebuilt all (no errors). No release (unshipped prep; rides the next R8.8 Beta refresh).
+   - Reason: don't churn the tester release for an invisible-alone change.
+4. Next: `git add` + commit + push.
+   - Reason: complete "commit and push after each portion" for this prep portion.
+
+Result: pending push (see next entry update after push).
