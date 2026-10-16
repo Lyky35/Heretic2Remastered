@@ -223,6 +223,35 @@ void Killed(edict_t* target, edict_t* inflictor, edict_t* attacker, const int da
 		// Spawn a reward for the kill.
 		if (attacker->client != NULL)
 			SpawnReward(target, attacker);
+
+		// Staff kills keep bleeding briefly: clamp any live bleed and seed fresh
+		// kills so the corpse drips for a couple seconds (visual only, see the
+		// bleed tick in CheckContinuousAutomaticEffects). Wound from the kill
+		// point, or bbox center when the point is degenerate.
+		if (mod == MOD_STAFF &&
+			(target->materialtype == MAT_FLESH || target->materialtype == MAT_INSECT) &&
+			BLOOD_LEVEL > VIOLENCE_NONE)
+		{
+			vec3_t bfwd, bright, bup, boff, wpos;
+			if (VectorCompare(point, vec3_origin))
+			{
+				VectorAdd(target->s.origin, target->mins, wpos);
+				VectorMA(wpos, 0.5f, target->size, wpos);
+			}
+			else
+			{
+				VectorCopy(point, wpos);
+			}
+			AngleVectors(target->s.angles, bfwd, bright, bup);
+			VectorSubtract(wpos, target->s.origin, boff);
+			target->pos1[0] = DotProduct(boff, bfwd);
+			target->pos1[1] = DotProduct(boff, bright);
+			target->pos1[2] = DotProduct(boff, bup);
+			target->movedir[0] = 0.0f;
+			target->movedir[1] = 0.0f;
+			target->movedir[2] = -0.5f; // corpse ooze runs downward
+			target->bleed_time = level.time + 2.5f;
+		}
 	}
 
 	if (target->movetype == PHYSICSTYPE_PUSH || target->movetype == PHYSICSTYPE_STOP || target->movetype == PHYSICSTYPE_NONE)

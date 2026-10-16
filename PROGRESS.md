@@ -888,3 +888,18 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `2ad0d4b3` pushed, R8.8 Beta asset refreshed. Retest ask: floors under bleeding monsters accumulate splats.
+
+## 2026-10-13 — Corpses keep bleeding ~2.5s after staff kills
+
+Request: killed enemies still spill blood for a couple seconds.
+Steps:
+1. `g_combat.c` `Killed()`: staff-killed (`MOD_STAFF`) flesh/insect monsters get wound offset from the kill `point` (bbox-center fallback when degenerate) + downward ooze dir + `bleed_time = +2.5s` (clamps any live bleed). Violence-gated like the hit hook; players untouched.
+   - Reason: one-shot kills (hook skipped them via the then-health gate) and live bleeds both converge to ≤2.5s post-mortem.
+2. `g_main.c` tick: dropped the `health > 0` gate (bounded timestamps make it redundant — stale times self-expire; freed/gibbed/morphed edicts stop thinking). Kept monster-only + throttle.
+   - Reason: drips continue through death anims without any new cleanup surface.
+3. Rebuilt all (no errors), repackaged R8.8 Beta (15 files), staged. Floor-splat logic rides along unchanged (corpses splat beneath themselves too).
+   - Reason: ship to tester.
+4. Next: commit + push, move `R8_8_Beta` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

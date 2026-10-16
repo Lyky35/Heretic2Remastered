@@ -524,9 +524,11 @@ void CheckContinuousAutomaticEffects(edict_t* self)
 	}
 
 	// Staff-wound bleed: periodic visual drips from the stored wound offset
-	// (see g_weapon.c). Visual only, no damage. Stops on death automatically
-	// (health gate); state dies with the monster, nothing to clean up.
-	if (self->bleed_time > level.time && self->health > 0 &&
+	// (see g_weapon.c). No health gate: fresh staff kills seed ~2.5s of
+	// post-mortem ooze in Killed(), and bleed_time is bounded everywhere it
+	// is set — dead or freed monsters simply stop thinking. State dies with
+	// the monster, nothing to clean up.
+	if (self->bleed_time > level.time &&
 		(self->svflags & SVF_MONSTER) && !((byte)(level.time * 10) & 1))
 	{
 		vec3_t bfwd, bright, bup, bleed_pos, bleed_dir;
