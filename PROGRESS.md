@@ -820,7 +820,7 @@ Steps:
    - Reason: warnings-as-bugs discipline; the mingw flags don't error on these.
 4. Rebuilt all (no errors), staged `HereticIIRemastered_R8_8_Beta/` (R8.6 layout + ripple README), zipped (15 files).
    - Reason: ship to tester.
-5. Next: commit + push, tag `R8_8_Beta`, create prerelease with asset.
+5. Ran commit `221a80fd` (+153/-55, message amended from placeholder via amend + force-push Beta immediately), `git push origin Beta`; created tag `R8_8_Beta`; `gh release create` (prerelease, asset 6664901 bytes) + rewrote notes/title to R8.8 Beta — verified live with asset attached.
    - Reason: complete "commit and push after each portion" plus release.
 
-Result: pending push/release (see next entry update after push).
+Result: `221a80fd` pushed, R8.8 Beta prerelease live. Retest ask: swim/wade rings, splash rings, drip rings; r_trail_distort 0 fallback.
