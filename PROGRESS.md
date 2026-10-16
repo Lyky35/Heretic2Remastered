@@ -1064,3 +1064,18 @@ Steps:
    - Reason: complete "commit and push after each portion" + tag hygiene.
 
 Result: `6d1d9d55` pushed to `origin/Beta`; tag on it; asset re-uploaded (6706013 bytes, 2026-10-16T02:46:51Z). Retest ask: preset 3 night — moonlit surfaces should show sky shading + spec variation (not flat); other presets unchanged.
+
+## 2026-10-16 — PBR menu toggle + deploy PBR build to R8.7 stable
+
+Request: deploy to R8.7, add options-menu toggle to disable/enable PBR (r_pbr 0).
+Steps:
+1. Added "PBR" spincontrol to Advanced Options (`menu_video.c`): `s_pbr_list` (On/Off) at y=180 between minlight and detail (no row shifting), `UpdatePbrFunc` -> `Cvar_SetValue("r_pbr", curvalue==0)` (same pattern as `UpdateDynamicSkyFunc`); `m_item_pbr` label cvar ("PBR") in `menu.c` + extern in `menu.h`.
+   - Reason: user-facing On/Off mirrors the console default (r_pbr 0 = Off); no vid_restart (shader uniform).
+2. Built all (zero warnings/errors); verified `PBR`/`m_item_pbr`/`s_pbr_list`/`UpdatePbrFunc` in `quake2.dll`.
+   - Reason: menu code compiles + item registered.
+3. Full Beta rebuild; verified `r_pbr` + night fix in `ref_gl3.dll`; refreshed R8.7 stage `/tmp/opencode/R87Final` (md5-verified), rewrote `README.txt` (PBR section + menu note), re-zipped to `release/HereticIIRemastered_R8_7.zip` (15 files).
+   - Reason: R8.7 stable must equal Beta HEAD code.
+4. Next: `git add` (menu sources + PROGRESS.md), commit, `git push origin Beta`; move tag `R8_7` to Beta HEAD; `gh release upload --clobber`; rewrite notes (PBR paragraph + menu line).
+   - Reason: "into R8.7" = same release updated in place, per established pattern.
+
+Result: pending push (see next entry update after push).

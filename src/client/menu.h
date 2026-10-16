@@ -50,6 +50,7 @@ extern cvar_t* m_item_shadows;
 extern cvar_t* m_item_video_basic;
 extern cvar_t* m_item_video_advanced;
 extern cvar_t* m_item_dynsky;
+extern cvar_t* m_item_pbr;
 
 // Action keys.
 extern cvar_t* m_item_attack;

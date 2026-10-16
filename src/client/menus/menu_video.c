@@ -30,6 +30,7 @@ cvar_t* m_item_shadows;
 cvar_t* m_item_video_basic; // "Basic Settings" submenu.
 cvar_t* m_item_video_advanced; // "Advanced Options" submenu.
 cvar_t* m_item_dynsky; // "New Dynamic Sky".
+cvar_t* m_item_pbr; // "PBR".
 
 static float m_gamma;
 static float m_brightness;
@@ -65,6 +66,7 @@ static menulist_t s_water_reflection_res_list;
 static menulist_t s_light_emission_list;
 static menulist_t s_shadows_list;
 static menulist_t s_dynsky_list;
+static menulist_t s_pbr_list;
 
 static const char* ref_list_titles[MAX_REFLIBS];
 static int initial_reflib_index; // vid_ref index when entering menu.
@@ -171,6 +173,11 @@ static void UpdateShadowsFunc(void* self)
 static void UpdateDynamicSkyFunc(void* self)
 {
 	Cvar_SetValue("r_dynsky", (float)(s_dynsky_list.curvalue == 0));
+}
+
+static void UpdatePbrFunc(void* self)
+{
+	Cvar_SetValue("r_pbr", (float)(s_pbr_list.curvalue == 0));
 }
 
 // Forward declarations (hub callbacks push the submenus below).
@@ -470,6 +477,7 @@ static void Advanced_MenuInit(void)
 	static char name_hd_mode[MAX_QPATH];
 	static char name_int_scaling[MAX_QPATH];
 	static char name_dynsky[MAX_QPATH];
+static char name_pbr[MAX_QPATH];
 	static char name_water_reflections[MAX_QPATH];
 	static char name_water_reflection_res[MAX_QPATH];
 	static char name_light_emission[MAX_QPATH];
@@ -592,6 +600,17 @@ static void Advanced_MenuInit(void)
 	s_minlight_slider.maxvalue = 8.0f;
 	s_minlight_slider.curvalue = m_gl_minlight->value * 0.25f;
 
+	Com_sprintf(name_pbr, sizeof(name_pbr), "\x02%s", m_item_pbr->string);
+	s_pbr_list.generic.type = MTYPE_SPINCONTROL;
+	s_pbr_list.generic.x = 0;
+	s_pbr_list.generic.y = 180;
+	s_pbr_list.generic.name = name_pbr;
+	s_pbr_list.generic.width = re.BF_Strlen(name_pbr);
+	s_pbr_list.generic.flags = QMF_SINGLELINE;
+	s_pbr_list.generic.callback = UpdatePbrFunc;
+	s_pbr_list.curvalue = (Cvar_VariableValue("r_pbr") != 0.0f) ? 0 : 1;
+	s_pbr_list.itemnames = on_off_names;
+
 	Com_sprintf(name_detail, sizeof(name_detail), "\x02%s", m_item_detail->string);
 	s_detail_slider.generic.type = MTYPE_SLIDER;
 	s_detail_slider.generic.flags = QMF_SELECT_SOUND; //mxd. QMF_SELECT_SOUND flag was missing in original version.
@@ -613,6 +632,7 @@ static void Advanced_MenuInit(void)
 	Menu_AddItem(&s_advanced_menu, &s_light_emission_list);
 	Menu_AddItem(&s_advanced_menu, &s_shadows_list);
 	Menu_AddItem(&s_advanced_menu, &s_minlight_slider);
+	Menu_AddItem(&s_advanced_menu, &s_pbr_list);
 	Menu_AddItem(&s_advanced_menu, &s_detail_slider);
 
 	Menu_Center(&s_advanced_menu);

@@ -651,6 +651,7 @@ void M_Init(void)
 	m_item_video_basic = Cvar_Get("m_item_video_basic", "Basic Settings", 0);
 	m_item_video_advanced = Cvar_Get("m_item_video_advanced", "Advanced Options", 0);
 	m_item_dynsky = Cvar_Get("m_item_dynsky", "New Dynamic Sky", 0);
+	m_item_pbr = Cvar_Get("m_item_pbr", "PBR", 0);
 
 	// Options / Video Settings menus.
 	m_item_defaults = Cvar_Get("m_item_defaults", "Reset to Defaults", 0);
