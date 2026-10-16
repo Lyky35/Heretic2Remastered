@@ -912,7 +912,18 @@ Steps:
    - Reason: stable asset must equal Beta HEAD code; docs commits don't invalidate binaries.
 2. Moved tag `R8_7` to Beta HEAD (`f43c0ade..581f6351`, forced); `gh release upload --clobber` (6665787 bytes, updated 2026-10-16T01:21:42Z); rewrote notes with bleed paragraph — verified live.
    - Reason: "into R8.7" = same release updated in place, per established pattern.
-3. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+3. Ran `git add PROGRESS.md`, commit `757cb433`, `git push origin Beta` — succeeded (promotion logged; R8.7 asset already refreshed prior turn).
    - Reason: complete "commit and push after each portion" for this promotion portion.
 
-Result: pending push (see next entry update after push).
+Result: `757cb433` pushed (closing the stale pending note above retroactively).
+
+## 2026-10-13 — Explored soft + projection shadows (no code change)
+
+Request: explore soft shadows and projection shadows for R8.8 Beta.
+Findings (subagent mapped full `gl3_Shadow.c:1-363`, key claims verified):
+1. Technique ID (decisive): NOT stencil-volumes, NOT shadow maps — planar-projected model silhouettes (flex verts squashed onto traced floor plane via `BuildShadowMatrix`, flat black alpha, stencil only guards self-overlap). Consequence: PCF/VSM-style softening does NOT apply — no depth map exists to filter.
+2. No blob/projection infra exists (nearest reusable: scorch/decal oriented quads). gl1 has NO shadows at all (`r_shadows` registered dead).
+3. Proposed split (different features): SOFT = keep silhouette, soften via (B1) per-vert radial fade from projected centroid, then (B2) jittered accumulations only if needed; BLOB = new radial-gradient textured quad on traced hit pos/normal reusing scorch placement + existing blend/offset/stencil state. New `r_shadow_mode 0/1/2` + `r_shadow_blur`, blob texture beside `whiteTexture`. gl1 gets blob trivially, never silhouette-softening.
+   - Reason: soft-via-blur needs a map that doesn't exist (VSM/PCF = architecture change, deferred); blob is low-risk and covers "projection" fully.
+4. Recommended order: blob first (visible win, both renderers), B1 second, B2 only on demand; VSM/PCF explicitly out for Beta.
+   - Reason: logged for the implement decision; nothing committed beyond this note.
