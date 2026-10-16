@@ -62,7 +62,7 @@ Steps:
 8. Next: `git add DYNAMIC_SKY_PLAN.md PROGRESS.md`, commit, `git push origin Beta`.
    - Reason: complete "commit and push after each portion" for this planning portion.
 
-Result: `3a3444ea` pushed to `origin/Beta`; tag on it; asset re-uploaded (6705935 bytes, 2026-10-16T02:36:00Z). Retest ask: `r_pbr_debug 2` — baked/dynamic lights at full strength with preset as hue tint; `r_pbr 1` lights variation preserved.
+Result: pending push (see next entry update after push).
 
 ## 2026-10-13 — Pushed sky plan (follow-up)
 
@@ -467,7 +467,7 @@ Steps:
 5. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
    - Reason: complete "commit and push after each portion" for this research portion.
 
-Result: `3a3444ea` pushed to `origin/Beta`; tag on it; asset re-uploaded (6705935 bytes, 2026-10-16T02:36:00Z). Retest ask: `r_pbr_debug 2` — baked/dynamic lights at full strength with preset as hue tint; `r_pbr 1` lights variation preserved.
+Result: pending push (see next entry update after push).
 
 ## 2026-10-13 — Created branch `R8.7_AdvShaders` from Beta
 
@@ -836,7 +836,7 @@ Steps:
 4. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
    - Reason: complete "commit and push after each portion" for this release+research portion.
 
-Result: `3a3444ea` pushed to `origin/Beta`; tag on it; asset re-uploaded (6705935 bytes, 2026-10-16T02:36:00Z). Retest ask: `r_pbr_debug 2` — baked/dynamic lights at full strength with preset as hue tint; `r_pbr 1` lights variation preserved.
+Result: pending push (see next entry update after push).
 
 ## 2026-10-13 — Texture Filtering menu (Nearest/Trilinear/Aniso x8/x16, both renderers)
 
