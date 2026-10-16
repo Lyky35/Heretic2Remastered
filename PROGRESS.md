@@ -807,3 +807,18 @@ Findings (subagent mapped + I verified the integration points):
    - Reason: logged so the revert isn't accidentally re-litigated; the slice is independently needed here.
 5. Cost: ~120 lines (helper + 4 hooks + renderer slice), no new files/libs, entity counts bounded by existing spawn rates.
    - Reason: logged for the implement decision; nothing committed beyond this note.
+
+## 2026-10-13 — Reverted water-ripple line back to R8.7 water
+
+Report: W1 bad — revert back to R8.7 release.
+Steps:
+1. Four forward-history reverts (no rewrite), newest first via chained sequencer: `8c813e82` (W1 pool+shader), `66f508e6` (8u), `738a8265` (16u), `2c1acefa` (twins+billboard path). Each PROGRESS.md conflict resolved by keeping HEAD (full log); revert commits touch code only. (This also retired the W1 implementation/release log entries that shipped inside the reverted commits — history of the attempt stays in git log.)
+   - Reason: never rewrite pushed history; R8.7 stable itself was never polluted (W1 only ever shipped in the R8.8 Beta prerelease).
+2. Verified R8.7 water state restored: `SUBDIVIDE_SIZE` 32.0f (the R8.7 smoothing stays — only ripple prep reverted), zero `uRipples`/`FXDistortRipple`/pool/`uRadial` remnants in source and staged DLL, full build clean. Staff-ribbon LINE distortion untouched (approved, in R8.7).
+   - Reason: verify, don't assume — especially that the revert didn't take approved work with it.
+3. Rebuilt all, repackaged R8.8 Beta (15 files).
+   - Reason: testers must not stay on the bad build.
+4. Next: push branch, move `R8_8_Beta` tag, re-upload asset, then log.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).
