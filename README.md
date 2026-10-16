@@ -7,7 +7,9 @@ Heretic II Remastered is a reverse-engineered source port of Heretic II (1998, R
 > This is a Free, Non-profit passion project.
 
 
-<img width="3799" height="2131" alt="Heretic" src="https://github.com/user-attachments/assets/34d15980-28d1-4c75-b8c1-db56da9c99d4" />
+<img width="2715" height="1518" alt="image" src="https://github.com/user-attachments/assets/8384c56d-b22d-4a72-83d6-c777feba94a2" />
+
+
 
 
 
