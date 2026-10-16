@@ -824,3 +824,19 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release.
 
 Result: `221a80fd` pushed, R8.8 Beta prerelease live. Retest ask: swim/wade rings, splash rings, drip rings; r_trail_distort 0 fallback.
+
+## 2026-10-13 — Redirect: Evan-style water via multi-pass, no sim (supersedes heightfield sketch)
+
+Redirect: get the same water richness from the existing multi-pass reflection system instead of a heightfield sim. Agreed — strictly better fit, and it drops the entire sim (no compute textures, no ping-pong, no domain follow/teleport clears, no GL 4.3 gate, no stacked-water issue).
+Design (all renderer-side, `ref_gl3` only; zero game/CE changes — twins already emitted):
+1. Pass inventory (existing, reused): scene into `fbo3D`, mirror into `fboReflect`, pre-water copy into `fboRefract`; water shades from all three + Gerstner + specular. Caustics already exist (`r_caustics` on submerged geometry).
+2. New CPU ripple pool (24 slots): each frame pre-world-draw, scan `r_newrefdef.entities` for warp-only billboard twins (positions+sizes already there), register first-sightings with renderer-clock birth times, age out after ~2.5s. Feeds one `vec4` uniform array (x, y, birth, amplitude).
+   - Reason: one frame latency max, invisible; no cross-DLL API, no entity birth-time field needed.
+3. Water vertex shader: small analytic displacement (clamped — 32u warp polys can't resolve ripple wavelengths, so vertices are NOT the carrier). Water fragment shader carries it per-pixel: analytic ring normal perturb (direction x d/dr of expanding sine-gaussian rings) + refraction-UV wobble from the same pool; existing reflection/specular/fog do the rest (this is where the sun glitter comes alive).
+   - Reason: tessellation-independent; the key judgment — normals, not displacement, make ripples read.
+4. Roughness via multi-pass: `glGenerateMipmap` on the reflect texture per frame + roughness-LOD sample (calm mirror vs rippled blur from pool energy). Near-free, big Evan-look payoff.
+5. Gates/fallbacks: pool fills only from twins, which exist only under `r_trail_distort` — off/gl1 yields pure Gerstner automatically. No new cvar (maybe tuning consts later).
+   - Reason: nothing new to toggle, nothing to break.
+6. Explicitly OUT vs Evan: wave-wave interference, persistent sloshing/rain accumulation, pool-floor caustic shadows (ours are overlay-style already). Stated so "same effects" expectations stay honest.
+7. Cost: ~150 lines, no new textures/FBOs/compute/libs/files-of-note. Phases: W1 pool+VS/FS rings, W2 reflect mip-blur + tune/ship.
+   - Reason: logged for the implement decision; nothing committed beyond this note.
