@@ -823,6 +823,21 @@ Steps:
 
 Result: `9ae30073` pushed, R8.8 Beta asset refreshed to R8.7-equivalent water. The ripple line is fully reverted; R8.7 stable was never affected.
 
+## 2026-10-13 — Refreshed R8.8 Beta to current Beta + explored staff-hit bleed
+
+Request: another R8.8 Beta release; explore constant bleed where the staff strikes.
+Steps:
+1. Rebuilt all from Beta HEAD (`d93c8f8b`), verified strings, repackaged (15 files), moved tag `R8_8_Beta`, re-uploaded (6664939 bytes, updated 2026-10-16T00:51:57Z), rewrote prerelease notes/title. Verified prerelease flag + asset.
+   - Reason: R8.8 Beta was stale (ripple-revert era); tester needs current Beta.
+2. Mapped staff-hit bleed via explore subagent (grounded): damage at `g_weapon.c:366` (`T_Damage`, `MOD_STAFF`, full `trace_t` incl. `endpos`); all blood today is one-shot (`T_Damage` `FX_BLOOD` splash, decals ≤6s); `EF_BLOOD_ENABLED` is staff-side tint only; persistent precedent = burning (`EF_ON_FIRE` + `FX_FIRE_ON_ENTITY` + `CheckContinuousAutomaticEffects`) and player-only `BleederThink`/`SpawnBleeder` (`p_client.c:69`); monsters expose no usable joints (only Corvus/Insect/Priestess/Mork refs; use `CEF_OWNERS_ORIGIN` + offset like fire).
+   - Reason: know the exact hook, the templates, and the traps before proposing.
+3. Proposal (logged for implement decision): generalize the player bleeder to monsters (`g_bleed.c`, no client struct changes): hook `g_weapon.c:366-379` post-`T_Damage` (living `SVF_MONSTER`, flesh/insect, violence on) storing wound offset rel monster angles; think every 0.15-0.4s emits 2-4 `FX_BLOOD` drips (no damage, insect color captured); 6-8s duration refreshed per hit; cleanup on `Killed`/debris/free/gib/chicken + savegame think registration (mirror fire). Files: `g_weapon.c`, new `g_bleed.c/.h`, `g_Edict.h` (bleeder field, not the single `PersistantCFX` slot), `g_combat.c`, `g_debris.c`, `g_utils.c`, `g_save_defs.c`. Client `FX_BLOOD_ON_ENTITY` variant only if server drips look detached.
+   - Reason: server-driven visual-only bleed reuses proven patterns; risks named (edict leaks, spam caps, offset drift, gib/morph/cinematic edge cases).
+4. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion" for this release+research portion.
+
+Result: pending push (see next entry update after push).
+
 ## 2026-10-13 — Texture Filtering menu (Nearest/Trilinear/Aniso x8/x16, both renderers)
 
 Request: options between gl_nearest and anisotropic x8/x16, in video options.
