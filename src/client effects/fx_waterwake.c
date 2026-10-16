@@ -7,6 +7,7 @@
 #include "Client Effects.h"
 #include "Random.h"
 #include "Particle.h"
+#include "Utilities.h"
 #include "Vector.h"
 #include "g_playstats.h"
 
@@ -48,6 +49,10 @@ void FXWaterWake(centity_t* owner, int type, const int flags, vec3_t origin)
 	wake->velocity[2] = 0.0f;
 
 	AddEffect(NULL, wake);
+
+	// AdvShaders ripple twin (warp-only ring guided by this wake).
+	if (FXDistortEnabled())
+		FXDistortRipple(&wake_models[0], origin, 56.0f, 1200, 0.5f);
 
 	// Splashies too.
 	vel = min(320.0f, vel);

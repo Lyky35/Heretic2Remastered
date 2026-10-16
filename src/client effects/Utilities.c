@@ -633,3 +633,26 @@ qboolean GetTruePlane(vec3_t origin, vec3_t direction, const float direction_sca
 
 	return false;
 }
+
+// AdvShaders water ripples: distortion gate + warp-only ring emitter.
+// Twins are only ever spawned behind FXDistortEnabled(), so gl1 and
+// r_trail_distort-off playthroughs never see them (zero duplication).
+qboolean FXDistortEnabled(void)
+{
+	return (Cvar_Get("r_trail_distort", "0", 0)->value != 0.0f) ? true : false;
+}
+
+client_entity_t* FXDistortRipple(struct model_s* model, const vec3_t pos, float size, int lifeMs, float alpha)
+{
+	client_entity_t* ring = ClientEntity_new(FX_WATER_RIPPLES, CEF_NOMOVE, pos, NULL, lifeMs);
+
+	ring->r.model = model; // Valid sprite required (skins check); texture ignored in distort path.
+	ring->r.flags = (RF_TRANSLUCENT | RF_TRANS_ADD | RF_TRANS_ADD_ALPHA | RF_DISTORT | RF_NOCORE);
+	ring->alpha = alpha;
+	ring->d_alpha = -(alpha / ((float)lifeMs / 1000.0f));
+	ring->radius = size;
+	RE_SetupRollSprite(&ring->r, size, flrand(0.0f, 359.0f)); // Exact world size, sets SPRITE_DYNAMIC.
+
+	AddEffect(NULL, ring);
+	return ring;
+}

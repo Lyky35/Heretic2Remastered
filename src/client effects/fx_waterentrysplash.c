@@ -238,6 +238,10 @@ void DoWaterEntrySplash(const int type, const int flags, const vec3_t origin, co
 			entry_ripple->d_alpha = ripple_delta_alpha;
 
 			AddEffect(NULL, entry_ripple);
+
+			// AdvShaders ripple twin (warp-only ring guided by this splash).
+			if (FXDistortEnabled())
+				FXDistortRipple(&water_models[0], origin, 140.0f, 1200, 0.6f);
 		}
 	}
 	else if ((flags & CEF_FLAG7) && R_DETAIL >= DETAIL_HIGH) // Small ripple and particle splash.

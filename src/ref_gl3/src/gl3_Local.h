@@ -413,6 +413,7 @@ typedef struct
 	GLint  uniTrail_chroma;    // 0/1 chromatic fringing.
 	GLint  uniTrail_coreAmt;   // hot-core additive amount.
 	GLint  uniTrail_fade;      // entity fade (alpha).
+	GLint  uniTrail_radial;    // 0 ribbon strip, 1 billboard radial mask.
 	GLuint trailNoiseTex;      // tiling CPU-generated value noise.
 
 	// Water surface shader (same 9-float vertex layout as shader3D, adds projective reflection).

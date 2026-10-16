@@ -39,6 +39,11 @@ extern void RE_SetupFlipSprite(entity_t* ent, float origin_x, float origin_y, fl
 extern qboolean ReferencesInitialized(const centity_t* owner);
 extern qboolean RefPointsValid(const centity_t* owner);
 
+// Distortion-ripple helpers (water rings): gate + warp-only ring emitter.
+// The gate keeps gl1 / r_trail_distort-off paths byte-identical (no twins).
+extern qboolean FXDistortEnabled(void);
+extern client_entity_t* FXDistortRipple(struct model_s* model, const vec3_t pos, float size, int lifeMs, float alpha);
+
 extern void InsertInCircularList(client_entity_t* self);
 extern void ClearCircularList(void); //mxd
 extern float GetPickupBobPhase(const vec3_t origin); //mxd

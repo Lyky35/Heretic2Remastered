@@ -807,3 +807,20 @@ Findings (subagent mapped + I verified the integration points):
    - Reason: logged so the revert isn't accidentally re-litigated; the slice is independently needed here.
 5. Cost: ~120 lines (helper + 4 hooks + renderer slice), no new files/libs, entity counts bounded by existing spawn rates.
    - Reason: logged for the implement decision; nothing committed beyond this note.
+
+## 2026-10-13 — Implemented sprite-guided water ripples (R8.8 Beta prerelease)
+
+Approved scope: warp-only ring twins at guide sites + resurrected billboard slice.
+Steps:
+1. Renderer (`gl3_Shaders.c`, `gl3_Local.h`, `gl3_Sprite.c`): `uRadial` uniform (cached) + shared `R_DrawDistortPoly(e, quad, radial)` tail extracted from the line path + `R_DrawDistortBillboard` (copies `R_DrawDynamicSprite` math for `RE_SetupRollSprite` world-size quads, radial mask); branch accepts LINE + DYNAMIC (others fall through plain). gl1 untouched.
+   - Reason: one program, one flag more; billboards were the missing shape.
+2. `Utilities.c/h`: `FXDistortEnabled()` gate + `FXDistortRipple()` emitter (DYNAMIC roll, exact size, `RF_DISTORT|RF_NOCORE`, `CEF_NOMOVE`). Hooks (all additive twins, legacy paths byte-identical): `FXWaterWake` (56u/1.2s foam companion), entry-splash center ripple (140u/1.2s), `RippleSpawnerUpdate` drips (40u/1s).
+   - Reason: positions/timing/sizes inherited from proven sites; fallback free by gating (never duplicated).
+3. Caught at build-check: `fx_waterwake.c` lacked `Utilities.h` — implicit decl would have truncated the returned pointer (64-bit crash). Added include, re-verified zero implicit warnings repo-wide for touched files.
+   - Reason: warnings-as-bugs discipline; the mingw flags don't error on these.
+4. Rebuilt all (no errors), staged `HereticIIRemastered_R8_8_Beta/` (R8.6 layout + ripple README), zipped (15 files).
+   - Reason: ship to tester.
+5. Next: commit + push, tag `R8_8_Beta`, create prerelease with asset.
+   - Reason: complete "commit and push after each portion" plus release.
+
+Result: pending push/release (see next entry update after push).

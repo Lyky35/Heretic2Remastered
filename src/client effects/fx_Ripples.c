@@ -30,6 +30,10 @@ static qboolean RippleSpawnerUpdate(client_entity_t* self, centity_t* owner) //m
 
 	AddEffect(NULL, ripple);
 
+	// AdvShaders ripple twin (warp-only ring guided by this drip ring).
+	if (FXDistortEnabled())
+		FXDistortRipple(&ripple_model, self->origin, 40.0f, 1000, alpha);
+
 	if (self->SpawnInfo-- < 0)
 	{
 		self->updateTime = 1000;
