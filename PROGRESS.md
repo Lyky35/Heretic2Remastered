@@ -936,3 +936,16 @@ Findings (subagent mapped, key claims verified):
 2. Everything else is NOT usable: `MaterialID_t` (12 mats) lives only on monsters/props; decals/sparks don't branch on surface; texture paths never parsed; `.m8` paletted + HD PNG with zero companion-map (`_n/_r/_m`) loading; `r_bump` is procedural luminance-derivative (no real normal maps); no IBL (water mirror only), no roughness/metalness anywhere.
 3. PBR verdict: feasible in phases WITHOUT new assets — (P1) map the 2-bit ID to 4 PBR presets (roughness/metalness pairs) in the lightmapped world shader + analytic sky-IBL (we own the Tier-A gradient: sample by reflect dir) + keep baked lightmaps/dlights; HDR pipeline already float. (P2) HD ORM companion textures via the existing override scanner for per-pixel control. Limits stated: 4 materials max without recompiling maps (compiler-baked byte), mapper discipline unknown, paletted albedo banding (HD PNG path mitigates).
    - Reason: logged for the implement decision; nothing committed beyond this note.
+
+## 2026-10-16 — Re-explored PBR, wrote PBR_PLAN.md (plan only, no code)
+
+Request: re-explore (phases remembered correctly) and work on PBR for Beta; scope voted plan-only.
+Steps:
+1. Re-verified every load-bearing claim in-tree: `flags>>24` 2-bit ID (`H2Common/SurfaceProps.c:11-20`, `gl3_Model.h:49-56`, `gl3_Model.c:304-346`; low bits are `SURF_*` in `q_shared.h:361-376`); `MaterialID_t` entity-only (`qcommon/FX.h:189-205`); world path (`gl3_Surface.c:483-502` -> `R_RenderLightmappedPoly :330-388` -> `GL3_DrawLMPoly` `gl3_Shaders.c:1201-1208`, VERTEXSIZE 7, per-poly draw so per-poly uniform needs no format change); LM frag today (`gl3_Shaders.c:158-197`, bump `:177-182`, `r_bump_scale_world 0` default off in `gl3_Main.c:333-335`); HD scanner single-PNG only (`gl3_Image.c:518-648,790-809`); Tier-A sky presets available for IBL (`gl3_SkyDyn.c:271-336`); HDR float FBO.
+   - Reason: plan must rest on current Beta facts, not the Oct-13 memory.
+2. Wrote `PBR_PLAN.md` (P0 plumbing, P1 presets+sky-IBL as Beta target, P2 `_orm.png`, P3 explicitly out; exact P1 uniforms/cvars/file list; risks + acceptance).
+   - Reason: voted plan-only; implement step stays queued.
+3. Next: `git add PBR_PLAN.md PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion" for this planning portion.
+
+Result: pending push (see next entry update after push).
