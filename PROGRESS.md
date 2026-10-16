@@ -903,3 +903,16 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `dbb59d5c` pushed, R8.8 Beta asset refreshed. Retest ask: kills ooze ~2.5s including one-shot kills.
+
+## 2026-10-13 — Promoted bleed line to stable R8.7
+
+Request: commit approved bleed work to the normal R8.7 release.
+Steps:
+1. Verified build freshness (gamex86.dll timestamped to the corpse-bleed build; post-build commits are docs-only) and repackaged the R8.7 stage from it + README bleed line.
+   - Reason: stable asset must equal Beta HEAD code; docs commits don't invalidate binaries.
+2. Moved tag `R8_7` to Beta HEAD (`f43c0ade..581f6351`, forced); `gh release upload --clobber` (6665787 bytes, updated 2026-10-16T01:21:42Z); rewrote notes with bleed paragraph — verified live.
+   - Reason: "into R8.7" = same release updated in place, per established pattern.
+3. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion" for this promotion portion.
+
+Result: pending push (see next entry update after push).
