@@ -949,3 +949,22 @@ Steps:
    - Reason: complete "commit and push after each portion" for this planning portion.
 
 Result: `3ea9d46a` pushed to `origin/Beta`. PBR plan is in `PBR_PLAN.md`. No code changes; implement step (P0+P1) queued on vote.
+
+## 2026-10-16 — Implemented PBR P0+P1 on Beta (presets + dynamic-sky sun, off by default)
+
+Request: go with P0+P1, dynamic sky as the "sun" source.
+Steps:
+1. Cvars: `r_pbr` (0 default archived, 0..1.5 clamped) + `r_pbr_debug` (0 default, non-archived like `r_cloud_debug`) — extern `gl3_Local.h`, define + `Cvar_Get` `gl3_Main.c` next to `r_bump`.
+   - Reason: master off by default = pixel-identical until tester opts in; debug never persists.
+2. LM shader (`gl3_Shaders.c` `fragmentSource3DLM`, still `#version 330`): new uniforms `uMaterial/uPbrStrength/uPbrDebug/uSkyTop/uSkyBottom/uSunDirV/uSunColor`; debug tint branch (gravel green-gray / metal blue-gray / stone warm gray / wood brown, early-return after alpha discard); PBR add-block (faceted `cross(dFdx,dFdy)` view-space normal flipped to viewer, preset rough/metal per ID, Schlick `F0+(1-F0)(1-HV)^5`, power `mix(8,128,1-rough)`, metal x1.5 boost, sky-avg ambient x0.15) ADDED to `diffuse*lm` base. Locations cached + safe defaults at init (strength 0); setters `GL3_SetPbrMaterial/GL3_UpdatePbrSky` (`gl3_Shaders.h`).
+   - Reason: no vertex-format change (VBO stays 7 floats); strength 0 leaves the base path bit-identical; spec/ambient only add.
+3. Sky feed (`gl3_SkyDyn.c/h`): `GL3_SkyDyn_PbrSky()` resolves live preset (auto->level table, same 3 lines as Tier-A) and returns top/bottom + H2 Z-up light (moonDir x0.35 at preset 3, else sunDir; same `(x,z,y)` swizzle as Tier-A upload); `GL3_SkyDyn_UpdatePbr()` clamps strength/debug, transforms light to view space via `r_world_matrix` rotation (column-major, translation ignored; fallback fixed dir on degenerate), uploads. Works with `r_dynsky 0` (presets are static data).
+   - Reason: single preset source for sky, clouds, and now PBR — no divergence; night automatically moonlit.
+4. Hooks (`gl3_Surface.c`): `R_RenderLightmappedPoly` sets `(texinfo->flags>>24)&3` per surf (covers world + brush models — both funnel through it); `R_DrawWorld` calls `UpdatePbr` after `SetWorldSpace(1)` so both main + reflection passes upload with their own current `r_world_matrix`. `ref_gl1` untouched.
+   - Reason: per-poly uniform is noise next to the existing per-poly binds; pass-correct sun in mirrors.
+5. Verified: `cmake --build --target ref_gl3` + full build zero warnings/errors; `strings build/ref_gl3.dll` has `r_pbr/r_pbr_debug/uMaterial/uPbrStrength/uSunDirV`; GLSL brace/paren self-check 7/7 + single well-formed debug `if`. Caught + fixed own typo (broken `if` line) before building.
+   - Reason: no runtime here (Windows game); compile + string + syntax checks are the available verification.
+6. Next: `git add` (7 sources + PROGRESS.md), commit, `git push origin Beta`. No release refresh (PBR defaults off; R8.8 Beta asset stays valid).
+   - Reason: complete "commit and push after each portion"; tester enables via `r_pbr 1` / `r_pbr_debug 1`.
+
+Result: pending push (see next entry update after push).

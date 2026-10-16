@@ -1386,6 +1386,75 @@ void GL3_SkyDyn_Update(void)
 	SkyDyn_ApplyLevelSky();
 }
 
+// PBR sky feed (P1): resolve the live preset (auto follows the level table)
+// and return sky colors + the sun/moon light in H2 Z-up world space.
+// At night the moon is the light (dim cool blue); otherwise the preset sun.
+// Works with r_dynsky 0 too (presets are static data, not the drawn sky).
+void GL3_SkyDyn_PbrSky(float* top, float* bottom, float* lightDirW, float* lightColor)
+{
+	float sunDir[3], sunColor[3], moonDir[3], moonColor[3], night;
+	int preset = (r_sky_preset != NULL) ? (int)r_sky_preset->value : 2;
+
+	if (preset < 0 || preset > 5)
+		preset = 2;
+	if (preset == 2)
+		preset = SkyDyn_LevelPreset(); // auto follows the level table, live
+	SkyDyn_Preset(preset, top, bottom, sunDir, sunColor, moonDir, moonColor, &night);
+
+	if (preset == 3)
+	{
+		// H2 Z-up swizzle, same as the Tier-A upload (x, z, y).
+		lightDirW[0] = moonDir[0]; lightDirW[1] = moonDir[2]; lightDirW[2] = moonDir[1];
+		lightColor[0] = moonColor[0] * 0.35f;
+		lightColor[1] = moonColor[1] * 0.35f;
+		lightColor[2] = moonColor[2] * 0.35f;
+	}
+	else
+	{
+		lightDirW[0] = sunDir[0]; lightDirW[1] = sunDir[2]; lightDirW[2] = sunDir[1];
+		lightColor[0] = sunColor[0];
+		lightColor[1] = sunColor[1];
+		lightColor[2] = sunColor[2];
+	}
+}
+
+// PBR per-frame upload (P1). Call from R_DrawWorld (both passes: r_world_matrix
+// is current for the pass being drawn). Transforms the world light dir to view
+// space with the rotation part of r_world_matrix (column-major, no translation;
+// brush-model rotations are ignored — main-view sun, noted Beta limitation).
+void GL3_SkyDyn_UpdatePbr(void)
+{
+	float top[3], bottom[3], lw[3], lc[3], lv[3];
+	float vx, vy, vz, len, strength;
+	int debug;
+
+	if (r_pbr == NULL)
+		return;
+	strength = r_pbr->value;
+	if (strength < 0.0f)
+		strength = 0.0f;
+	if (strength > 1.5f)
+		strength = 1.5f;
+	debug = (r_pbr_debug != NULL && (int)r_pbr_debug->value == 1) ? 1 : 0;
+
+	GL3_SkyDyn_PbrSky(top, bottom, lw, lc);
+
+	vx = r_world_matrix[0] * lw[0] + r_world_matrix[4] * lw[1] + r_world_matrix[8] * lw[2];
+	vy = r_world_matrix[1] * lw[0] + r_world_matrix[5] * lw[1] + r_world_matrix[9] * lw[2];
+	vz = r_world_matrix[2] * lw[0] + r_world_matrix[6] * lw[1] + r_world_matrix[10] * lw[2];
+	len = sqrtf(vx * vx + vy * vy + vz * vz);
+	if (len > 1e-6f)
+	{
+		lv[0] = vx / len; lv[1] = vy / len; lv[2] = vz / len;
+	}
+	else
+	{
+		lv[0] = 0.3f; lv[1] = 0.5f; lv[2] = 0.8f;
+	}
+
+	GL3_UpdatePbrSky(top, bottom, lv, lc, strength, debug);
+}
+
 qboolean GL3_SkyDyn_DrawDebug(void)
 {
 	int mode;

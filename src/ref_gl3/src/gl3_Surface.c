@@ -13,6 +13,7 @@
 #include "gl3_Misc.h"
 #include "gl3_Shaders.h"
 #include "gl3_Sky.h"
+#include "gl3_SkyDyn.h"
 #include "gl3_Sprite.h"
 #include "gl3_Warp.h"
 #include "Vector.h"
@@ -379,6 +380,9 @@ static void R_RenderLightmappedPoly(const entity_t* ent, msurface_t* surf)
 
 	// Draw with shader3DLightmap.
 	GL3_SetLMColor(1.0f, 1.0f, 1.0f, 1.0f);
+	// PBR (P0): per-surface material ID from the BSP-baked 2-bit flags>>24
+	// (0 gravel, 1 metal, 2 stone, 3 wood). Shader ignores it at strength 0.
+	GL3_SetPbrMaterial((surf->texinfo->flags >> 24) & 3);
 	for (glpoly_t* p = surf->polys; p != NULL; p = p->chain)
 		GL3_DrawLMPoly(p->verts[0], p->numverts);
 
@@ -802,6 +806,7 @@ void R_DrawWorld(void)
 	R_RecursiveWorldNode(&ent, r_worldmodel->nodes);
 
 	GL3_SetWorldSpace(1);	// static world vertices are in true world space (caustics eligible)
+	GL3_SkyDyn_UpdatePbr();	// PBR (P1): sky/sun uniforms for this pass (r_world_matrix is current)
 	R_DrawTextureChains(&ent);
 
 	R_DrawSkyBox();

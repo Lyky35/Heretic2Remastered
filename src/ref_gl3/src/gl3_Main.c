@@ -123,6 +123,8 @@ cvar_t* r_water_wave_sharp;
 cvar_t* r_bump;
 cvar_t* r_bump_scale_world;
 cvar_t* r_bump_scale_water;
+cvar_t* r_pbr;
+cvar_t* r_pbr_debug;
 cvar_t* r_caustics;
 cvar_t* r_caustics_strength;
 cvar_t* r_hd_textures;
@@ -333,6 +335,8 @@ static void R_Register(void)
 	r_bump            = ri.Cvar_Get("r_bump",            "1",   CVAR_ARCHIVE);
 	r_bump_scale_world = ri.Cvar_Get("r_bump_scale_world", "0", CVAR_ARCHIVE);
 	r_bump_scale_water = ri.Cvar_Get("r_bump_scale_water", "0.5", CVAR_ARCHIVE);
+	r_pbr             = ri.Cvar_Get("r_pbr",             "0",   CVAR_ARCHIVE);
+	r_pbr_debug       = ri.Cvar_Get("r_pbr_debug",       "0",   0);
 	r_caustics        = ri.Cvar_Get("r_caustics",        "0",   CVAR_ARCHIVE);
 	r_caustics_strength = ri.Cvar_Get("r_caustics_strength", "0.6", CVAR_ARCHIVE);
 	r_refractions     = ri.Cvar_Get("r_refractions",     "1",   CVAR_ARCHIVE);

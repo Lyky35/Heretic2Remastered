@@ -67,6 +67,8 @@ extern cvar_t* r_water_wave_sharp;
 extern cvar_t* r_bump;
 extern cvar_t* r_bump_scale_world;
 extern cvar_t* r_bump_scale_water;
+extern cvar_t* r_pbr;        // Per-surface PBR specular strength (0 = off, pixel-identical).
+extern cvar_t* r_pbr_debug;  // 0 off, 1 tint world by material ID (gravel/metal/stone/wood).
 extern cvar_t* r_caustics;
 extern cvar_t* r_caustics_strength;
 extern cvar_t* r_hd_textures;
@@ -283,6 +285,13 @@ typedef struct
 	GLint uni3DLM_waterZ;		// float: world-space Z of the nearest water plane.
 	GLint uni3DLM_caustic;		// float: underwater caustics strength (0 disables).
 	GLint uni3DLM_time;			// float: animation time for caustics.
+	GLint uni3DLM_material;		// int: PBR per-surface ID (0 gravel, 1 metal, 2 stone, 3 wood).
+	GLint uni3DLM_pbrStrength;	// float: PBR master (0 = off).
+	GLint uni3DLM_pbrDebug;		// int: PBR debug tint by material.
+	GLint uni3DLM_skyTop;		// vec3: PBR sky ambient top (dynamic-sky preset).
+	GLint uni3DLM_skyBottom;		// vec3: PBR sky ambient bottom.
+	GLint uni3DLM_sunDirV;		// vec3: PBR sun/moon dir, view space.
+	GLint uni3DLM_sunColor;		// vec3: PBR sun/moon color.
 
 	// VAO/VBO for 2D drawing
 	GLuint vao2D;

@@ -168,12 +168,26 @@ static const char* fragmentSource3DLM =
 	"uniform float uWaterZ;\n"
 	"uniform float uCausticStrength;\n"
 	"uniform float uTime;\n"
+	"uniform int uMaterial;\n"      // PBR: 2-bit surface ID (0 gravel, 1 metal, 2 stone, 3 wood).
+	"uniform float uPbrStrength;\n" // PBR master (0 = off, base path pixel-identical).
+	"uniform int uPbrDebug;\n"      // PBR debug (1 = tint by material ID).
+	"uniform vec3 uSkyTop;\n"       // PBR sky ambient (dynamic-sky preset).
+	"uniform vec3 uSkyBottom;\n"
+	"uniform vec3 uSunDirV;\n"      // PBR sun/moon dir, view space, normalized.
+	"uniform vec3 uSunColor;\n"     // PBR sun/moon color (night = dim moon blue).
 	"out vec4 FragColor;\n"
 	"void main() {\n"
 	"    vec4 diffuse = texture(uDiffuse, vTexCoord);\n"
 	"    vec4 lm = texture(uLightmap, vLMCoord);\n"
-	// Bump mapping: perturb the surface normal with the diffuse luminance
-	// gradient and add a directional specular highlight, masked by the lightmap.
+	"    if (diffuse.a < 0.01) discard;\n"
+	"    if (uPbrDebug == 1) {\n"
+	"        vec3 dbg = vec3(0.40, 0.70, 0.30);\n"  // 0 gravel: green-gray
+	"        if (uMaterial == 1) dbg = vec3(0.70, 0.75, 0.85);\n" // 1 metal: blue-gray
+	"        else if (uMaterial == 2) dbg = vec3(0.75, 0.72, 0.68);\n" // 2 stone: warm gray
+	"        else if (uMaterial == 3) dbg = vec3(0.55, 0.38, 0.22);\n" // 3 wood: brown
+	"        FragColor = vec4(dbg, diffuse.a) * uColor;\n"
+	"        return;\n"
+	"    }\n"
 	"    float h = dot(diffuse.rgb, vec3(0.299, 0.587, 0.114));\n"
 	"    vec3 N = normalize(vec3(-dFdx(h) * uBumpScale * 24.0, -dFdy(h) * uBumpScale * 24.0, 1.0));\n"
 	"    vec3 V = normalize(-vViewPos);\n"
@@ -181,7 +195,6 @@ static const char* fragmentSource3DLM =
 	"    vec3 Hv = normalize(Lv + V);\n"
 	"    float spec = pow(max(dot(N, Hv), 0.0), 32.0) * 0.5 * uBumpScale;\n"
 	"    vec3 lit = diffuse.rgb * lm.rgb + lm.rgb * spec;\n"
-	// Underwater caustics: animated light patterns on submerged world geometry.
 	"    float water_depth = uWaterZ - vWorldPos.z;\n"
 	"    if (uCausticStrength > 0.0 && water_depth > 0.0) {\n"
 	"        vec2 cc = vWorldPos.xy * 0.06 + vec2(uTime * 0.05, uTime * 0.037);\n"
@@ -191,6 +204,29 @@ static const char* fragmentSource3DLM =
 	"        c = pow(max(c * 0.5 + 0.5, 0.0), 2.5);\n"
 	"        float atten = 1.0 / (1.0 + water_depth * 0.01);\n"
 	"        lit += lit * c * uCausticStrength * atten;\n"
+	"    }\n"
+	// PBR (P1): per-surface roughness/metalness presets + dynamic-sky sun.
+	// Faceted view-space face normal (flat H2 architecture has no smooth
+	// vertex normals in the LM format); Schlick Fresnel + sky ambient are
+	// ADDED to the lightmapped base, never replacing it.
+	"    if (uPbrStrength > 0.0) {\n"
+	"        float pRough = 0.95;\n" // 0 gravel: matte
+	"        float pMetal = 0.0;\n"
+	"        if (uMaterial == 1) { pRough = 0.32; pMetal = 0.9; }\n" // 1 metal
+	"        else if (uMaterial == 2) { pRough = 0.85; pMetal = 0.02; }\n" // 2 stone
+	"        else if (uMaterial == 3) { pRough = 0.70; pMetal = 0.0; }\n" // 3 wood
+	"        vec3 Nf = normalize(cross(dFdx(vViewPos), dFdy(vViewPos)));\n"
+	"        if (dot(Nf, V) < 0.0) Nf = -Nf;\n"
+	"        vec3 Pl = normalize(uSunDirV);\n"
+	"        vec3 Ph = normalize(Pl + V);\n"
+	"        float specPow = mix(8.0, 128.0, 1.0 - pRough);\n"
+	"        vec3 F0 = mix(vec3(0.04), diffuse.rgb, pMetal);\n"
+	"        vec3 Fr = F0 + (vec3(1.0) - F0) * pow(1.0 - max(dot(Ph, V), 0.0), 5.0);\n"
+	"        float specAmt = pow(max(dot(Nf, Ph), 0.0), specPow) * (0.25 + 0.75 * (1.0 - pRough));\n"
+	"        if (pMetal > 0.5) specAmt *= 1.5;\n"
+	"        vec3 skyAvg = (uSkyTop + uSkyBottom) * 0.5;\n"
+	"        vec3 pAmb = diffuse.rgb * skyAvg * 0.15 * (1.0 - pMetal * 0.5);\n"
+	"        lit += (uSunColor * (Fr * specAmt) + pAmb) * uPbrStrength;\n"
 	"    }\n"
 	"    FragColor = vec4(lit, diffuse.a) * uColor;\n"
 	"    if (FragColor.a < 0.01) discard;\n"
@@ -777,6 +813,13 @@ qboolean GL3_InitShaders(void)
 	gl3state.uni3DLM_waterZ     = glGetUniformLocation(gl3state.shader3DLightmap, "uWaterZ");
 	gl3state.uni3DLM_caustic    = glGetUniformLocation(gl3state.shader3DLightmap, "uCausticStrength");
 	gl3state.uni3DLM_time       = glGetUniformLocation(gl3state.shader3DLightmap, "uTime");
+	gl3state.uni3DLM_material   = glGetUniformLocation(gl3state.shader3DLightmap, "uMaterial");
+	gl3state.uni3DLM_pbrStrength = glGetUniformLocation(gl3state.shader3DLightmap, "uPbrStrength");
+	gl3state.uni3DLM_pbrDebug   = glGetUniformLocation(gl3state.shader3DLightmap, "uPbrDebug");
+	gl3state.uni3DLM_skyTop     = glGetUniformLocation(gl3state.shader3DLightmap, "uSkyTop");
+	gl3state.uni3DLM_skyBottom  = glGetUniformLocation(gl3state.shader3DLightmap, "uSkyBottom");
+	gl3state.uni3DLM_sunDirV    = glGetUniformLocation(gl3state.shader3DLightmap, "uSunDirV");
+	gl3state.uni3DLM_sunColor   = glGetUniformLocation(gl3state.shader3DLightmap, "uSunColor");
 
 	// Bind sampler units once
 	GL3_UseShader(gl3state.shader2D);
@@ -796,6 +839,13 @@ qboolean GL3_InitShaders(void)
 	glUniform1f(gl3state.uni3DLM_waterZ, -1.0e9f);
 	glUniform1f(gl3state.uni3DLM_caustic, 0.0f);
 	glUniform1f(gl3state.uni3DLM_time, 0.0f);
+	glUniform1i(gl3state.uni3DLM_material, 0);
+	glUniform1f(gl3state.uni3DLM_pbrStrength, 0.0f);
+	glUniform1i(gl3state.uni3DLM_pbrDebug, 0);
+	glUniform3f(gl3state.uni3DLM_skyTop, 0.525f, 0.735f, 0.84f);
+	glUniform3f(gl3state.uni3DLM_skyBottom, 0.9f, 0.9f, 0.95f);
+	glUniform3f(gl3state.uni3DLM_sunDirV, 0.3f, 0.5f, 0.8f);
+	glUniform3f(gl3state.uni3DLM_sunColor, 1.0f, 1.0f, 1.0f);
 
 	// --- Create shared 2D VAO/VBO ---
 	glGenVertexArrays(1, &gl3state.vao2D);
@@ -1191,6 +1241,29 @@ void GL3_UpdateCaustics(const float water_z, const float strength, const float t
 	glUniform1f(gl3state.uni3DLM_waterZ, water_z);
 	glUniform1f(gl3state.uni3DLM_caustic, strength);
 	glUniform1f(gl3state.uni3DLM_time, time);
+}
+
+// PBR (P0/P1): per-surface material ID for the next lightmapped polys.
+// `material` is the 2-bit surface ID (0 gravel, 1 metal, 2 stone, 3 wood).
+void GL3_SetPbrMaterial(const int material)
+{
+	GL3_UseShader(gl3state.shader3DLightmap);
+	glUniform1i(gl3state.uni3DLM_material, material);
+}
+
+// PBR (P1): per-frame sky/sun feed from the dynamic-sky presets + master.
+// `sunDirV` is the sun/moon direction in view space (normalized on upload).
+void GL3_UpdatePbrSky(const float* skyTop, const float* skyBottom,
+	const float* sunDirV, const float* sunColor,
+	const float strength, const int debug)
+{
+	GL3_UseShader(gl3state.shader3DLightmap);
+	glUniform3f(gl3state.uni3DLM_skyTop, skyTop[0], skyTop[1], skyTop[2]);
+	glUniform3f(gl3state.uni3DLM_skyBottom, skyBottom[0], skyBottom[1], skyBottom[2]);
+	glUniform3f(gl3state.uni3DLM_sunDirV, sunDirV[0], sunDirV[1], sunDirV[2]);
+	glUniform3f(gl3state.uni3DLM_sunColor, sunColor[0], sunColor[1], sunColor[2]);
+	glUniform1f(gl3state.uni3DLM_pbrStrength, strength);
+	glUniform1i(gl3state.uni3DLM_pbrDebug, debug);
 }
 
 // ============================================================
