@@ -871,3 +871,20 @@ Steps:
    - Reason: complete "commit and push after each portion" plus release refresh.
 
 Result: `8db91ba6` pushed, R8.8 Beta asset refreshed. Retest ask: staff a monster — drips for ~7s per hit, refreshed per strike, stop on death.
+
+## 2026-10-13 — Bleed drips now splat on floors like normal blood
+
+Request: splat blood over objects, not just air drips.
+Steps:
+1. Read `ThrowBlood`/`InitFloorSplat`/`FXBloodTrail` (`fx_blood.c:404-542`): surface splats already exist behind the networked `FX_BLOOD_TRAIL` effect (`"d"` = normal, FLAG6 = yellow — different convention from `FX_BLOOD`'s FLAG8, noted in code).
+   - Reason: reuse the decal system instead of building one.
+2. Tick block (`g_main.c`): ~1/sec (probability gate, splats live ~1s so ~1 alive per bleeder) traces 128u down from the wound (passent=self, `MASK_SOLID`) and fires `FX_BLOOD_TRAIL` at hits. No new state (stateless probability, not a timer field), no new files.
+   - Reason: floor splats are the 90% case for falling drips; wall hits come free via `ThrowBlood`'s own plane logic when geometry intervenes.
+3. Removed a stray unused variable before building (caught in self-review, not by the compiler).
+   - Reason: no dead code in.
+4. Rebuilt all (no errors), verified fresh `gamex86.dll` timestamp + zip md5 match (same-size zip coincidence double-checked, not assumed), repackaged (15 files).
+   - Reason: ship to tester with proof of freshness.
+5. Next: commit + push, move `R8_8_Beta` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).

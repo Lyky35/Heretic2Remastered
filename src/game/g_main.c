@@ -541,6 +541,25 @@ void CheckContinuousAutomaticEffects(edict_t* self)
 
 		const int bflags = (self->materialtype == MAT_INSECT) ? CEF_FLAG8 : 0;
 		gi.CreateEffect(NULL, FX_BLOOD, bflags, bleed_pos, "ub", bleed_dir, 3);
+
+		// Splat where drips land, like normal blood: trace down from the wound
+		// (~1/sec via probability, splats live ~1s) and let FX_BLOOD_TRAIL do
+		// the wall/floor decal work client-side. passent=self so the trace
+		// doesn't hit the bleeding monster itself.
+		if (irand(0, 4) == 0)
+		{
+			vec3_t down_end;
+			VectorMA(bleed_pos, -128.0f, vec3_up, down_end);
+
+			trace_t tr;
+			gi.trace(bleed_pos, vec3_origin, vec3_origin, down_end, self, MASK_SOLID, &tr);
+
+			if (tr.fraction < 1.0f)
+			{
+				const int sflags = (self->materialtype == MAT_INSECT) ? CEF_FLAG6 : 0; // TRAIL convention: FLAG6 = yellow.
+				gi.CreateEffect(NULL, FX_BLOOD_TRAIL, sflags, tr.endpos, "d", tr.plane.normal);
+			}
+		}
 	}
 }
 
