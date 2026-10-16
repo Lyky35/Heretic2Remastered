@@ -17,6 +17,7 @@
 #include "gl3_SkyDyn.h"
 #include "gl3_Sprite.h"
 #include "gl3_Surface.h"
+#include "gl3_Warp.h"
 #include "gl3_Local.h"
 #include "ParticleFlags.h"
 #include "Reference.h"
@@ -1494,6 +1495,7 @@ static void R_RenderView(const refdef_t* fd)
 	}
 
 	R_ResetBmodelTransforms();
+	R_UpdateWaterRipples(); // W1: snapshot twin positions before water draws.
 	R_DrawWorld();
 	if ((int)r_shadows->value && (int)r_drawentities->value)
 		R_DrawEntityShadows();

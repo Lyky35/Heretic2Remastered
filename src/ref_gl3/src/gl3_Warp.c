@@ -10,6 +10,7 @@
 #include "Hunk.h"
 #include "turbsin.h"
 #include "Vector.h"
+#include "q_Sprite.h"
 
 #define SUBDIVIDE_SIZE	8.0f  // Dense warp mesh for ripple displacement: with the
                              // 8.0f minimum-split guard this bottoms out at ~8-16u pieces
@@ -225,6 +226,126 @@ void R_SubdivideSurface(const model_t* mdl, msurface_t* fa)
 	}
 
 	R_SubdividePolygon(fa, numverts, verts[0]);
+}
+
+#pragma endregion
+
+#pragma region ========================== INTERACTION RIPPLES (W1) ==========================
+
+// Ripple pool: warp-only billboard twins (swim/wade wakes, splashes, drips)
+// register here on first sighting with renderer-clock births; the water shader
+// expands analytic rings from them. One frame of latency max, invisible.
+#define RIPPLE_MAX_AGE 2.5f // seconds; matches the shader's cutoff
+
+typedef struct
+{
+	const entity_t* ent; // key; NULL = free slot
+	float x, y;          // world XY (H2 Z-up: horizontal plane)
+	float birth;         // r_newrefdef.time at first sighting
+	float amp;           // from twin size (bigger splash = bigger ripple)
+} water_ripple_t;
+
+static water_ripple_t water_ripples[MAX_WATER_RIPPLES];
+
+void R_UpdateWaterRipples(void)
+{
+	const float now = r_newrefdef.time;
+	int i, k;
+
+	// Age out regardless (also when distortion is off and no twins exist).
+	for (i = 0; i < MAX_WATER_RIPPLES; i++)
+	{
+		if (water_ripples[i].ent != NULL && now - water_ripples[i].birth > RIPPLE_MAX_AGE)
+			water_ripples[i].ent = NULL;
+	}
+
+	if (r_trail_distort == NULL || (int)r_trail_distort->value == 0)
+		return; // twins only exist with distortion on; pool drains via age-out above
+
+	for (i = 0; i < r_newrefdef.num_entities; i++)
+	{
+		const entity_t* e = r_newrefdef.entities[i];
+		float radius, amp;
+		int slot = -1;
+		int oldest = -1;
+		float oldestBirth = now;
+
+		if (e == NULL)
+			continue;
+		if (((e->flags & (RF_DISTORT | RF_NOCORE)) != (RF_DISTORT | RF_NOCORE)) ||
+			e->spriteType != SPRITE_DYNAMIC)
+			continue;
+
+		// World radius from roll-quad extent (RE_SetupRollSprite sizes in world units).
+		radius = 0.0f;
+		for (k = 0; k < 4; k++)
+		{
+			float ex = (e->verts[k].x < 0.0f) ? -e->verts[k].x : e->verts[k].x;
+			float ey = (e->verts[k].y < 0.0f) ? -e->verts[k].y : e->verts[k].y;
+			if (ex > radius)
+				radius = ex;
+			if (ey > radius)
+				radius = ey;
+		}
+		radius *= e->scale;
+		if (radius < 1.0f)
+			continue;
+
+		amp = radius * 0.0125f;
+		if (amp < 0.2f)
+			amp = 0.2f;
+		if (amp > 1.2f)
+			amp = 1.2f;
+
+		for (k = 0; k < MAX_WATER_RIPPLES; k++)
+		{
+			if (water_ripples[k].ent == e)
+			{
+				slot = k;
+				break;
+			}
+			if (water_ripples[k].ent == NULL)
+			{
+				slot = k; // remember first free, keep looking for a match
+			}
+			else if (slot < 0 || water_ripples[k].birth < oldestBirth)
+			{
+				oldest = k;
+				oldestBirth = water_ripples[k].birth;
+			}
+		}
+		if (slot < 0)
+			slot = oldest; // saturated: steal oldest (ripples are fungible)
+		if (slot < 0)
+			continue;
+
+		if (water_ripples[slot].ent != e)
+		{
+			water_ripples[slot].ent = e;
+			water_ripples[slot].birth = now;
+		}
+		water_ripples[slot].x = e->origin[0];
+		water_ripples[slot].y = e->origin[1];
+		water_ripples[slot].amp = amp;
+	}
+}
+
+int R_GetWaterRipples(float out[MAX_WATER_RIPPLES][4])
+{
+	int count = 0;
+
+	for (int i = 0; i < MAX_WATER_RIPPLES; i++)
+	{
+		if (water_ripples[i].ent == NULL)
+			continue;
+		out[count][0] = water_ripples[i].x;
+		out[count][1] = water_ripples[i].y;
+		out[count][2] = water_ripples[i].birth;
+		out[count][3] = water_ripples[i].amp;
+		count++;
+	}
+
+	return count;
 }
 
 #pragma endregion

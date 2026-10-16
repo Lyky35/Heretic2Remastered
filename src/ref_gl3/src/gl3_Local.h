@@ -431,6 +431,8 @@ typedef struct
 	GLint  uniWater_waveHeight;   // Gerstner wave amplitude.
 	GLint  uniWater_waveSpeed;    // Gerstner wave animation speed.
 	GLint  uniWater_waveSharp;    // Gerstner wave crest sharpness (Q).
+	GLint  uniWater_ripples;     // vec4[24]: interaction ripple pool (x, y, birth, amp).
+	GLint  uniWater_rippleCount;  // active ripple count.
 
 	// Lightmap GL texture IDs
 	GLuint lightmap_textures[MAX_LIGHTMAPS + 1];

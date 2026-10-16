@@ -825,6 +825,21 @@ Steps:
 
 Result: `221a80fd` pushed, R8.8 Beta prerelease live. Retest ask: swim/wade rings, splash rings, drip rings; r_trail_distort 0 fallback.
 
+## 2026-10-13 — W1 analytic water ripples (pool + shader, no sim)
+
+Approved multi-pass design (superset of the ring twins: real surface motion now).
+Steps:
+1. `gl3_Warp.h/.c`: 24-slot ripple pool keyed on warp-only billboard twins (`RF_DISTORT|RF_NOCORE` + `SPRITE_DYNAMIC`, radius from roll-quad extent, amp 0.2-1.2 by size); first-sighting births on renderer clock, 2.5s age-out, oldest-steal on saturation. `R_UpdateWaterRipples()` runs pre-world-draw in `R_RenderView` (main pass; mirror reuses the world-consistent pool); `R_GetWaterRipples()` feeds the draw.
+   - Reason: one frame latency max, invisible; zero game/CE/API changes — twins already carry everything.
+2. Water shaders (`gl3_Shaders.c`): VS adds expanding sine-gaussian displacement (60u/s, 28u wavelength, clamped ±2.5) after Gerstner; FS adds the analytic normal derivative into `N` before refraction/reflection/specular (correct `-grad` sign per heightfield convention). Shared `uRipples[24]` + count, same cutoff both sides; uniforms cached + set per `GL3_DrawWaterPoly`.
+   - Reason: normals carry it (tessellation-independent); displacement symbolic; existing lighting does the rest including sun glitter + refraction wobble.
+3. Rebuilt all (no errors), repackaged R8.8 Beta (15 files), `uRipples` confirmed in staged DLL.
+   - Reason: ship to tester.
+4. Next: commit + push, move `R8_8_Beta` tag, re-upload asset.
+   - Reason: complete "commit and push after each portion" plus release refresh.
+
+Result: pending push/upload (see next entry update after push).
+
 ## 2026-10-13 — Redirect: Evan-style water via multi-pass, no sim (supersedes heightfield sketch)
 
 Redirect: get the same water richness from the existing multi-pass reflection system instead of a heightfield sim. Agreed — strictly better fit, and it drops the entire sim (no compute textures, no ping-pong, no domain follow/teleport clears, no GL 4.3 gate, no stacked-water issue).
