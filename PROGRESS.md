@@ -864,7 +864,7 @@ Steps:
    - Reason: W1 ring wavelength will be designed >= 24u (3+ quads per wave); grid + wavelength matched by construction, normals carry sharpness.
 2. Rebuilt all (no errors). No release (prep; rides next R8.8 Beta refresh).
    - Reason: same standing rule as the 16u step.
-3. Next: `git add` + commit + push.
+3. Ran `git add` (gl3_Warp.c, PROGRESS.md), commit `1cc745c9` (+18/-4), `git push origin Beta` — succeeded.
    - Reason: complete "commit and push after each portion" for this prep portion.
 
-Result: pending push (see next entry update after push).
+Result: `1cc745c9` pushed. Grid is as dense as the subdivider goes without guard surgery.
