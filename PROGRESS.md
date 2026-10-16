@@ -1091,4 +1091,4 @@ Steps:
 3. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
    - Reason: complete "commit and push after each portion".
 
-Result: pending push (see next entry update after push).
+Result: `5d90ca5c` pushed to `origin/Beta`. R8.8 Beta live at `4a39aa5a` (prerelease, PBR + menu toggle + night fix). R8.7 stable also current.
