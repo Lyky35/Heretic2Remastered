@@ -1003,4 +1003,4 @@ Steps:
 5. Next: `git add` (3 sources + PROGRESS.md), commit, `git push origin Beta`; move tag `R8_8_Beta` to the code commit.
    - Reason: complete "commit and push after each portion" + tag hygiene (tag = code tree).
 
-Result: pending push (see next entry update after push).
+Result: `fc6687b2` pushed to `origin/Beta`; tag `R8_8_Beta` corrected onto it (was briefly on the pre-commit HEAD during staging — binaries match the code tree either way). Notes rewritten with debug-2 block. Retest ask: `r_pbr_debug 2` + cycle presets (feed proof), then `r_pbr 1` + presets (ambient re-tint), preset 3 night.
