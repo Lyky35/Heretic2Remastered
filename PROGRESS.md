@@ -884,7 +884,7 @@ Steps:
    - Reason: no dead code in.
 4. Rebuilt all (no errors), verified fresh `gamex86.dll` timestamp + zip md5 match (same-size zip coincidence double-checked, not assumed), repackaged (15 files).
    - Reason: ship to tester with proof of freshness.
-5. Next: commit + push, move `R8_8_Beta` tag, re-upload asset.
+5. Ran `git add` (g_main.c, PROGRESS.md), commit `2ad0d4b3` (+36), `git push origin Beta`; moved tag `R8_8_Beta`; `gh release upload --clobber` (6665262 bytes, updated 2026-10-16T01:10:51Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `2ad0d4b3` pushed, R8.8 Beta asset refreshed. Retest ask: floors under bleeding monsters accumulate splats.
