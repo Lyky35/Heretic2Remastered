@@ -851,7 +851,7 @@ Steps:
    - Reason: needed groundwork for W1 either way; 8u held in reserve pending perf eyeballs (8x more tris from here).
 3. Rebuilt all (no errors). No release (unshipped prep; rides the next R8.8 Beta refresh).
    - Reason: don't churn the tester release for an invisible-alone change.
-4. Next: `git add` + commit + push.
+4. Ran `git add` (gl3_Warp.c, PROGRESS.md), commit `24ab4990` (+19/-2), `git push origin Beta` — succeeded.
    - Reason: complete "commit and push after each portion" for this prep portion.
 
-Result: pending push (see next entry update after push).
+Result: `24ab4990` pushed. No release refresh (prep only).
