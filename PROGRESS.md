@@ -1018,4 +1018,4 @@ Steps:
 4. Next: `git add` (shader + PROGRESS.md), commit, `git push origin Beta`; tag already moved to the code commit below.
    - Reason: complete "commit and push after each portion" + tag hygiene.
 
-Result: pending push (see next entry update after push).
+Result: `5a1a1512` pushed to `origin/Beta`; tag on it; asset re-uploaded (6705885 bytes, 2026-10-16T02:16:09Z), prerelease verified. Retest ask: `r_pbr_debug 2` should keep baked + dynamic lights under the preset tint; then `r_pbr 1` + presets + preset 3.
