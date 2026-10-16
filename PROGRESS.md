@@ -1079,3 +1079,16 @@ Steps:
    - Reason: "into R8.7" = same release updated in place, per established pattern.
 
 Result: `05b1864c` pushed to `origin/Beta`; tag `R8_7` moved to it; R8_7 asset re-uploaded (6705038 bytes, 2026-10-16T02:56:39Z, stable); notes rewritten with PBR. R8.7 is now the latest stable with PBR (off by default) + Advanced menu PBR toggle.
+
+## 2026-10-16 — Refreshed R8.8 Beta to current Beta HEAD
+
+Request: go back to R8.8 Beta.
+Steps:
+1. Beta HEAD `4a39aa5a` (menu toggle + docs); `R8_8_Beta` was 2 behind (`6d1d9555`). Full rebuild, refreshed R88Beta stage (md5-verified `ref_gl3.dll`; `uNight` present; `PBR` label in `quake2.dll`), added menu line to `README.txt`, re-zipped.
+   - Reason: Beta release must include the menu toggle + night fix.
+2. Moved tag `R8_8_Beta` to `4a39aa5a` (forced), re-uploaded asset (6704489 bytes, 2026-10-16T02:58:48Z), rewrote notes (PBR menu line). Prerelease verified (R8.7 remains latest stable).
+   - Reason: same release updated in place, per established pattern.
+3. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion".
+
+Result: pending push (see next entry update after push).
