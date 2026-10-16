@@ -11,10 +11,8 @@
 #include "turbsin.h"
 #include "Vector.h"
 
-#define SUBDIVIDE_SIZE	16.0f // 64-unit quads aliased the Gerstner vertex waves
-                             // (shortest wavelength ~40 units) into blocky facets; 16u halves
-                             // that again for ripple displacement (recursion still terminates
-                             // via the 8.0f minimum-split guard below; ~4x water tris).
+#define SUBDIVIDE_SIZE	32.0f // 64-unit quads aliased the Gerstner vertex waves
+                             // (shortest wavelength ~40 units) into blocky facets.
 
 #pragma region ========================== POLYGON GENERATION ==========================
 
