@@ -1078,4 +1078,4 @@ Steps:
 4. Next: `git add` (menu sources + PROGRESS.md), commit, `git push origin Beta`; move tag `R8_7` to Beta HEAD; `gh release upload --clobber`; rewrite notes (PBR paragraph + menu line).
    - Reason: "into R8.7" = same release updated in place, per established pattern.
 
-Result: pending push (see next entry update after push).
+Result: `05b1864c` pushed to `origin/Beta`; tag `R8_7` moved to it; R8_7 asset re-uploaded (6705038 bytes, 2026-10-16T02:56:39Z, stable); notes rewritten with PBR. R8.7 is now the latest stable with PBR (off by default) + Advanced menu PBR toggle.
