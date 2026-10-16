@@ -7,7 +7,6 @@
 #include "gl3_Shaders.h"
 #include "gl3_SkyDyn.h"
 #include "gl3_Surface.h"
-#include "gl3_Warp.h"
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
@@ -393,13 +392,6 @@ static const char* vertexSourceWater =
 	"uniform float uWaveHeight;\n"
 	"uniform float uWaveSpeed;\n"
 	"uniform float uWaveSharp;\n"
-	"uniform vec4 uRipples[24];\n" // W1: x, y (world XY), birth (sec), amplitude
-	"uniform int uRippleCount;\n"
-	"#define RIPPLE_SPEED 60.0\n"   // ring expansion, world units/sec
-	"#define RIPPLE_WAVELEN 28.0\n" // >= 24u: 3+ quads per wave on the 8u mesh
-	"#define RIPPLE_WIDTH 14.0\n"   // gaussian ring thickness
-	"#define RIPPLE_DECAY 1.2\n"    // temporal fade rate
-	"#define RIPPLE_MAX_AGE 2.5\n"  // matches the CPU pool cutoff
 	"out vec2 vTexCoord;\n"
 	"out vec4 vColor;\n"
 	"out vec4 vClipPos;\n"
@@ -432,20 +424,6 @@ static const char* vertexSourceWater =
 	"    disp += gerstnerWave(normalize(vec2(-0.4,  0.9)), 0.09,  0.8, 1.7, uWaveSharp, t, uWaveHeight, worldPos, tangent, binormal);\n"
 	"    disp += gerstnerWave(normalize(vec2( 0.2,  1.0)), 0.157, 0.4, 2.1, uWaveSharp, t, uWaveHeight, worldPos, tangent, binormal);\n"
 	"    worldPos += disp;\n"
-	"    float rippleH = 0.0;\n"
-	"    for (int ri = 0; ri < 24; ri++) {\n"
-	"        if (ri >= uRippleCount) break;\n"
-	"        vec4 rp = uRipples[ri];\n"
-	"        float age = uTime - rp.z;\n"
-	"        if (age < 0.0 || age > RIPPLE_MAX_AGE) continue;\n"
-	"        vec2 rdv = worldPos.xy - rp.xy;\n"
-	"        float rr = length(rdv);\n"
-	"        float rR = age * RIPPLE_SPEED;\n"
-	"        float rdr = rr - rR;\n"
-	"        float renv = exp(-rdr * rdr / (2.0 * RIPPLE_WIDTH * RIPPLE_WIDTH)) * exp(-age * RIPPLE_DECAY) * rp.w;\n"
-	"        rippleH += renv * sin(rdr * 6.2831853 / RIPPLE_WAVELEN);\n"
-	"    }\n"
-	"    worldPos.z += clamp(rippleH, -2.5, 2.5);\n"
 	"    vNormal = normalize(cross(tangent, binormal));\n"
 	"    vWorldPos = worldPos;\n"
 	"    vec4 viewPos = uModelview * vec4(worldPos, 1.0);\n"
@@ -473,38 +451,12 @@ static const char* fragmentSourceWater =
 	"uniform float uRefractAmt;\n"
 	"uniform float uTime;\n"
 	"uniform float uBumpScale;\n"
-	"uniform vec4 uRipples[24];\n"
-	"uniform int uRippleCount;\n"
-	"#define RIPPLE_SPEED 60.0\n"
-	"#define RIPPLE_WAVELEN 28.0\n"
-	"#define RIPPLE_WIDTH 14.0\n"
-	"#define RIPPLE_DECAY 1.2\n"
-	"#define RIPPLE_MAX_AGE 2.5\n"
-	"#define RIPPLE_NORMAL 2.0\n"
 	"out vec4 FragColor;\n"
 	"void main() {\n"
 	"    vec4 waterColor = texture(uTexture, vTexCoord) * vColor * uColor;\n"
 	"    if (waterColor.a < 0.01) discard;\n"
 	"    vec2 screenUV = vClipPos.xy / vClipPos.w * 0.5 + 0.5;\n"
 	"    vec3 N = normalize(vNormal);\n"
-	"    {\n"
-	"        vec2 rgrad = vec2(0.0);\n"
-	"        for (int ri = 0; ri < 24; ri++) {\n"
-	"            if (ri >= uRippleCount) break;\n"
-	"            vec4 rp = uRipples[ri];\n"
-	"            float age = uTime - rp.z;\n"
-	"            if (age < 0.0 || age > RIPPLE_MAX_AGE) continue;\n"
-	"            vec2 rdv = vWorldPos.xy - rp.xy;\n"
-	"            float rr = max(length(rdv), 0.001);\n"
-	"            float rR = age * RIPPLE_SPEED;\n"
-	"            float rdr = rr - rR;\n"
-	"            float rk = 6.2831853 / RIPPLE_WAVELEN;\n"
-	"            float rg = exp(-rdr * rdr / (2.0 * RIPPLE_WIDTH * RIPPLE_WIDTH)) * exp(-age * RIPPLE_DECAY) * rp.w;\n"
-	"            float slope = rg * (cos(rdr * rk) * rk - sin(rdr * rk) * rdr / (RIPPLE_WIDTH * RIPPLE_WIDTH));\n"
-	"            rgrad += (rdv / rr) * slope;\n"
-	"        }\n"
-	"        N = normalize(N - vec3(rgrad * RIPPLE_NORMAL, 0.0));\n"
-	"    }\n"
 	"    // Refraction: sample the scene (without water) with a small UV offset\n"
 	"    // that follows the displaced surface normal.\n"
 	"    vec3 blended = waterColor.rgb;\n"
@@ -1012,8 +964,6 @@ qboolean GL3_InitShaders(void)
 	gl3state.uniWater_waveHeight = glGetUniformLocation(gl3state.shaderWater, "uWaveHeight");
 	gl3state.uniWater_waveSpeed  = glGetUniformLocation(gl3state.shaderWater, "uWaveSpeed");
 	gl3state.uniWater_waveSharp  = glGetUniformLocation(gl3state.shaderWater, "uWaveSharp");
-	gl3state.uniWater_ripples    = glGetUniformLocation(gl3state.shaderWater, "uRipples");
-	gl3state.uniWater_rippleCount = glGetUniformLocation(gl3state.shaderWater, "uRippleCount");
 
 	GL3_UseShader(gl3state.shaderWater);
 	glUniform1i(gl3state.uniWater_reflectTex, 1);      // TMU1: reflection texture.
@@ -1485,15 +1435,6 @@ void GL3_DrawWaterPoly(const GLenum mode, const float* verts, const int numverts
 	glUniform1f(gl3state.uniWater_waveHeight, r_water_wave_height->value * GL3_SkyDyn_WaveScale());
 	glUniform1f(gl3state.uniWater_waveSpeed, r_water_wave_speed->value);
 	glUniform1f(gl3state.uniWater_waveSharp, r_water_wave_sharp->value);
-
-	// Interaction ripples (W1): pool refreshed once per frame pre-world-draw.
-	{
-		float ripples[MAX_WATER_RIPPLES][4];
-		const int n = R_GetWaterRipples(ripples);
-		glUniform1i(gl3state.uniWater_rippleCount, n);
-		if (n > 0)
-			glUniform4fv(gl3state.uniWater_ripples, n, &ripples[0][0]);
-	}
 
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, gl3state.fboTexReflect);
