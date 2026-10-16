@@ -968,3 +968,22 @@ Steps:
    - Reason: complete "commit and push after each portion"; tester enables via `r_pbr 1` / `r_pbr_debug 1`.
 
 Result: `b10f9c86` pushed to `origin/Beta`. Retest ask: `r_pbr 0` identical; `r_pbr 1` metal spec pop vs matte wood/stone; `r_pbr_debug 1` 4-color audit; preset 3 dim/cool.
+
+## 2026-10-16 — Released R8.8 Beta with PBR P0+P1 (Windows x64 test package)
+
+Request: R8.8 Beta pre-release for Win10 testing.
+Steps:
+1. Verified Beta clean (only untracked `fxstaff_debug.log`) at `9a139ba8` (== origin/Beta, PBR P0+P1 HEAD).
+   - Reason: release must match pushed HEAD exactly.
+2. Full rebuild (`cmake --build /tmp/opencode/h2-build -j`, all targets, no errors) + verified `strings build/ref_gl3.dll` (`r_pbr` x8, `uMaterial/uPbrStrength/uSunDirV`, `volumetric clouds on`).
+   - Reason: prove the package is current Beta code, not stale.
+3. Refreshed stage `/tmp/opencode/R88Beta/...` with fresh binaries (md5-verified `ref_gl3.dll`; redist `OpenAL32.dll` kept) + rewrote `README.txt` (PBR section + debug colors + report hints).
+   - Reason: tester gets one self-contained drop-in with instructions matching the new binaries.
+4. Re-zipped to `release/HereticIIRemastered_R8_8_Beta.zip` (15 files, R8.6-compatible layout; gitignored) — 16286489 bytes loose.
+   - Reason: keep binaries out of git.
+5. Moved tag `R8_8_Beta` to Beta HEAD (forced) + `gh release upload --clobber` (asset 6705605 bytes, updated 2026-10-16T02:00:29Z) + rewrote notes (PBR test block); release stays prerelease (R8.7 remains latest stable). Verified live.
+   - Reason: same release updated in place, per established pattern.
+6. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion" for this release portion.
+
+Result: pending push (see next entry update after push).
