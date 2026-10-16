@@ -899,7 +899,7 @@ Steps:
    - Reason: drips continue through death anims without any new cleanup surface.
 3. Rebuilt all (no errors), repackaged R8.8 Beta (15 files), staged. Floor-splat logic rides along unchanged (corpses splat beneath themselves too).
    - Reason: ship to tester.
-4. Next: commit + push, move `R8_8_Beta` tag, re-upload asset.
+4. Ran `git add` (g_combat.c, g_main.c, PROGRESS.md), commit `dbb59d5c` (+49/-3), `git push origin Beta`; moved tag `R8_8_Beta`; `gh release upload --clobber` (6665184 bytes, updated 2026-10-16T01:16:58Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `dbb59d5c` pushed, R8.8 Beta asset refreshed. Retest ask: kills ooze ~2.5s including one-shot kills.
