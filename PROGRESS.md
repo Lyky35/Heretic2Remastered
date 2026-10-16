@@ -835,10 +835,10 @@ Steps:
    - Reason: normals carry it (tessellation-independent); displacement symbolic; existing lighting does the rest including sun glitter + refraction wobble.
 3. Rebuilt all (no errors), repackaged R8.8 Beta (15 files), `uRipples` confirmed in staged DLL.
    - Reason: ship to tester.
-4. Next: commit + push, move `R8_8_Beta` tag, re-upload asset.
+4. Ran `git add` (Warp.c/h, Shaders.c, Local.h, Main.c, PROGRESS.md), commit `a73dca0f` (+206), `git push origin Beta`; moved tag `R8_8_Beta`; `gh release upload --clobber` (6666294 bytes, updated 2026-10-16T00:25:18Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `a73dca0f` pushed, R8.8 Beta asset refreshed with W1. Retest ask: swim rings now deform water + glitter (vs warp-only before).
 
 ## 2026-10-13 — Redirect: Evan-style water via multi-pass, no sim (supersedes heightfield sketch)
 
