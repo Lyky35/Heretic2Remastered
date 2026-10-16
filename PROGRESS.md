@@ -867,7 +867,7 @@ Steps:
    - Reason: piggybacks the per-entity tick every monster already runs.
 4. Rebuilt all (only pre-existing `g_save_x86.c` warning), repackaged R8.8 Beta (15 files), staged.
    - Reason: ship to tester.
-5. Next: commit + push, move `R8_8_Beta` tag, re-upload asset.
+5. Ran `git add` (g_Edict.h, g_weapon.c, g_main.c, PROGRESS.md), commit `8db91ba6` (+58), `git push origin Beta`; moved tag `R8_8_Beta`; `gh release upload --clobber` (6665057 bytes, updated 2026-10-16T01:04:24Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `8db91ba6` pushed, R8.8 Beta asset refreshed. Retest ask: staff a monster — drips for ~7s per hit, refreshed per strike, stop on death.
