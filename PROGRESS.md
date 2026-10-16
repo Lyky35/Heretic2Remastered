@@ -818,7 +818,7 @@ Steps:
    - Reason: verify, don't assume — especially that the revert didn't take approved work with it.
 3. Rebuilt all, repackaged R8.8 Beta (15 files).
    - Reason: testers must not stay on the bad build.
-4. Next: push branch, move `R8_8_Beta` tag, re-upload asset, then log.
+4. Ran `git add PROGRESS.md`, commit `9ae30073`, `git push origin Beta` (with the 4 reverts); moved tag `R8_8_Beta`; `gh release upload --clobber` (6664406 bytes, updated 2026-10-16T00:31:16Z) — all succeeded.
    - Reason: complete "commit and push after each portion" plus release refresh.
 
-Result: pending push/upload (see next entry update after push).
+Result: `9ae30073` pushed, R8.8 Beta asset refreshed to R8.7-equivalent water. The ripple line is fully reverted; R8.7 stable was never affected.
