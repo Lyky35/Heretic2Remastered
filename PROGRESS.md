@@ -1143,3 +1143,27 @@ Steps:
 
 Result: P2 committed on Beta. `r_pbr 1` now shows per-pixel roughness
 variation; `r_pbr_rough_var 0` restores exact P1 (preset-only) behavior.
+
+## 2026-10-17 — R8.8 Beta pre-release with PBR P2
+
+Request: create a GitHub pre-release R8.8 Beta for local testing.
+Steps:
+1. Built current Beta HEAD `048777ec` (P2). Verified `ref_gl3.dll` carries
+   `r_pbr_rough_var`, `uPbrRoughVar`, and the `roughVar` GLSL line; all three
+   PBR cvars present (`r_pbr`, `r_pbr_debug`, `r_pbr_rough_var`).
+   - Reason: ship the P2 build.
+2. Recreated R88Beta stage from current `build/` + `build/base/` + shared
+   OpenAL32.dll; md5-verified `ref_gl3.dll` == build output.
+   - Reason: release must equal Beta HEAD code.
+3. Updated `README.txt`: added PBR P2 section + `r_pbr_rough_var` starter.
+   - Reason: document the new cvar.
+4. Re-zipped to `release/HereticIIRemastered_R8_8_Beta.zip` (6704829 bytes).
+   - Reason: package for upload.
+5. Tagged `R8_8_Beta` at `048777ec` (update-ref + push); `gh release create`
+   with `--prerelease`, notes, and the asset.
+   - Reason: fresh pre-release per request.
+6. Verified: `gh release view` shows pre-release + asset (6704829 bytes);
+   downloaded the zip and confirmed `ref_gl3.dll` md5 `010a40fb…` matches.
+   - Reason: confirm the tester gets the P2 build.
+
+Result: R8.8 Beta pre-release live at `https://github.com/Lyky35/Heretic2Remastered/releases/tag/R8_8_Beta`. Retest ask: `r_pbr 1` shows per-pixel roughness variation; `r_pbr_rough_var 0` restores exact P1 (preset-only).
