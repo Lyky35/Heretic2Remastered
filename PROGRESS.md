@@ -1092,3 +1092,22 @@ Steps:
    - Reason: complete "commit and push after each portion".
 
 Result: `5d90ca5c` pushed to `origin/Beta`. R8.8 Beta live at `4a39aa5a` (prerelease, PBR + menu toggle + night fix). R8.7 stable also current.
+
+## 2026-10-16 — Revert W1 water work + remove R8.8 Beta pre-release
+
+Request: "the W1 implementation is wrong"; revert back to `651b723c`; remove the R8.8 Beta pre-release; does not like the W1 work at all.
+Steps:
+1. Verified `651b723c` ("docs: log R8.8 Beta refresh result") is an ancestor of HEAD and that all water work sits after it: `a14828f9` (WATER_PLAN.md), `801b7153`/`76aa5f5b` (explore logs), `52715c4a` (W1 checklist), `f1c84f3c` (W1 code), `2f224243` (W1 log).
+   - Reason: confirm the revert target is the exact pre-W1 state.
+2. `git reset --hard 651b723c` on `Beta`; working tree clean; `git push --force origin Beta` (`2f224243...651b723c`).
+   - Reason: discard the W1 commits entirely from the branch.
+3. Deleted the R8.8 Beta pre-release: `gh release delete R8_8_Beta --yes`; deleted remote tag `refs/tags/R8_8_Beta` (`git push origin :refs/tags/R8_8_Beta`) + local tag.
+   - Reason: the pre-release carried the broken W1 build; user asked to remove it.
+4. Removed the orphaned package `release/HereticIIRemastered_R8_8_Beta.zip` and the W1 stage dirs `/tmp/opencode/R88Beta`, `/tmp/opencode/r88_beta_pre`.
+   - Reason: no W1 artifacts left anywhere.
+5. Verified: `git ls-remote --tags origin` shows no R8.8 tags; remote + local `Beta` = `651b723c`; `gh release list` no longer shows R8.8 Beta (R8.7 remains latest stable).
+   - Reason: confirm the revert + removal is complete and consistent.
+6. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion".
+
+Result: `Beta` (local + origin) at `651b723c`; R8.8 Beta release + tag removed; W1 code/docs/artifacts removed. Next: implement W1 differently (or drop) per user direction.
