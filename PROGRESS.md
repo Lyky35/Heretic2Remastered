@@ -1111,3 +1111,35 @@ Steps:
    - Reason: complete "commit and push after each portion".
 
 Result: `Beta` (local + origin) at `651b723c`; R8.8 Beta release + tag removed; W1 code/docs/artifacts removed. Next: implement W1 differently (or drop) per user direction.
+
+## 2026-10-16 — PBR P2: per-pixel roughness from albedo luminance (option 3)
+
+Request: P2 of the PBR plan; user picked the no-new-asset option (derive
+roughness variation from albedo luminance + material ID in-shader) over
+generating/grabbing ORM companions.
+Steps:
+1. Research: `_orm.png` has no legal online source for Heretic 2 (the
+   "Heretic HD PBR" packs are for Heretic 1 / GZDoom). Python generation
+   (pbr_batch, pbr_texture_generator) is heuristic. Chose option 3.
+   - Reason: cheapest path that is still deterministic and asset-free.
+2. `r_pbr_rough_var` cvar (default 1, 0 = preset-only / P1 behavior):
+   extern in `gl3_Local.h`, global + `Cvar_Get` in `gl3_Main.c`.
+   - Reason: tester can A/B the variation against P1.
+3. Shader `gl3_Shaders.c`: new `uPbrRoughVar` uniform + location
+   (`uni3DLM_pbrRoughVar` in `gl3_Local.h`). In the PBR block, after the
+   material preset, `roughVar = clamp(pRough + (0.5 - h) * 0.5 * uPbrRoughVar,
+   0.05, 1.0)` reuses the albedo luminance `h` already computed for bump.
+   - Reason: darker texels (dirt/crevices) trend rougher, brighter smoother;
+     metalness stays at the P1 preset.
+4. Wiring: `GL3_UpdatePbrSky` gains a `roughVar` param + `glUniform1f`
+   (`gl3_Shaders.h` decl); `GL3_SkyDyn_UpdatePbr` reads + clamps the cvar
+   and passes it.
+   - Reason: follow the existing per-frame sky feed pattern.
+5. Built (mingw-w64, zero errors); verified in `ref_gl3.dll`: `r_pbr_rough_var`
+   cvar, `uPbrRoughVar` uniform, and the `roughVar` GLSL line.
+   - Reason: confirm the change is in the binary.
+6. Updated `PBR_PLAN.md` P2 section to the option-3 approach.
+   - Reason: plan must match the shipped implementation.
+
+Result: P2 committed on Beta. `r_pbr 1` now shows per-pixel roughness
+variation; `r_pbr_rough_var 0` restores exact P1 (preset-only) behavior.

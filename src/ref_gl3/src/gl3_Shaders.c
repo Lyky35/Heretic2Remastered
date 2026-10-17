@@ -171,6 +171,7 @@ static const char* fragmentSource3DLM =
 	"uniform int uMaterial;\n"      // PBR: 2-bit surface ID (0 gravel, 1 metal, 2 stone, 3 wood).
 	"uniform float uPbrStrength;\n" // PBR master (0 = off, base path pixel-identical).
 	"uniform int uPbrDebug;\n"      // PBR debug (1 = tint by material ID).
+	"uniform float uPbrRoughVar;\n" // PBR P2: per-pixel roughness variation from albedo luminance (0 = preset-only).
 	"uniform vec3 uSkyTop;\n"       // PBR sky ambient (dynamic-sky preset).
 	"uniform vec3 uSkyBottom;\n"
 	"uniform vec3 uSunDirV;\n"      // PBR sun/moon dir, view space, normalized.
@@ -225,6 +226,12 @@ static const char* fragmentSource3DLM =
 	"        if (uMaterial == 1) { pRough = 0.32; pMetal = 0.9; }\n" // 1 metal
 	"        else if (uMaterial == 2) { pRough = 0.85; pMetal = 0.02; }\n" // 2 stone
 	"        else if (uMaterial == 3) { pRough = 0.70; pMetal = 0.0; }\n" // 3 wood
+	// P2 (option 3): per-pixel roughness variation from albedo luminance.
+	// `h` is the albedo luminance already computed above (shared with bump).
+	// Darker texels (dirt/crevices) trend rougher; brighter texels a touch
+	// smoother. uPbrRoughVar scales the swing (0 = preset-only / P1 behavior).
+	"        float roughVar = clamp(pRough + (0.5 - h) * 0.5 * uPbrRoughVar, 0.05, 1.0);\n"
+	"        pRough = roughVar;\n"
 	"        vec3 Nf = normalize(cross(dFdx(vViewPos), dFdy(vViewPos)));\n"
 	"        if (dot(Nf, V) < 0.0) Nf = -Nf;\n"
 	"        vec3 Pl = normalize(uSunDirV);\n"
@@ -834,6 +841,7 @@ qboolean GL3_InitShaders(void)
 	gl3state.uni3DLM_material   = glGetUniformLocation(gl3state.shader3DLightmap, "uMaterial");
 	gl3state.uni3DLM_pbrStrength = glGetUniformLocation(gl3state.shader3DLightmap, "uPbrStrength");
 	gl3state.uni3DLM_pbrDebug   = glGetUniformLocation(gl3state.shader3DLightmap, "uPbrDebug");
+	gl3state.uni3DLM_pbrRoughVar = glGetUniformLocation(gl3state.shader3DLightmap, "uPbrRoughVar");
 	gl3state.uni3DLM_skyTop     = glGetUniformLocation(gl3state.shader3DLightmap, "uSkyTop");
 	gl3state.uni3DLM_skyBottom  = glGetUniformLocation(gl3state.shader3DLightmap, "uSkyBottom");
 	gl3state.uni3DLM_sunDirV    = glGetUniformLocation(gl3state.shader3DLightmap, "uSunDirV");
@@ -1278,7 +1286,7 @@ void GL3_SetPbrMaterial(const int material)
 // axis in view space (both normalized on upload).
 void GL3_UpdatePbrSky(const float* skyTop, const float* skyBottom,
 	const float* sunDirV, const float* sunColor, const float* worldUpV,
-	const float strength, const int debug, const float night)
+	const float strength, const int debug, const float roughVar, const float night)
 {
 	GL3_UseShader(gl3state.shader3DLightmap);
 	glUniform3f(gl3state.uni3DLM_skyTop, skyTop[0], skyTop[1], skyTop[2]);
@@ -1288,6 +1296,7 @@ void GL3_UpdatePbrSky(const float* skyTop, const float* skyBottom,
 	glUniform3f(gl3state.uni3DLM_worldUpV, worldUpV[0], worldUpV[1], worldUpV[2]);
 	glUniform1f(gl3state.uni3DLM_pbrStrength, strength);
 	glUniform1i(gl3state.uni3DLM_pbrDebug, debug);
+	glUniform1f(gl3state.uni3DLM_pbrRoughVar, roughVar);
 	glUniform1f(gl3state.uni3DLM_night, night);
 }
 

@@ -69,6 +69,7 @@ extern cvar_t* r_bump_scale_world;
 extern cvar_t* r_bump_scale_water;
 extern cvar_t* r_pbr;        // Per-surface PBR specular strength (0 = off, pixel-identical).
 extern cvar_t* r_pbr_debug;  // 0 off, 1 tint by material ID, 2 sky-ambient feed test.
+extern cvar_t* r_pbr_rough_var; // PBR P2: per-pixel roughness variation from albedo luminance (0 = preset-only).
 extern cvar_t* r_caustics;
 extern cvar_t* r_caustics_strength;
 extern cvar_t* r_hd_textures;
@@ -288,6 +289,7 @@ typedef struct
 	GLint uni3DLM_material;		// int: PBR per-surface ID (0 gravel, 1 metal, 2 stone, 3 wood).
 	GLint uni3DLM_pbrStrength;	// float: PBR master (0 = off).
 	GLint uni3DLM_pbrDebug;		// int: PBR debug tint by material.
+	GLint uni3DLM_pbrRoughVar;	// float: PBR P2 per-pixel roughness variation (0 = preset-only).
 	GLint uni3DLM_skyTop;		// vec3: PBR sky ambient top (dynamic-sky preset).
 	GLint uni3DLM_skyBottom;		// vec3: PBR sky ambient bottom.
 	GLint uni3DLM_sunDirV;		// vec3: PBR sun/moon dir, view space.

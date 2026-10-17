@@ -84,13 +84,15 @@ into buildable phases.
     `diffuse*lm`. Night preset (`night=1`) dims sun to moon color.
   - Keep lightmaps/dlights/bump/caustics/fog byte-identical when
     `r_pbr 0`.
-- **P2 — ORM companions (later, needs art).**
-  `_orm.png` (R=occlusion?, G=roughness, B=metalness — exact
-  channel packing TBD at implement time) loaded through the HD
-  scanner (`R_FindHDTexturePath` sibling lookup, same normalize
-  rules), bound as `uOrm` on the LM shader; per-pixel
-  `rough/metal` multiply the P1 presets (missing file = preset).
-  Grayscale `.m8` paletted textures stay preset-only.
+- **P2 — per-pixel roughness from albedo luminance (option 3, no new assets).**
+  Chosen over `_orm.png` companions (no legal online source for H2; Python
+  generation is heuristic). In-shader on the LM frag, reusing the albedo
+  luminance `h` already computed for bump:
+  `roughVar = clamp(pRough + (0.5 - h) * 0.5 * r_pbr_rough_var, 0.05, 1.0)`.
+  Darker texels (dirt/crevices) trend rougher; brighter texels a touch
+  smoother. Metalness stays at the P1 preset. Gated by new cvar
+  `r_pbr_rough_var` (0 = preset-only / P1 behavior, default 1). No
+  `_orm.png` files, no HD-scanner change, no Python toolchain.
 - **P3 — out for Beta.** Real normal maps (`_n`), gl1 backport,
   VSM/PCF shadows interplay, brush-model per-entity materials.
   Explicitly deferred.
