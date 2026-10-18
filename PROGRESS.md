@@ -1193,3 +1193,36 @@ Steps:
 Result: R8_8_Beta asset re-uploaded. Retest ask: `r_pbr 1` + `r_pbr_rough_var 1`
 should now show clear shinier/rougher and metallic/rusty variation; `r_pbr_rough_var 0`
 restores exact P1.
+
+## 2026-10-17 — PBR bump: albedo-height normal perturbation (depth)
+
+Report: textures too flat; PBR spec used the flat faceted normal, so the
+highlight was uniform per face (no depth).
+Steps:
+1. Root cause (static): the PBR block used `Nf` (faceted face normal) for the
+   specular dot, so the highlight was constant across each polygon. The world
+   bump (`r_bump_scale_world`) is 0 and not applied to the PBR normal.
+   - Reason: no per-pixel normal detail → flat look.
+2. `fragmentSource3DLM`: added `PbrBumpNormal(P, N, uv, h, strength)` — a
+   per-pixel TBN bump from the albedo height field. Tangent `T` from the UV
+   derivative (`dPds` via the inverse screen Jacobian), bitangent
+   `B = cross(N, T)`. Perturbs `N` by `strength * (dhds*T + dhdt*B)`.
+   - Reason: per-pixel TBN (no vertex-format change to the BSP glpoly_t data).
+3. PBR block: compute `Np = PbrBumpNormal(vViewPos, Nf, vTexCoord, h,
+   uPbrBumpScale)` and use `dot(Np, Ph)` for the specular (ambient keeps `Nf`).
+   - Reason: specular now catches albedo detail → depth.
+4. `r_pbr_bump` cvar (default 0.5, 0 = off): extern + global + `Cvar_Get`;
+   `uPbrBumpScale` uniform + `uni3DLM_pbrBump`; wired through
+   `GL3_UpdatePbrSky` (+ `bump` param) and `GL3_SkyDyn_UpdatePbr`.
+   - Reason: tunable depth; follows the existing PBR cvar pattern.
+5. Built (zero errors); verified in `ref_gl3.dll`: `r_pbr_bump`, `uPbrBumpScale`,
+   the `PbrBumpNormal` helper, and `dot(Np, Ph)`.
+   - Reason: confirm the change is in the binary.
+6. Refreshed R88Beta `ref_gl3.dll` (md5 `23db4df2…`), README `r_pbr_bump`
+   starter, re-zipped, re-uploaded R8_8_Beta asset (6705369 bytes).
+   - Reason: ship for local testing.
+7. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion".
+
+Result: R8_8_Beta asset re-uploaded. Retest ask: `r_pbr 1` + `r_pbr_bump 0.5`
+(default) should show surface depth via the specular; `r_pbr_bump 0` = no bump.
