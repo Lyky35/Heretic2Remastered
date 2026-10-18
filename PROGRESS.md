@@ -1257,3 +1257,31 @@ Steps:
 Result: R8_8_Beta asset re-uploaded. Retest ask: `r_pbr 1` should now show
 visible surface depth (directional shading + sheen following the albedo
 detail). `r_pbr_bump 0` disables the bump; `r_pbr_rough_var 0` restores P1.
+
+## 2026-10-17 — Revert PBR P2, back to P1
+
+Request: "i don't like the phase 2 of this pbr implementation."
+Steps:
+1. P2 (roughness/metalness variation + bump + depth) spanned 4 code commits
+   on top of the P1 baseline `5cd532b1`. Reverted by checking out the 6
+   touched files (gl3_Shaders.c/h, gl3_Local.h, gl3_Main.c, gl3_SkyDyn.c,
+   PBR_PLAN.md) from `5cd532b1` — restores P1 exactly.
+   - Reason: clean, guaranteed P1 (presets + analytic-sky IBL + tight
+     specular); no P2 leftovers.
+2. Removed: `r_pbr_rough_var`, `r_pbr_bump` cvars; `PbrBumpNormal` +
+   `uPbrBumpScale`; the broadened specular + sun-diffuse (`pDiff`).
+   - Reason: all of these were P2.
+3. Built (zero errors); verified only `r_pbr` + `r_pbr_debug` cvars remain,
+   and the P1 specular (`specPow mix(8,128)`, `specAmt (0.25+0.75*(1-rough))`,
+   `Nf`) is back. No `PbrBumpNormal`/`pDiff`/`roughVar` in the binary.
+   - Reason: confirm P2 is gone and P1 intact.
+4. `PBR_PLAN.md` P2 section rewritten to record the three P2 attempts and the
+   revert; P1 is the Beta target.
+   - Reason: plan must match shipped code.
+5. Refreshed R88Beta `ref_gl3.dll` (md5 `c6c6858c…`), README dropped the
+   P2/bump starters, re-zipped, re-uploaded R8_8_Beta asset (6704488 bytes).
+   - Reason: release must equal the reverted P1 code.
+6. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion".
+
+Result: P2 fully reverted. R8_8_Beta asset = P1 build. Download md5 verified.
