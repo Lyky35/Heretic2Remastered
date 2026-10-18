@@ -258,10 +258,10 @@ static const char* fragmentSource3DLM =
 "        vec3 Np = PbrBumpNormal(vViewPos, Nf, vTexCoord, h, uPbrBumpScale);\n"
 "        vec3 Pl = normalize(uSunDirV);\n"
 	"        vec3 Ph = normalize(Pl + V);\n"
-	"        float specPow = mix(8.0, 128.0, 1.0 - pRough);\n"
-	"        vec3 F0 = mix(vec3(0.04), diffuse.rgb, pMetal);\n"
-	"        vec3 Fr = F0 + (vec3(1.0) - F0) * pow(1.0 - max(dot(Ph, V), 0.0), 5.0);\n"
-	"        float specAmt = pow(max(dot(Np, Ph), 0.0), specPow) * (0.25 + 0.75 * (1.0 - pRough));\n"
+"        float specPow = mix(2.0, 24.0, 1.0 - pRough);\n"
+"        vec3 F0 = mix(vec3(0.04), diffuse.rgb, pMetal);\n"
+"        vec3 Fr = F0 + (vec3(1.0) - F0) * pow(1.0 - max(dot(Ph, V), 0.0), 5.0);\n"
+"        float specAmt = pow(max(dot(Np, Ph), 0.0), specPow) * (0.5 + 0.5 * (1.0 - pRough));\n"
 	"        if (pMetal > 0.5) specAmt *= 1.5;\n"
 	// Directional sky ambient: reflect the view ray off the face and sample
 	// the preset gradient along world-up, so r_sky_preset visibly re-tints
@@ -272,8 +272,11 @@ static const char* fragmentSource3DLM =
 	"        vec3 pAmb = diffuse.rgb * skyRef * 0.20 * (1.0 - pMetal * 0.5);\n"
 	// Night boost: the night gradient is dark, so scale the sky response up to
 	// keep moonlit surfaces from reading flat (moon spec + ambient).
-	"        float natt = 1.0 + uNight * 2.5;\n"
-	"        lit += (uSunColor * (Fr * specAmt) * natt + pAmb * natt) * uPbrStrength * max(lm.rgb, vec3(0.4));\n"
+"        // Sun diffuse from the bumped normal — directional shading follows\n"
+"        // the albedo detail (the main visible-depth cue).\n"
+"        vec3 pDiff = diffuse.rgb * uSunColor * max(dot(Np, Pl), 0.0) * 0.45;\n"
+"        float natt = 1.0 + uNight * 2.5;\n"
+"        lit += (uSunColor * (Fr * specAmt) * natt + pDiff * natt + pAmb * natt) * uPbrStrength * max(lm.rgb, vec3(0.4));\n"
 	"    }\n"
 	"    FragColor = vec4(lit, diffuse.a) * uColor;\n"
 	"    if (FragColor.a < 0.01) discard;\n"

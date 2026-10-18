@@ -1226,3 +1226,34 @@ Steps:
 
 Result: R8_8_Beta asset re-uploaded. Retest ask: `r_pbr 1` + `r_pbr_bump 0.5`
 (default) should show surface depth via the specular; `r_pbr_bump 0` = no bump.
+
+## 2026-10-17 — PBR depth: broad specular + sun diffuse from bumped normal
+
+Report: bump on/off "as flat as they were"; no visible difference. User asked
+about tessellation.
+Steps:
+1. Root cause (static): the PBR specular was a TIGHT, DIM highlight —
+   `specPow = mix(8,128,1-rough)` put the peak at a tiny dot, and the dielectric
+   Fresnel (~0.04) made it dim, so there was no sheen for the bump to modulate.
+   Tessellation alone would NOT help: with no height/normal map to displace,
+   extra triangles on a flat wall stay flat.
+   - Reason: the lighting had no visible term for the bump to act on.
+2. `fragmentSource3DLM` PBR block:
+   - Broadened the specular: `specPow = mix(2,24,1-rough)` (was 8..128) and
+     raised the base `specAmt` factor to `0.5 + 0.5*(1-rough)`.
+   - Added a directional sun-diffuse from the bumped normal:
+     `pDiff = diffuse.rgb * uSunColor * max(dot(Np, Pl), 0.0) * 0.45`.
+   - Reason: directional light/shadow that follows the albedo detail is the
+     main visible-depth cue (the tight specular was not).
+3. Built (zero errors); verified `specPow = mix(2.0, 24.0, ...)`, the `pDiff`
+   line, and `dot(Np, Pl)` in `ref_gl3.dll`.
+   - Reason: confirm the change is in the binary.
+4. Refreshed R88Beta `ref_gl3.dll` (md5 `75751227…`), re-zipped, re-uploaded
+   R8_8_Beta asset (6705408 bytes).
+   - Reason: ship for local testing.
+5. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion".
+
+Result: R8_8_Beta asset re-uploaded. Retest ask: `r_pbr 1` should now show
+visible surface depth (directional shading + sheen following the albedo
+detail). `r_pbr_bump 0` disables the bump; `r_pbr_rough_var 0` restores P1.
