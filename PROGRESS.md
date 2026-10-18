@@ -1167,3 +1167,29 @@ Steps:
    - Reason: confirm the tester gets the P2 build.
 
 Result: R8.8 Beta pre-release live at `https://github.com/Lyky35/Heretic2Remastered/releases/tag/R8_8_Beta`. Retest ask: `r_pbr 1` shows per-pixel roughness variation; `r_pbr_rough_var 0` restores exact P1 (preset-only).
+
+## 2026-10-17 — PBR P2 amplified (roughness + metalness variation)
+
+Report: `r_pbr_rough_var 1` "doesn't offer much graphical candy at all".
+Steps:
+1. Root cause (static): H2 albedo is narrow-range, so `(0.5 - h) * 0.5` moved
+   roughness by at most ~±0.1 — barely visible. Metalness was constant per preset.
+   - Reason: the swing had no room to work.
+2. `fragmentSource3DLM` PBR block: contrast-stretch the albedo luminance around
+   0.5 (`luma = clamp((h - 0.5) * 2.0 * uPbrRoughVar + 0.5, 0, 1)`), widen the
+   roughness swing to ±0.35 (`pRough + (0.5 - luma) * 0.7`), and add a per-pixel
+   metallic (rust) variation on metal surfaces
+   (`if (pMetal > 0.5) pMetal += (luma - 0.5) * 0.7`).
+   - Reason: darker texels trend rougher AND less metallic (rust); brighter
+     smoother AND more metallic. Metalness change is high-impact (colored F0).
+3. Built (zero errors); verified the new GLSL lines in `ref_gl3.dll`.
+   - Reason: confirm the change is in the binary.
+4. Refreshed R88Beta stage `ref_gl3.dll` (md5 `78f8ac6a…`), re-zipped, re-uploaded
+   the R8_8_Beta asset with `--clobber` (6704830 bytes).
+   - Reason: ship the stronger build for local testing.
+5. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion".
+
+Result: R8_8_Beta asset re-uploaded. Retest ask: `r_pbr 1` + `r_pbr_rough_var 1`
+should now show clear shinier/rougher and metallic/rusty variation; `r_pbr_rough_var 0`
+restores exact P1.

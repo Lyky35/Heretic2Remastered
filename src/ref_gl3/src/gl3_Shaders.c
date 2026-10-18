@@ -226,12 +226,15 @@ static const char* fragmentSource3DLM =
 	"        if (uMaterial == 1) { pRough = 0.32; pMetal = 0.9; }\n" // 1 metal
 	"        else if (uMaterial == 2) { pRough = 0.85; pMetal = 0.02; }\n" // 2 stone
 	"        else if (uMaterial == 3) { pRough = 0.70; pMetal = 0.0; }\n" // 3 wood
-	// P2 (option 3): per-pixel roughness variation from albedo luminance.
-	// `h` is the albedo luminance already computed above (shared with bump).
-	// Darker texels (dirt/crevices) trend rougher; brighter texels a touch
-	// smoother. uPbrRoughVar scales the swing (0 = preset-only / P1 behavior).
-	"        float roughVar = clamp(pRough + (0.5 - h) * 0.5 * uPbrRoughVar, 0.05, 1.0);\n"
-	"        pRough = roughVar;\n"
+	// P2 (option 3): per-pixel roughness + metalness variation from albedo
+	// luminance. `h` is the albedo luminance already computed above (shared
+	// with bump). The luminance is contrast-stretched around 0.5 first so the
+	// per-pixel swing has room (H2 albedo is narrow-range). Darker texels
+	// (dirt/crevices) trend rougher AND less metallic (rust); brighter texels
+	// trend smoother AND more metallic. uPbrRoughVar is the master (0 = off).
+	"        float luma = clamp((h - 0.5) * 2.0 * uPbrRoughVar + 0.5, 0.0, 1.0);\n"
+	"        pRough = clamp(pRough + (0.5 - luma) * 0.7, 0.03, 1.0);\n"
+	"        if (pMetal > 0.5) pMetal = clamp(pMetal + (luma - 0.5) * 0.7, 0.0, 1.0);\n"
 	"        vec3 Nf = normalize(cross(dFdx(vViewPos), dFdy(vViewPos)));\n"
 	"        if (dot(Nf, V) < 0.0) Nf = -Nf;\n"
 	"        vec3 Pl = normalize(uSunDirV);\n"
