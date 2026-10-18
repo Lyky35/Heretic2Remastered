@@ -11,6 +11,8 @@
 
 #define PFL_LM_COLOR	0x00000100	//mxd. Use lightmap color instead of entity color.
 
+#define PFL_BOUNCE	0x00000080	// Particle bounces off world geometry (per-frame trace + reflect).
+
 // Move flags... Note, these are pretty much mutually exclusive.
 #define PFL_MOVE_MASK	0x0f000000	// Check how the particles move.
 

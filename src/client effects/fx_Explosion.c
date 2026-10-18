@@ -21,7 +21,7 @@ static void CreateExplosionParticles(client_entity_t* this)
 	for (int i = 0; i < count; i++)
 	{
 		const paletteRGBA_t color = { .r = (byte)irand(127, 255), .g = (byte)irand(127, 255), .b = 0, .a = 255 };
-		client_particle_t* p = ClientParticle_new(PART_4x4_WHITE, color, 500);
+		client_particle_t* p = ClientParticle_new(PART_4x4_WHITE | PFL_BOUNCE, color, 500);
 
 		VectorRandomSet(p->origin, EXP_RANGE); //mxd
 		VectorRandomSet(p->velocity, EXP_SPEED); //mxd

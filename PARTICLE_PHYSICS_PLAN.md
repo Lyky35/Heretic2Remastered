@@ -1,7 +1,11 @@
 # Particle Physics Plan — Beta (client effects)
 
 Goal: explosion / weapon-impact particles should **bounce off walls and
-floors** instead of passing through geometry. Exploration only — no code yet.
+floors** instead of passing through geometry.
+
+**Status: Option A implemented on Beta.** Explosion debris (`fx_Explosion.c`)
+and weapon sparks (`fx_sparks.c`) carry `PFL_BOUNCE` and bounce via a
+per-frame world trace. See "Implementation" below.
 
 ## 1. Current architecture (verified in-tree)
 
@@ -96,7 +100,25 @@ architectural change + network traffic for a purely visual effect.
 5. **Effect-origin motion**: explode at a fixed origin; if the effect moves,
    the world trace must use the current `ce->r.origin`.
 
-## 5. Acceptance (Windows manual test)
+## 5. Implementation (Option A — done)
+
+- **`src/qcommon/ParticleFlags.h`**: `PFL_BOUNCE 0x00000080` (bit 7, free).
+- **`src/client effects/Particle.h`**: `client_particle_t` gains `int bounces`;
+  tuning `PARTICLE_MAX_BOUNCES 3`, `PARTICLE_RESTITUTION 0.45f`,
+  `PARTICLE_FRICTION 0.80f`.
+- **`src/client effects/Particle.c`**:
+  - `Particle_Bounce(ce, p, dt)` — Euler step, `fxi.Trace(world_prev → world_new,
+    MASK_SOLID, CTF_CLIP_TO_WORLD)`, reflect velocity about `plane.normal`
+    with restitution+friction, clamp to `trace.endpos`, cap bounces then settle.
+  - `UpdateParticles` calls it for `PFL_BOUNCE` particles when `r_particle_bounce > 0`.
+  - `AddParticlesToView` draws the integrated `origin` for bounce particles
+    (closed-form skipped).
+- **`src/client effects/Main.c`**: `r_particle_bounce` cvar (default 1) +
+  file-scope definition.
+- **Spawners**: `fx_Explosion.c` (`PART_4x4_WHITE | PFL_BOUNCE`) and
+  `fx_sparks.c` (`PART_16x16_FIRE* | PFL_BOUNCE`).
+
+## 6. Acceptance (Windows manual test)
 - Fire a weapon that explodes into a wall/floor: particles bounce/roll along
   the surface instead of clipping through.
 - `r_particle_bounce 0` → back to today's ballistic behavior (no regression).

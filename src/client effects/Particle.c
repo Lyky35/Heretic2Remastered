@@ -106,11 +106,15 @@ int AddParticlesToView(client_entity_t* ce)
 		r->scale = current->scale + (d_time * current->d_scale);
 
 		const float d_time2 = d_time * d_time * 0.5f;
+		// Bounce particles are integrated per-frame in UpdateParticles; draw
+		// their integrated origin instead of the closed-form ballistic path.
+		const qboolean bounce = ((current->type & PFL_BOUNCE) && r_particle_bounce->value > 0.0f);
 
 		if (ce->flags & CEF_ABSOLUTE_PARTS)
 		{
 			for (int i = 0; i < 3; i++)
-				r->origin[i] = current->origin[i] + (current->velocity[i] * d_time) + (current->acceleration[i] * d_time2);
+				r->origin[i] = bounce ? current->origin[i]
+					: current->origin[i] + (current->velocity[i] * d_time) + (current->acceleration[i] * d_time2);
 		}
 		else
 		{
@@ -152,11 +156,12 @@ int AddParticlesToView(client_entity_t* ce)
 					r->origin[2] = ce->r.origin[2] + offset;
 					break;
 
-				case PFL_MOVE_NORM:
-				default:
-					for (int i = 0; i < 3; i++)
-						r->origin[i] = ce->r.origin[i] + current->origin[i] + (current->velocity[i] * d_time) + (current->acceleration[i] * d_time2);
-					break;
+			case PFL_MOVE_NORM:
+			default:
+				for (int i = 0; i < 3; i++)
+					r->origin[i] = ce->r.origin[i] + (bounce ? current->origin[i]
+						: current->origin[i] + (current->velocity[i] * d_time) + (current->acceleration[i] * d_time2));
+				break;
 			}
 		}
 
@@ -185,6 +190,64 @@ int AddParticlesToView(client_entity_t* ce)
 	return numparticles;
 }
 
+// Per-frame world-collision bounce for one particle. Integrates one frame,
+// traces the path against the world BSP, and reflects velocity on hit.
+// Mutates p->origin / p->velocity / p->bounces.
+static void Particle_Bounce(client_entity_t* ce, client_particle_t* p, const float dt)
+{
+	const float dt2 = dt * dt * 0.5f;
+	vec3_t new_origin;
+	vec3_t world_prev;
+	vec3_t world_new;
+
+	for (int i = 0; i < 3; i++)
+		new_origin[i] = p->origin[i] + p->velocity[i] * dt + p->acceleration[i] * dt2;
+
+	for (int i = 0; i < 3; i++)
+	{
+		world_prev[i] = ce->r.origin[i] + p->origin[i];
+		world_new[i]  = ce->r.origin[i] + new_origin[i];
+	}
+
+	trace_t trace;
+	fxi.Trace(world_prev, vec3_origin, vec3_origin, world_new, MASK_SOLID, CTF_CLIP_TO_WORLD, &trace);
+
+	if (trace.fraction >= 1.0f || trace.allsolid)
+	{
+		// Free flight — accept the step and apply gravity.
+		for (int i = 0; i < 3; i++)
+			p->velocity[i] += p->acceleration[i] * dt;
+		VectorCopy(new_origin, p->origin);
+		return;
+	}
+
+	// Hit — clamp to the surface.
+	VectorCopy(trace.endpos, world_new);
+	VectorSubtract(world_new, ce->r.origin, p->origin);
+
+	if (p->bounces >= PARTICLE_MAX_BOUNCES)
+	{
+		// Done bouncing: settle (stop gravity so it rests on the surface).
+		VectorClear(p->velocity);
+		VectorClear(p->acceleration);
+		return;
+	}
+
+	p->bounces++;
+
+	// Reflect with restitution + friction: v' = friction*v - (friction+e)*dot(v,n)*n
+	vec3_t normal;
+	VectorCopy(trace.plane.normal, normal);
+	const float vn = DotProduct(p->velocity, normal);
+	for (int i = 0; i < 3; i++)
+		p->velocity[i] = PARTICLE_FRICTION * p->velocity[i]
+			- (PARTICLE_FRICTION + PARTICLE_RESTITUTION) * vn * normal[i];
+
+	// Keep gravity acting so it settles after the bounce.
+	for (int i = 0; i < 3; i++)
+		p->velocity[i] += p->acceleration[i] * dt;
+}
+
 int UpdateParticles(client_entity_t* ce)
 {
 	client_particle_t* current;
@@ -206,6 +269,10 @@ int UpdateParticles(client_entity_t* ce)
 			// A weird thing to do, but necessary because the alpha is based off a dtime from the CREATION of the particle.
 			alpha = 255 - (alpha - 255);
 		}
+
+		// Per-frame world bounce for flagged particles.
+		if ((current->type & PFL_BOUNCE) && r_particle_bounce->value > 0.0f)
+			Particle_Bounce(ce, current, fxi.cls->rframetime);
 
 		if (d_msec > current->duration || alpha <= 0)
 		{

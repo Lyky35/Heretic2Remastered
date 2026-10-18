@@ -29,6 +29,7 @@ cvar_t* r_detail;
 cvar_t* clfx_gravity;
 cvar_t* vid_ref;
 cvar_t* cl_timedemo;
+cvar_t* r_particle_bounce;
 
 static cvar_t* fx_numinview;
 static cvar_t* fx_numactive;
@@ -88,6 +89,7 @@ static void Init(void)
 	fx_numinview = Cvar_Get("fx_numinview", "0", 0);
 	fx_numactive = Cvar_Get("fx_numactive", "0", 0);
 	clfx_gravity = Cvar_Get("clfx_gravity", GRAVITY_STRING, 0);
+	r_particle_bounce = Cvar_Get("r_particle_bounce", "1", 0);
 	cl_timedemo = Cvar_Get("timedemo", "0", 0);
 
 	cl_lerpdist2 = Cvar_Get("cl_lerpdist2", "10000", 0);

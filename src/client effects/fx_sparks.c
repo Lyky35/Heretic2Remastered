@@ -185,7 +185,7 @@ void FireSparks(centity_t* owner, const int type, int flags, const vec3_t origin
 
 	for (int i = 0; i < irand(7, 13); i++)
 	{
-		client_particle_t* flame = ClientParticle_new(irand(PART_16x16_FIRE1, PART_16x16_FIRE3), effect->color, 1000);
+		client_particle_t* flame = ClientParticle_new(irand(PART_16x16_FIRE1, PART_16x16_FIRE3) | PFL_BOUNCE, effect->color, 1000);
 
 		vec3_t work;
 		VectorRandomCopy(dir, work, 0.5f);

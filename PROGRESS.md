@@ -1285,3 +1285,36 @@ Steps:
    - Reason: complete "commit and push after each portion".
 
 Result: P2 fully reverted. R8_8_Beta asset = P1 build. Download md5 verified.
+
+## 2026-10-17 — Particle physics: explosion/spark bounce off walls+floors (Option A)
+
+Request: explore particle physics; make explosion debris + weapon sparks bounce
+off walls/floors. Approved: explosion debris + sparks only, restitution ~0.45,
+gate behind r_particle_bounce.
+Steps:
+1. Explored: particles are client-side visual effects (`Particle.c`), closed-form
+   ballistic, zero collision. Server fires weapons/traces/spawns effects via
+   `gi.CreateEffect`. Client has the world BSP + `CL_Trace` (`fxi.Trace`).
+   Wrote `PARTICLE_PHYSICS_PLAN.md`.
+   - Reason: ground the approach in the real architecture.
+2. `PFL_BOUNCE` flag (`ParticleFlags.h`, bit 7) + `client_particle_t.bounces`
+   (`Particle.h`); tuning `PARTICLE_MAX_BOUNCES 3 / RESTITUTION 0.45 / FRICTION 0.80`.
+   - Reason: opt-in bounce, capped so particles settle.
+3. `Particle.c`: `Particle_Bounce()` (Euler step + `fxi.Trace(MASK_SOLID,
+   CTF_CLIP_TO_WORLD)` + reflect velocity about plane normal with restitution
+   + friction, clamp to hit, cap bounces then settle). `UpdateParticles` calls it
+   for PFL_BOUNCE particles; `AddParticlesToView` draws the integrated origin for
+   them (skips the closed-form).
+   - Reason: per-frame world bounce, client-only (particles are visual).
+4. `r_particle_bounce` cvar (default 1): `Main.c` file-scope def + `Cvar_Get`,
+   extern in `Client Effects.h`.
+   - Reason: toggle/disable for perf + no-regression default-off path.
+5. Spawners: `fx_Explosion.c` (`PART_4x4_WHITE | PFL_BOUNCE`), `fx_sparks.c`
+   (`PART_16x16_FIRE* | PFL_BOUNCE`).
+   - Reason: explosion debris + weapon sparks only, per request.
+6. Built (mingw-w64, zero errors); verified `r_particle_bounce` cvar + bounce
+   code in `Client Effects.dll`.
+   - Reason: confirm it compiles + links.
+
+Result: PFL_BOUNCE particles bounce off walls/floors; `r_particle_bounce 0` =
+today's ballistic behavior. Next: build an R8.8 Beta pre-release to test on Win10.

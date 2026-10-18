@@ -129,10 +129,15 @@ typedef struct client_particle_s
 
 	int startTime;	// Milliseconds.
 	int duration;	// Milliseconds.
+	int bounces;	// World bounces so far (PFL_BOUNCE only).
 } client_particle_t;
 
 #define PARTICLE_GRAVITY			80
 #define PARTICLE_TRAIL_THINK_TIME	100	// Spawns a particle puff 10 times per sec.
+
+#define PARTICLE_MAX_BOUNCES	3
+#define PARTICLE_RESTITUTION	0.45f
+#define PARTICLE_FRICTION		0.80f
 
 // These are used in the vectors for origin, velocity and acceleration in particles that use Cylindrical coordinates.
 #define CYL_RADIUS		0

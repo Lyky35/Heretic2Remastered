@@ -20,6 +20,7 @@ extern cvar_t* r_farclipdist;
 extern cvar_t* r_nearclipdist;
 extern cvar_t* r_detail;
 extern cvar_t* clfx_gravity;
+extern cvar_t* r_particle_bounce; // Per-frame world bounce for PFL_BOUNCE particles (0 = off).
 
 #define R_DETAIL	((int)r_detail->value) //mxd
 
