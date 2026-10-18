@@ -84,15 +84,16 @@ into buildable phases.
     `diffuse*lm`. Night preset (`night=1`) dims sun to moon color.
   - Keep lightmaps/dlights/bump/caustics/fog byte-identical when
     `r_pbr 0`.
-- **P2 — per-pixel roughness from albedo luminance (option 3, no new assets).**
-  Chosen over `_orm.png` companions (no legal online source for H2; Python
-  generation is heuristic). In-shader on the LM frag, reusing the albedo
-  luminance `h` already computed for bump:
-  `roughVar = clamp(pRough + (0.5 - h) * 0.5 * r_pbr_rough_var, 0.05, 1.0)`.
-  Darker texels (dirt/crevices) trend rougher; brighter texels a touch
-  smoother. Metalness stays at the P1 preset. Gated by new cvar
-  `r_pbr_rough_var` (0 = preset-only / P1 behavior, default 1). No
-  `_orm.png` files, no HD-scanner change, no Python toolchain.
+- **P2 — REVERTED (user did not like the result).** Tried three times, all
+  reverted to P1:
+  1. per-pixel roughness from albedo luminance + material ID (option 3) —
+     too subtle (narrow albedo range).
+  2. amplified roughness + metalness (rust) variation — still flat.
+  3. per-pixel TBN bump from albedo height (`r_pbr_bump`) + broadened
+     specular + sun-diffuse from the bumped normal — the tight dim P1
+     specular gave the bump nothing to modulate; result not liked.
+  P1 (presets + analytic-sky IBL + tight specular) is the current Beta
+  target. Revisit only with real normal maps (P3) / authored height data.
 - **P3 — out for Beta.** Real normal maps (`_n`), gl1 backport,
   VSM/PCF shadows interplay, brush-model per-entity materials.
   Explicitly deferred.

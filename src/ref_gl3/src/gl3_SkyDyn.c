@@ -1427,7 +1427,7 @@ void GL3_SkyDyn_PbrSky(float* top, float* bottom, float* lightDirW, float* light
 void GL3_SkyDyn_UpdatePbr(void)
 {
 	float top[3], bottom[3], lw[3], lc[3], lv[3], up[3];
-	float vx, vy, vz, len, strength, roughVar, bump, night;
+	float vx, vy, vz, len, strength, night;
 	int debug;
 
 	if (r_pbr == NULL)
@@ -1442,16 +1442,6 @@ void GL3_SkyDyn_UpdatePbr(void)
 		debug = 0;
 	if (debug > 2)
 		debug = 2;
-	roughVar = (r_pbr_rough_var != NULL) ? r_pbr_rough_var->value : 1.0f;
-	if (roughVar < 0.0f)
-		roughVar = 0.0f;
-	if (roughVar > 1.0f)
-		roughVar = 1.0f;
-	bump = (r_pbr_bump != NULL) ? r_pbr_bump->value : 0.5f;
-	if (bump < 0.0f)
-		bump = 0.0f;
-	if (bump > 2.0f)
-		bump = 2.0f;
 
 	GL3_SkyDyn_PbrSky(top, bottom, lw, lc, &night);
 
@@ -1480,7 +1470,7 @@ void GL3_SkyDyn_UpdatePbr(void)
 		up[0] = 0.0f; up[1] = 0.0f; up[2] = 1.0f;
 	}
 
-	GL3_UpdatePbrSky(top, bottom, lv, lc, up, strength, debug, roughVar, bump, night);
+	GL3_UpdatePbrSky(top, bottom, lv, lc, up, strength, debug, night);
 }
 
 qboolean GL3_SkyDyn_DrawDebug(void)

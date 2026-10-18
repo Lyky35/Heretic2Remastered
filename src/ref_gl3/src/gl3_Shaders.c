@@ -171,31 +171,12 @@ static const char* fragmentSource3DLM =
 	"uniform int uMaterial;\n"      // PBR: 2-bit surface ID (0 gravel, 1 metal, 2 stone, 3 wood).
 	"uniform float uPbrStrength;\n" // PBR master (0 = off, base path pixel-identical).
 	"uniform int uPbrDebug;\n"      // PBR debug (1 = tint by material ID).
-	"uniform float uPbrRoughVar;\n" // PBR P2: per-pixel roughness variation from albedo luminance (0 = preset-only).
 	"uniform vec3 uSkyTop;\n"       // PBR sky ambient (dynamic-sky preset).
 	"uniform vec3 uSkyBottom;\n"
 	"uniform vec3 uSunDirV;\n"      // PBR sun/moon dir, view space, normalized.
 	"uniform vec3 uSunColor;\n"     // PBR sun/moon color (night = dim moon blue).
 	"uniform vec3 uWorldUpV;\n"     // PBR world-up axis in view space (sky gradient direction).
 	"uniform float uNight;\n"       // PBR night flag (1 = moonlit): boosts ambient/spec.
-	"uniform float uPbrBumpScale;\n" // PBR bump: albedo-height -> normal perturbation (0 = off).
-	"// Per-pixel TBN bump from the albedo height field (view space).\n"
-	"// Tangent T from the UV derivative, bitangent B = cross(N, T).\n"
-	"vec3 PbrBumpNormal(vec3 P, vec3 N, vec2 uv, float h, float strength) {\n"
-	"    vec2 tx = dFdx(uv);\n"
-	"    vec2 ty = dFdy(uv);\n"
-	"    float jDet = tx.x * ty.y - ty.x * tx.x;\n"
-	"    if (abs(jDet) < 1e-7) return N;\n"
-	"    vec3 sx = dFdx(P);\n"
-	"    vec3 sy = dFdy(P);\n"
-	"    vec3 dPds = (ty.y * sx - ty.x * sy) / jDet;\n"
-	"    vec3 dPdt = (tx.x * sy - tx.y * sx) / jDet;\n"
-	"    float dhds = (ty.y * dFdx(h) - ty.x * dFdy(h)) / jDet;\n"
-	"    float dhdt = (tx.x * dFdy(h) - tx.y * dFdx(h)) / jDet;\n"
-	"    vec3 T = normalize(dPds);\n"
-	"    vec3 B = normalize(cross(N, T));\n"
-	"    return normalize(N - strength * (dhds * T + dhdt * B));\n"
-	"}\n"
 	"out vec4 FragColor;\n"
 	"void main() {\n"
 	"    vec4 diffuse = texture(uDiffuse, vTexCoord);\n"
@@ -244,24 +225,14 @@ static const char* fragmentSource3DLM =
 	"        if (uMaterial == 1) { pRough = 0.32; pMetal = 0.9; }\n" // 1 metal
 	"        else if (uMaterial == 2) { pRough = 0.85; pMetal = 0.02; }\n" // 2 stone
 	"        else if (uMaterial == 3) { pRough = 0.70; pMetal = 0.0; }\n" // 3 wood
-	// P2 (option 3): per-pixel roughness + metalness variation from albedo
-	// luminance. `h` is the albedo luminance already computed above (shared
-	// with bump). The luminance is contrast-stretched around 0.5 first so the
-	// per-pixel swing has room (H2 albedo is narrow-range). Darker texels
-	// (dirt/crevices) trend rougher AND less metallic (rust); brighter texels
-	// trend smoother AND more metallic. uPbrRoughVar is the master (0 = off).
-	"        float luma = clamp((h - 0.5) * 2.0 * uPbrRoughVar + 0.5, 0.0, 1.0);\n"
-	"        pRough = clamp(pRough + (0.5 - luma) * 0.7, 0.03, 1.0);\n"
-	"        if (pMetal > 0.5) pMetal = clamp(pMetal + (luma - 0.5) * 0.7, 0.0, 1.0);\n"
-"        vec3 Nf = normalize(cross(dFdx(vViewPos), dFdy(vViewPos)));\n"
-"        if (dot(Nf, V) < 0.0) Nf = -Nf;\n"
-"        vec3 Np = PbrBumpNormal(vViewPos, Nf, vTexCoord, h, uPbrBumpScale);\n"
-"        vec3 Pl = normalize(uSunDirV);\n"
+	"        vec3 Nf = normalize(cross(dFdx(vViewPos), dFdy(vViewPos)));\n"
+	"        if (dot(Nf, V) < 0.0) Nf = -Nf;\n"
+	"        vec3 Pl = normalize(uSunDirV);\n"
 	"        vec3 Ph = normalize(Pl + V);\n"
-"        float specPow = mix(2.0, 24.0, 1.0 - pRough);\n"
-"        vec3 F0 = mix(vec3(0.04), diffuse.rgb, pMetal);\n"
-"        vec3 Fr = F0 + (vec3(1.0) - F0) * pow(1.0 - max(dot(Ph, V), 0.0), 5.0);\n"
-"        float specAmt = pow(max(dot(Np, Ph), 0.0), specPow) * (0.5 + 0.5 * (1.0 - pRough));\n"
+	"        float specPow = mix(8.0, 128.0, 1.0 - pRough);\n"
+	"        vec3 F0 = mix(vec3(0.04), diffuse.rgb, pMetal);\n"
+	"        vec3 Fr = F0 + (vec3(1.0) - F0) * pow(1.0 - max(dot(Ph, V), 0.0), 5.0);\n"
+	"        float specAmt = pow(max(dot(Nf, Ph), 0.0), specPow) * (0.25 + 0.75 * (1.0 - pRough));\n"
 	"        if (pMetal > 0.5) specAmt *= 1.5;\n"
 	// Directional sky ambient: reflect the view ray off the face and sample
 	// the preset gradient along world-up, so r_sky_preset visibly re-tints
@@ -272,11 +243,8 @@ static const char* fragmentSource3DLM =
 	"        vec3 pAmb = diffuse.rgb * skyRef * 0.20 * (1.0 - pMetal * 0.5);\n"
 	// Night boost: the night gradient is dark, so scale the sky response up to
 	// keep moonlit surfaces from reading flat (moon spec + ambient).
-"        // Sun diffuse from the bumped normal — directional shading follows\n"
-"        // the albedo detail (the main visible-depth cue).\n"
-"        vec3 pDiff = diffuse.rgb * uSunColor * max(dot(Np, Pl), 0.0) * 0.45;\n"
-"        float natt = 1.0 + uNight * 2.5;\n"
-"        lit += (uSunColor * (Fr * specAmt) * natt + pDiff * natt + pAmb * natt) * uPbrStrength * max(lm.rgb, vec3(0.4));\n"
+	"        float natt = 1.0 + uNight * 2.5;\n"
+	"        lit += (uSunColor * (Fr * specAmt) * natt + pAmb * natt) * uPbrStrength * max(lm.rgb, vec3(0.4));\n"
 	"    }\n"
 	"    FragColor = vec4(lit, diffuse.a) * uColor;\n"
 	"    if (FragColor.a < 0.01) discard;\n"
@@ -866,8 +834,6 @@ qboolean GL3_InitShaders(void)
 	gl3state.uni3DLM_material   = glGetUniformLocation(gl3state.shader3DLightmap, "uMaterial");
 	gl3state.uni3DLM_pbrStrength = glGetUniformLocation(gl3state.shader3DLightmap, "uPbrStrength");
 	gl3state.uni3DLM_pbrDebug   = glGetUniformLocation(gl3state.shader3DLightmap, "uPbrDebug");
-	gl3state.uni3DLM_pbrRoughVar = glGetUniformLocation(gl3state.shader3DLightmap, "uPbrRoughVar");
-	gl3state.uni3DLM_pbrBump     = glGetUniformLocation(gl3state.shader3DLightmap, "uPbrBumpScale");
 	gl3state.uni3DLM_skyTop     = glGetUniformLocation(gl3state.shader3DLightmap, "uSkyTop");
 	gl3state.uni3DLM_skyBottom  = glGetUniformLocation(gl3state.shader3DLightmap, "uSkyBottom");
 	gl3state.uni3DLM_sunDirV    = glGetUniformLocation(gl3state.shader3DLightmap, "uSunDirV");
@@ -1312,7 +1278,7 @@ void GL3_SetPbrMaterial(const int material)
 // axis in view space (both normalized on upload).
 void GL3_UpdatePbrSky(const float* skyTop, const float* skyBottom,
 	const float* sunDirV, const float* sunColor, const float* worldUpV,
-	const float strength, const int debug, const float roughVar, const float bump, const float night)
+	const float strength, const int debug, const float night)
 {
 	GL3_UseShader(gl3state.shader3DLightmap);
 	glUniform3f(gl3state.uni3DLM_skyTop, skyTop[0], skyTop[1], skyTop[2]);
@@ -1322,8 +1288,6 @@ void GL3_UpdatePbrSky(const float* skyTop, const float* skyBottom,
 	glUniform3f(gl3state.uni3DLM_worldUpV, worldUpV[0], worldUpV[1], worldUpV[2]);
 	glUniform1f(gl3state.uni3DLM_pbrStrength, strength);
 	glUniform1i(gl3state.uni3DLM_pbrDebug, debug);
-	glUniform1f(gl3state.uni3DLM_pbrRoughVar, roughVar);
-	glUniform1f(gl3state.uni3DLM_pbrBump, bump);
 	glUniform1f(gl3state.uni3DLM_night, night);
 }
 
