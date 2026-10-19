@@ -1367,3 +1367,30 @@ Steps:
 Result: R8_8_Beta asset re-uploaded. Retest ask: `r_particle_bounce 2` then fire
 a weapon into a wall — big bright sprites should bounce/roll. If they still
 clip through, the trace/reflect has a bug (next: debug the trace).
+
+## 2026-10-19 — Multiplayer button in main menu + R8.8 Beta deploy
+
+Request: proceed with multiplayer/coop from m-x-d/Heretic2R; deploy to R8.8 Beta.
+Steps:
+1. Explored: Beta ALREADY has the full MP/coop stack — server (`src/server/`),
+   netcode (`net_chan`/`netmsg_*`/`net_wins`), dedicated mode, `coop`+
+   `deathmatch` cvars, `info_player_coop`, `sv_cooptimeout`, and the MP menus
+   (`menu_multiplayer.c` + join/start server, player config, DM options,
+   address book). Protocol 55 (m-x-d's) already merged. The only gap: the
+   main menu had no Multiplayer entry (MP reachable only via `menu_multiplayer`).
+   - Reason: scope was a single menu button, not a port.
+2. Ported m-x-d/Heretic2R's main-menu Multiplayer button into `menu_main.c`:
+   include `menu_multiplayer.h`, `s_multiplayer_action`, `MainMultiplayerFunc`
+   → `M_Menu_Multiplayer_f()`, inserted at y=32, shifted Options/Video/Sound/
+   Info/Quit down by 32, `Menu_AddItem` after the Game action.
+   - Reason: match m-x-d's working menu layout exactly.
+3. Built (mingw-w64, zero errors). `MULTIPLAYER_PLAN.md` marked implemented.
+   - Reason: confirm the menu compiles.
+4. Refreshed R88Beta `quake2.dll` (menu code lives there; md5 `276555948b…`),
+   README multiplayer note, re-zipped, moved `R8_8_Beta` to `51ec83af`,
+   re-uploaded asset (6705050 bytes). Download md5 verified.
+   - Reason: ship for local testing.
+5. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion".
+
+Result: R8_8_Beta pre-release live at `https://github.com/Lyky35/Heretic2Remastered/releases/tag/R8_8_Beta`. Main menu now shows Multiplayer. Retest ask: LAN/direct-IP coop + deathmatch (note: MP is largely untested — real two-client testing needed).
