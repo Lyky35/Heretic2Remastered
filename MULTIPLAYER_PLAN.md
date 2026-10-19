@@ -1,7 +1,13 @@
 # Multiplayer / Coop Plan — Beta
 
 Goal: expose working multiplayer + cooperative play, using m-x-d/Heretic2R as
-the reference. Exploration only — no code yet.
+the reference.
+
+**Status: implemented on Beta.** Added the main-menu **Multiplayer** button
+(`s_multiplayer_action`, y=32) in `menu_main.c` → `M_Menu_Multiplayer_f()`.
+The MP menu it opens already existed and is complete (Join/Start Server,
+Player Setup, DM Options, Address Book). The rest of the MP/coop stack
+(server, netcode, coop logic) was already in the tree.
 
 ## 1. Current state (verified in-tree) — already has nearly everything
 
