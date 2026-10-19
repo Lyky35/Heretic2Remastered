@@ -110,6 +110,13 @@ int AddParticlesToView(client_entity_t* ce)
 		// their integrated origin instead of the closed-form ballistic path.
 		const qboolean bounce = ((current->type & PFL_BOUNCE) && r_particle_bounce->value > 0.0f);
 
+		// Debug (r_particle_bounce 2): big bright sprites so the bounce is obvious.
+		if (bounce && r_particle_bounce->value >= 2.0f)
+		{
+			r->scale = 16.0f;
+			r->color.a = 255;
+		}
+
 		if (ce->flags & CEF_ABSOLUTE_PARTS)
 		{
 			for (int i = 0; i < 3; i++)

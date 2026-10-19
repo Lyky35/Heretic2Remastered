@@ -250,7 +250,7 @@ void FXBlast(centity_t* owner, const int type, const int flags, vec3_t origin)
 
 		for (int i = 0; i < 9; i++)
 		{
-			client_particle_t* spark = ClientParticle_new(PART_16x16_SPARK_I, color_white, 750);
+			client_particle_t* spark = ClientParticle_new(PART_16x16_SPARK_I | PFL_BOUNCE, color_white, 750);
 
 			VectorSet(spark->velocity, flrand(-64.0f, 64.0f), flrand(-64.0f, 64.0f), flrand(64.0f, 128.0f));
 			spark->acceleration[2] = -PARTICLE_GRAVITY * 3.0f;

@@ -343,7 +343,7 @@ void FXSphereOfAnnihilationExplode(centity_t* owner, const int type, const int f
 
 	for (int i = 0; i < count; i++)
 	{
-		client_particle_t* ce = ClientParticle_new(PART_16x16_SPARK_B, color_white, 600);
+		client_particle_t* ce = ClientParticle_new(PART_16x16_SPARK_B | PFL_BOUNCE, color_white, 600);
 
 		VectorCopy(dir, ce->velocity);
 		ce->scale = flrand(16.0f, 32.0f);
@@ -423,7 +423,7 @@ void FXSphereOfAnnihilationPower(centity_t* owner, const int type, const int fla
 	// Make the particles.
 	for (int i = 0; i < count; i++)
 	{
-		client_particle_t* ce = ClientParticle_new(PART_16x16_SPARK_B, color_white, 666);
+		client_particle_t* ce = ClientParticle_new(PART_16x16_SPARK_B | PFL_BOUNCE, color_white, 666);
 
 		ce->scale = flrand(8.0f, 24.0f) + size * 2.0f;
 		ce->scale *= 0.4f;

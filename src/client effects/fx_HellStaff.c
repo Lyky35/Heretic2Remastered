@@ -76,7 +76,7 @@ static void HellboltExplode(const vec3_t loc, const vec3_t vel)
 	const int num_particles = irand(HELLBOLT_IMPACT_SPARKS_MIN, HELLBOLT_IMPACT_SPARKS_MAX); //mxd
 	for (int i = 0; i < num_particles; i++)
 	{
-		client_particle_t* spark = ClientParticle_new(PART_16x16_SPARK_R, hellbolt_dlight_color, 500);
+		client_particle_t* spark = ClientParticle_new(PART_16x16_SPARK_R | PFL_BOUNCE, hellbolt_dlight_color, 500);
 
 		//mxd. Scale here instead of FXHellboltExplode() (was done before calling FXClientScorchmark(), which could re-normalize 'dir'...).
 		VectorRandomCopy(vel, spark->velocity, 0.65f); // Original logic scales vel by 32, then randomizes it by 64 --mxd.
@@ -121,7 +121,7 @@ static void HellLaserBurn(const vec3_t origin, vec3_t forward, vec3_t right, vec
 
 	for (int i = 0; i < HELLLASER_PARTS; i++)
 	{
-		client_particle_t* spark = ClientParticle_new(PART_16x16_SPARK_R, color_white, 1000);
+		client_particle_t* spark = ClientParticle_new(PART_16x16_SPARK_R | PFL_BOUNCE, color_white, 1000);
 
 		VectorMA(forward, cosf(cur_angle), right, spark->velocity);
 		VectorMA(spark->velocity, sinf(cur_angle), up, spark->velocity);
@@ -236,7 +236,7 @@ void FXHellstaffPower(centity_t* owner, int type, const int flags, vec3_t origin
 	// Make the particles along the beam.
 	for (int i = 0; i < count; i++)
 	{
-		client_particle_t* spark = ClientParticle_new(PART_16x16_SPARK_R, color_white, 500);
+		client_particle_t* spark = ClientParticle_new(PART_16x16_SPARK_R | PFL_BOUNCE, color_white, 500);
 
 		spark->scale = flrand(8.0f, 12.0f);
 		spark->d_scale = -2.0f * spark->scale;

@@ -187,7 +187,7 @@ static qboolean RedRainSplashUpdate(client_entity_t* self, centity_t* owner) //m
 
 	for (int i = 0; i < 4; i++)
 	{
-		client_particle_t* spark = ClientParticle_new(spark_type, color_white, 500);
+		client_particle_t* spark = ClientParticle_new(spark_type | PFL_BOUNCE, color_white, 500);
 
 		VectorSet(spark->velocity, flrand(-48.0f, 48.0f), flrand(-48.0f, 48.0f), flrand(48.0f, 96.0f));
 		spark->acceleration[2] = -PARTICLE_GRAVITY * 3.0f;

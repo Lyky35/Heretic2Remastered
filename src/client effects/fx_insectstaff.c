@@ -408,7 +408,7 @@ static qboolean InsectSpear2Update(client_entity_t* self, centity_t* owner)
 
 	for (int i = 0; i < 10; i++)
 	{
-		client_particle_t* spark = ClientParticle_new(PART_16x16_SPARK_Y, self->r.color, 200);
+		client_particle_t* spark = ClientParticle_new(PART_16x16_SPARK_Y | PFL_BOUNCE, self->r.color, 200);
 		spark->type |= PFL_ADDITIVE;
 
 		spark->acceleration[2] = 0.5f;

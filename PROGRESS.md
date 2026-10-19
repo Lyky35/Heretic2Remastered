@@ -1340,3 +1340,30 @@ Steps:
    - Reason: complete "commit and push after each portion".
 
 Result: R8_8_Beta pre-release live at `https://github.com/Lyky35/Heretic2Remastered/releases/tag/R8_8_Beta`. Retest ask: fire a weapon that explodes into a wall/floor — debris and sparks should bounce/roll instead of clipping through; `r_particle_bounce 0` = classic ballistic.
+
+## 2026-10-18 — Particle bounce: tag weapon projectile explosions + debug mode
+
+Report: "i don't see any bounces on any weapons."
+Steps:
+1. Root cause (static): weapon projectiles spawn their OWN explosion debris
+   (e.g. FXMaceballExplode in fx_Maceball.c, fx_magicmissile.c, etc.), not the
+   generic FXExplosion1/2 or FX_SPARKS that were tagged first. So no weapon
+   particles carried PFL_BOUNCE.
+   - Reason: the first tagging missed the actual weapon spawners.
+2. Tagged the common weapon explosion/hit spawners with PFL_BOUNCE:
+   fx_Maceball.c (FXMaceballExplode), fx_magicmissile.c, fx_PhoenixExplode.c,
+   fx_HellStaff.c, fx_insectstaff.c, fx_RedRain.c, fx_sphereofannihlation.c,
+   fx_flamethrow.c, fx_LightningHit.c. (fx_StaffHit spawns no particles.)
+   - Reason: cover the common weapon explosion debris + sparks.
+3. Added a debug mode: `r_particle_bounce 2` renders bounce particles as large
+   bright sprites (Particle.c AddParticlesToView) so the bounce is obvious.
+   - Reason: confirm the physics actually bounces (vs. a trace/flag bug).
+4. Built (zero errors); refreshed R88Beta `base/Client Effects.dll` (md5
+   `3523525a…`), README debug line, re-zipped, re-uploaded (6704735 bytes).
+   - Reason: ship for local testing.
+5. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion".
+
+Result: R8_8_Beta asset re-uploaded. Retest ask: `r_particle_bounce 2` then fire
+a weapon into a wall — big bright sprites should bounce/roll. If they still
+clip through, the trace/reflect has a bug (next: debug the trace).

@@ -118,7 +118,7 @@ static void PhoenixExplode(const int type, int flags, const vec3_t origin, const
 
 	for (int i = 0; i < count; i++)
 	{
-		client_particle_t* spark = ClientParticle_new(irand(PART_32x32_FIRE0, PART_32x32_FIRE2), color_white, 1000);
+		client_particle_t* spark = ClientParticle_new(irand(PART_32x32_FIRE0, PART_32x32_FIRE2) | PFL_BOUNCE, color_white, 1000);
 
 		VectorRandomSet(spark->velocity, EXPLODE_SPEED);
 		Vec3AddAssign(vel, spark->velocity);
@@ -309,7 +309,7 @@ static qboolean PhoenixExplosionPowerUpdate(client_entity_t* self, centity_t* ow
 
 		// Current particle ring...
 		const paletteRGBA_t spark_color = { .r = 255, .g = (byte)(flrand(192.0f, 255.0f) * scaler), .b = (byte)(flrand(64, 255) * scaler), .a = 255};
-		client_particle_t* spark = ClientParticle_new(irand(PART_32x32_FIRE0, PART_32x32_FIRE2), spark_color, 1000);
+		client_particle_t* spark = ClientParticle_new(irand(PART_32x32_FIRE0, PART_32x32_FIRE2) | PFL_BOUNCE, spark_color, 1000);
 
 		VectorLerp(trail_end, lerp, self->r.origin, spark->origin);
 		VectorMA(spark->origin, flrand(8.0f, 16.0f), self->direction, spark->origin);

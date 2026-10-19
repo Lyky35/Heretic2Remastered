@@ -67,7 +67,7 @@ void FXLightningHit(centity_t* owner, int type, const int flags, vec3_t origin)
 
 	for (int i = 0; i < NUM_LIGHTNING_BITS; i++)
 	{
-		client_particle_t* spark = ClientParticle_new(part, color_white, 500);
+		client_particle_t* spark = ClientParticle_new(part | PFL_BOUNCE, color_white, 500);
 
 		VectorRandomCopy(dir, spark->velocity, LIGHTNING_VEL);
 		spark->scale = flrand(20.0f, 32.0f);

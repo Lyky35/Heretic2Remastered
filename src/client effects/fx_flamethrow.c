@@ -38,7 +38,7 @@ qboolean FlamethrowerUpdate(client_entity_t* self, centity_t* owner) //mxd. Name
 
 	for (int i = 0; i < count; i++)
 	{
-		client_particle_t* flame = ClientParticle_new(irand(PART_16x16_FIRE1, PART_16x16_FIRE3), color_white, 2000);
+		client_particle_t* flame = ClientParticle_new(irand(PART_16x16_FIRE1, PART_16x16_FIRE3) | PFL_BOUNCE, color_white, 2000);
 		flame->d_scale = flrand(-10.0f, -5.0f);
 		flame->d_alpha = flrand(-600.0f, -560.0f);
 		flame->duration = (int)(255.0f * 1000.0f / -flame->d_alpha); // Time taken to reach zero alpha.

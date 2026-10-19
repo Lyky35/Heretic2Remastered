@@ -185,7 +185,7 @@ void FXMaceballExplode(centity_t* owner, const int type, const int flags, vec3_t
 
 	for (int i = 0; i < 32; i++)
 	{
-		client_particle_t* spark = ClientParticle_new(PART_16x16_SPARK_G, explosion->color, 1000);
+		client_particle_t* spark = ClientParticle_new(PART_16x16_SPARK_G | PFL_BOUNCE, explosion->color, 1000);
 
 		VectorSet(spark->velocity,
 			flrand(-MACEBALL_EXPLOSION_VEL, MACEBALL_EXPLOSION_VEL),
