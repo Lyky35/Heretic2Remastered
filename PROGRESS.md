@@ -1318,3 +1318,25 @@ Steps:
 
 Result: PFL_BOUNCE particles bounce off walls/floors; `r_particle_bounce 0` =
 today's ballistic behavior. Next: build an R8.8 Beta pre-release to test on Win10.
+
+## 2026-10-17 — R8.8 Beta pre-release with particle bounce
+
+Request: build an R8.8 Beta pre-release to test the particle bounce on Win10.
+Steps:
+1. Built current Beta HEAD `b7e59f3b` (particle bounce). Verified `r_particle_bounce`
+   in `build/base/Client Effects.dll` (the particle code lives in the client
+   effects DLL, not ref_gl3).
+   - Reason: ship the bounce build.
+2. Refreshed R88Beta stage `base/Client Effects.dll` (md5 `df597a5b…`), added
+   the `r_particle_bounce` starter to `README.txt`, re-zipped (6704675 bytes).
+   - Reason: release must equal Beta HEAD code.
+3. Moved tag `R8_8_Beta` to `b7e59f3b` (force — remote was an annotated tag),
+   re-uploaded the asset with `--clobber` (6704675 bytes).
+   - Reason: same release updated in place, per established pattern.
+4. Verified: `gh release view` shows pre-release + asset; downloaded the zip and
+   confirmed `base/Client Effects.dll` md5 `df597a5b…` matches the build.
+   - Reason: confirm the tester gets the bounce build.
+5. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+   - Reason: complete "commit and push after each portion".
+
+Result: R8_8_Beta pre-release live at `https://github.com/Lyky35/Heretic2Remastered/releases/tag/R8_8_Beta`. Retest ask: fire a weapon that explodes into a wall/floor — debris and sparks should bounce/roll instead of clipping through; `r_particle_bounce 0` = classic ballistic.
