@@ -1445,3 +1445,56 @@ Steps:
    - Reason: keep the Win10 test channel current.
 
 Result: Player Setup opens and works for both packed and loose skins. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
+
+## 2026-10-20 — Coop difficulty selector + Dynamic Sky cloud defaults
+
+Request: "proceed with option B (skip option A), add menulist that gives you a
+choice" + set cloud defaults when dynamic sky is enabled.
+Steps:
+1. Option A (cinematic skip in coop) intentionally NOT done (user skipped it).
+   Existing SetNextserver() intro/outro '+' handling left untouched.
+   - Reason: explicit instruction.
+2. Difficulty selector in Start Server menu (`72fd39eb`):
+   - New `m_item_skill` label cvar ("Difficulty", registered in menu.c like all
+     other menu labels), extern in menu_startserver.h, defined in
+     menu_startserver.c (that file owns its m_item_* definitions).
+   - `s_skill_box` MTYPE_SPINCONTROL (QMF_SINGLELINE), itemnames from
+     m_item_easy/medium/hard/nightmare (menu_game.h), initial value
+     `ClampI(skill, 0, 3)`.
+   - Placed at y=120: first attempt at y=100 collided with the Rules row's
+     second line (non-SINGLELINE spin controls draw their value 20 units below
+     the label, CONCHAR_LINE_HEIGHT=10 -> value sits at ~100). Verified in a
+     screenshot, moved to 120, re-verified (no overlap).
+   - Rows below shifted +20 (timelimit 140, fraglimit 180, maxplayers 220,
+     hostname 260, DM Options 320, Start 340).
+   - `RulesChangeFunc()` grays the row unless Rules = Cooperative; grayed items
+     are skipped by Menu_ItemAtCursor (menu.c:1475) and drawn at 0.5 alpha.
+   - `StartServerActionFunc()` does `Cvar_ForceSet("skill", va("%i", curvalue))`
+     next to the other cvar sets - skill is CVAR_LATCH so it must be set before
+     SV_InitGame()/Cvar_GetLatchedVars() runs; identical to menu_game.c.
+   - Reason: coop previously had no difficulty choice at all (Game menu forces
+     coop 0), so coop silently ran at whatever skill was (default 1).
+3. Dynamic Sky cloud defaults (`df49b08c`): `ApplyDynamicSkyDefaults()` in
+   menu_video.c sets r_volclouds 1, r_cloud_res 1, coverage 0.45, speed 350,
+   density 0.02, crisp 10, curl 0.1, absorb 0.35, seed 1, blur 1, godrays 1,
+   base 3500, thick 2500 - called from UpdateDynamicSkyFunc() only on the
+   off -> on transition (so custom tweaks survive later menu visits).
+   - Note: "r_cloud_thic" from the request = existing cvar `r_cloud_thick`;
+     all other names verified against gl3_SkyDyn.c registrations.
+   - Reason: enable = user asked for these as the defaults in that state.
+4. Verification (Wine harness, as before):
+   - Difficulty row renders with the right label/value: `+set coop 1 +set skill 3
+     +menu_startserver` -> "Difficulty : Annihilation (Too hard)" (screenshot),
+     and `+set deathmatch 1` -> Rules = Deathmatch with the row grayed.
+   - Read path proven (value comes from the skill cvar); write path is the same
+     one-line Cvar_ForceSet pattern the Game menu has always used.
+   - Key injection into the game (XTest + wtype) proved unreliable in this
+     harness (focus/Xwayland variance: one run drove the menu, later runs did
+     not), so the Begin -> skill=3 -> console `skill` round-trip could not be
+     completed here. Win10 testing should cover that path.
+5. Built clean (mingw-w64). Next: `git add PROGRESS.md`, commit, push, refresh
+   R8.8 Beta asset.
+
+Result: Multiplayer > Start Server now offers a Difficulty choice (coop),
+grayed in deathmatch; turning on New Dynamic Sky applies the tuned volumetric
+cloud preset.
