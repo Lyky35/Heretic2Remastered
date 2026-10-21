@@ -631,6 +631,225 @@ char* FS_NextPath(const char* prevpath)
 	return NULL;
 }
 
+#pragma region ========================== File listing ==========================
+
+#define FS_MAX_DIR_DEPTH	8
+#define FS_MAX_SUBDIRS		64
+
+typedef struct
+{
+	char** names;
+	int count;
+	int max;
+} fs_filelist_t;
+
+static qboolean FS_MatchExtension(const char* name, const char* extension)
+{
+	if (extension == NULL || extension[0] == 0)
+		return true;
+
+	const int name_len = (int)strlen(name);
+	const int ext_len = (int)strlen(extension);
+
+	if (name_len < ext_len)
+		return false;
+
+	return Q_stricmp(name + name_len - ext_len, extension) == 0;
+}
+
+static void FS_GrowFileList(fs_filelist_t* list)
+{
+	const int new_max = (list->max > 0) ? list->max * 2 : 64;
+	char** new_names = Z_Malloc(new_max * sizeof(char*)); // Returns 0-filled memory.
+
+	if (list->names != NULL)
+	{
+		memcpy(new_names, list->names, list->count * sizeof(char*));
+		Z_Free(list->names);
+	}
+
+	list->names = new_names;
+	list->max = new_max;
+}
+
+static void FS_AddToFileList(fs_filelist_t* list, const char* name)
+{
+	// Skip duplicates: the same file may exist both as a loose file and inside a pack.
+	for (int i = 0; i < list->count; i++)
+	{
+		if (Q_stricmp(list->names[i], name) == 0)
+			return;
+	}
+
+	if (list->count >= list->max)
+		FS_GrowFileList(list);
+
+	list->names[list->count++] = CopyString(name);
+}
+
+static void FS_ListPackFiles(const pack_t* pack, const char* directory, const int dir_len, const char* extension, fs_filelist_t* list)
+{
+	for (int i = 0; i < pack->numfiles; i++)
+	{
+		const char* file_name = pack->files[i].name;
+
+		if (Q_strncasecmp(file_name, directory, dir_len) != 0)
+			continue;
+
+		if (file_name[dir_len] != '/')
+			continue;
+
+		const char* relative = file_name + dir_len + 1;
+
+		if (relative[0] != 0 && FS_MatchExtension(relative, extension))
+			FS_AddToFileList(list, relative);
+	}
+}
+
+// Recursively collects names of files matching `extension` below base_dir/relative_dir.
+// `relative_dir` starts at `directory`; returned names are relative to `directory` (eg. "male/Corvus.m8")
+// so loose files and pack entries are reported the same way.
+// Note: Sys_FindFirst() is not reentrant, so entries are gathered before recursing.
+static void FS_ListDirectory(const char* base_dir, const char* directory, const int dir_len, const char* relative_dir, const char* extension, fs_filelist_t* list, const int depth)
+{
+	if (depth > FS_MAX_DIR_DEPTH)
+		return;
+
+	char mask[MAX_OSPATH];
+	if (relative_dir[0] != 0)
+		Com_sprintf(mask, sizeof(mask), "%s/%s/*", base_dir, relative_dir);
+	else
+		Com_sprintf(mask, sizeof(mask), "%s/*", base_dir);
+
+	// Gather subdirectory names first. Don't filter on attributes here: Sys_FindFirst() gives up
+	// as soon as the very first entry doesn't match, which would hide most of the directory.
+	char subdirs[FS_MAX_SUBDIRS][MAX_QPATH];
+	int num_subdirs = 0;
+
+	const char* path = Sys_FindFirst(mask, 0, 0);
+
+	while (path != NULL)
+	{
+		const char* name = strrchr(path, '/');
+		name = (name != NULL) ? name + 1 : path;
+
+		if (Sys_IsFile(path))
+		{
+			if (FS_MatchExtension(name, extension))
+			{
+				char relative[MAX_OSPATH];
+
+				if (relative_dir[0] != 0)
+					Com_sprintf(relative, sizeof(relative), "%s/%s", relative_dir, name);
+				else
+					strcpy_s(relative, sizeof(relative), name);
+
+				// Strip the "directory/" prefix, so names match the pack-based variant.
+				const char* name_only = relative;
+
+				if (dir_len > 0 && Q_strncasecmp(relative, directory, dir_len) == 0 && relative[dir_len] == '/')
+					name_only = relative + dir_len + 1;
+
+				FS_AddToFileList(list, name_only);
+			}
+		}
+		else if (num_subdirs < FS_MAX_SUBDIRS)
+		{
+			Com_sprintf(subdirs[num_subdirs], sizeof(subdirs[num_subdirs]), "%s", name);
+			num_subdirs++;
+		}
+
+		path = Sys_FindNext(0, 0);
+	}
+
+	Sys_FindClose();
+
+	// Recurse (Sys_FindFirst() must be closed first).
+	for (int i = 0; i < num_subdirs; i++)
+	{
+		if (relative_dir[0] != 0)
+		{
+			char child[MAX_OSPATH];
+			Com_sprintf(child, sizeof(child), "%s/%s", relative_dir, subdirs[i]);
+			FS_ListDirectory(base_dir, directory, dir_len, child, extension, list, depth + 1);
+		}
+		else
+		{
+			FS_ListDirectory(base_dir, directory, dir_len, subdirs[i], extension, list, depth + 1);
+		}
+	}
+}
+
+static int FS_CompareFileNames(const void* a, const void* b)
+{
+	return Q_stricmp(*(const char* const*)a, *(const char* const*)b);
+}
+
+char** FS_ListFiles(const char* directory, const char* extension, int* numfiles)
+{
+	if (numfiles != NULL)
+		*numfiles = 0;
+
+	if (directory == NULL)
+		return NULL;
+
+	// Normalize: forward slashes, no trailing slash.
+	char dir[MAX_OSPATH];
+	Com_sprintf(dir, sizeof(dir), "%s", directory);
+
+	for (int i = 0; dir[i] != 0; i++)
+	{
+		if (dir[i] == '\\')
+			dir[i] = '/';
+	}
+
+	int dir_len = (int)strlen(dir);
+	while (dir_len > 0 && dir[dir_len - 1] == '/')
+		dir[--dir_len] = 0;
+
+	if (dir_len == 0)
+		return NULL;
+
+	fs_filelist_t list = { NULL, 0, 0 };
+
+	// Search paths are ordered by priority (loose directories first), so the first match wins.
+	for (const searchpath_t* s = fs_searchpaths; s != NULL; s = s->next)
+	{
+		if (s->pack != NULL)
+			FS_ListPackFiles(s->pack, dir, dir_len, extension, &list);
+		else
+			FS_ListDirectory(s->filename, dir, dir_len, dir, extension, &list, 0);
+	}
+
+	if (list.count == 0)
+		return NULL;
+
+	if (list.count >= list.max)
+		FS_GrowFileList(&list); // Make room for the NULL terminator.
+
+	list.names[list.count] = NULL;
+
+	if (numfiles != NULL)
+		*numfiles = list.count;
+
+	qsort(list.names, list.count, sizeof(char*), FS_CompareFileNames);
+
+	return list.names;
+}
+
+void FS_FreeFileList(char** list)
+{
+	if (list == NULL)
+		return;
+
+	for (int i = 0; list[i] != NULL; i++)
+		Z_Free(list[i]);
+
+	Z_Free(list);
+}
+
+#pragma endregion
+
 //mxd. Copy base\config\*.cfg to "x:\Users\[User]\Saved Games\Heretic2R\configs".
 static void CopyConfigs(const char* src_dir, const char* dst_dir)
 {

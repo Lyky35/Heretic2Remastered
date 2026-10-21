@@ -13,17 +13,11 @@ cvar_t* m_item_name;
 cvar_t* m_item_skin;
 cvar_t* m_item_shownames;
 
-typedef struct
-{
-	char directory[MAX_OSPATH];
-	char psex[MAX_QPATH]; // male/female
-} playermodelinfo_s;
-
 #define MAX_PLAYER_SKINS	128
 
 static int s_num_player_skins;
 static int s_current_skin_index;
-static const char* skin_names[MAX_PLAYER_SKINS];
+static const char* skin_names[MAX_PLAYER_SKINS + 1]; // +1 room for the NULL terminator.
 
 static menuframework_t s_player_config_menu;
 
@@ -31,53 +25,32 @@ static menufield_t s_player_name_field;
 static menulist_t s_player_skin_box;
 static menulist_t s_shownames_box;
 
-static int ScanPlayerModels(playermodelinfo_s* info) // H2
-{
-	char findname[MAX_OSPATH];
-
-	int num_models = 0;
-	char* path = FS_NextPath(NULL);
-
-	while (path != NULL)
-	{
-		Com_sprintf(findname, sizeof(findname), "%s/%s/*.", path, playerdir->string);
-		const char* subdir = Sys_FindFirst(findname, SFF_SUBDIR, SFF_HIDDEN | SFF_SYSTEM);
-
-		while (subdir != NULL)
-		{
-			if (num_models >= MAX_PLAYER_MODELS)
-				break;
-
-			Com_sprintf(info->directory, sizeof(info->directory), "%s/%s", path, playerdir->string);
-			const int len = (int)strlen(info->directory);
-			strcpy_s(info->psex, sizeof(info->psex), &subdir[len + 1]); //mxd. strcpy -> strcpy_s
-			subdir = Sys_FindNext(SFF_SUBDIR, SFF_HIDDEN | SFF_SYSTEM);
-
-			num_models++;
-			info++;
-		}
-
-		Sys_FindClose();
-		path = FS_NextPath(path);
-	}
-
-	return num_models;
-}
-
-static void ScanPlayerSkins(playermodelinfo_s* info) // H2
+//mxd. Returns the number of skins loaded.
+static int PlayerConfig_ScanDirectories(void)
 {
 	static char skin_names_array[MAX_PLAYER_SKINS][MAX_OSPATH];
 
-	char path[MAX_OSPATH];
-	Com_sprintf(path, sizeof(path), "%s/%s/*_i.m8", info->directory, info->psex);
-	const char* skin_file = Sys_FindFirst(path, 0, 0);
-	const uint dir_len = strlen(info->directory); //mxd
+	s_num_player_skins = 0;
+	s_current_skin_index = 0;
 
-	while (skin_file != NULL && s_num_player_skins < MAX_PLAYER_SKINS)
+	// Player skins usually live inside base.pak, so scan the game filesystem instead of the
+	// OS directory tree (Sys_FindFirst() can't see files that only exist in packs).
+	int num_files;
+	char** files = FS_ListFiles(playerdir->string, ".m8", &num_files);
+
+	if (files == NULL)
+		return 0;
+
+	for (int i = 0; i < num_files && s_num_player_skins < MAX_PLAYER_SKINS; i++)
 	{
+		// Only skin icons define selectable skins: "players/male/Corvus_i.m8" -> "male/Corvus".
+		const int len = (int)strlen(files[i]);
+		if (len <= 5 || Q_stricmp(files[i] + len - 5, "_i.m8") != 0)
+			continue;
+
 		char skin_name[MAX_OSPATH];
-		strcpy_s(skin_name, sizeof(skin_name), &skin_file[dir_len + 1]); //mxd. strcpy -> strcpy_s
-		skin_name[strlen(skin_name) - 5] = 0; // Drop the '_i.m8' part.
+		Com_sprintf(skin_name, sizeof(skin_name), "%s", files[i]);
+		skin_name[len - 5] = 0; // Drop the '_i.m8' part.
 
 		char skin_path[MAX_OSPATH];
 		Com_sprintf(skin_path, sizeof(skin_path), "%s/%s.m8", playerdir->string, skin_name);
@@ -93,35 +66,22 @@ static void ScanPlayerSkins(playermodelinfo_s* info) // H2
 		int icon_h;
 		re.DrawGetPicSize(&icon_w, &icon_h, skin_icon_path);
 
-		if (skin_w == 256 && skin_h == 256 && icon_w > 0 && icon_h > 0)
-		{
-			skin_names[s_num_player_skins] = skin_names_array[s_num_player_skins];
-			strcpy_s(skin_names_array[s_num_player_skins], sizeof(skin_names_array[s_num_player_skins]), skin_name); //mxd. strcpy -> strcpy_s
+		// Both the skin and its icon must actually load (sizes aren't fixed: HD replacements
+		// can change them, so only require valid dimensions).
+		if (skin_w <= 0 || skin_h <= 0 || icon_w <= 0 || icon_h <= 0)
+			continue;
 
-			if (Q_stricmp(skin->string, skin_name) == 0)
-				s_current_skin_index = s_num_player_skins;
+		skin_names[s_num_player_skins] = skin_names_array[s_num_player_skins];
+		strcpy_s(skin_names_array[s_num_player_skins], sizeof(skin_names_array[s_num_player_skins]), skin_name); //mxd. strcpy -> strcpy_s
 
-			s_num_player_skins++;
-		}
+		if (Q_stricmp(skin->string, skin_name) == 0)
+			s_current_skin_index = s_num_player_skins;
 
-		skin_file = Sys_FindNext(0, 0);
+		s_num_player_skins++;
 	}
 
-	Sys_FindClose();
+	FS_FreeFileList(files);
 	skin_names[s_num_player_skins] = NULL;
-}
-
-//mxd. Returns the number of skins loaded.
-static int PlayerConfig_ScanDirectories(void)
-{
-	playermodelinfo_s infos[MAX_PLAYER_MODELS];
-
-	s_num_player_skins = 0;
-	s_current_skin_index = 0;
-
-	const int num_models = ScanPlayerModels(infos);
-	for (int i = 0; i < num_models; i++)
-		ScanPlayerSkins(&infos[i]);
 
 	return s_num_player_skins;
 }
@@ -201,10 +161,16 @@ static const char* PlayerConfig_MenuKey(const int key)
 	if (cls.m_menustate != MS_OPENED)
 		return NULL;
 
-	if (key == K_ESCAPE)
+	// Save on the way out: Default_MenuKey() pops the menu on both of these.
+	if (key == K_ESCAPE || key == K_JOY2)
 	{
+		const char* selected_skin = skin_names[s_player_skin_box.curvalue];
+
 		Cvar_Set("name", s_player_name_field.buffer);
-		Cvar_Set("skin", skin_names[s_player_skin_box.curvalue]);
+
+		if (selected_skin != NULL)
+			Cvar_Set("skin", selected_skin);
+
 		Cvar_SetValue("shownames", (float)s_shownames_box.curvalue);
 	}
 

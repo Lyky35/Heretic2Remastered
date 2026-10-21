@@ -664,6 +664,14 @@ extern qboolean FS_CopyFile(const char* src, const char* dst); //mxd
 Q2DLL_DECLSPEC extern void FS_FreeFile(void* buffer);
 extern void FS_CreatePath(char* path);
 
+// Lists files below `directory` across all search paths (loose directories and packs), so it
+// also sees files that only exist inside packs (eg. base.pak). `extension` is matched
+// case-insensitively against the file name ("" or NULL matches everything). Returned names are
+// relative to `directory` with forward slashes (eg. "male/Corvus_i.m8"), sorted and
+// NULL-terminated. Returns NULL when nothing matched. Free the result with FS_FreeFileList().
+extern char** FS_ListFiles(const char* directory, const char* extension, int* numfiles);
+extern void FS_FreeFileList(char** list);
+
 #pragma endregion
 
 #pragma region ========================== MISC ==========================
