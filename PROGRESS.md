@@ -1394,3 +1394,54 @@ Steps:
    - Reason: complete "commit and push after each portion".
 
 Result: R8_8_Beta pre-release live at `https://github.com/Lyky35/Heretic2Remastered/releases/tag/R8_8_Beta`. Main menu now shows Multiplayer. Retest ask: LAN/direct-IP coop + deathmatch (note: MP is largely untested — real two-client testing needed).
+
+## 2026-10-20 — Fix Player Config menu (skins live in base.pak) + R8.8 Beta refresh
+
+Request: "Player config menu appears to be not working."
+Steps:
+1. Diagnosed: `PlayerConfig_ScanDirectories()` scanned only the OS directory
+   tree (`Sys_FindFirst` over `FS_NextPath()` dirs). Every player skin in the
+   current install sits inside `base.pak` (PAK2, 71 `players/*.m8`, 15
+   `*_i.m8`) - there is no loose `players/` folder anywhere, so the scan
+   returned 0 -> `PlayerConfig_MenuInit()` returned false ->
+   `M_Menu_PlayerConfig_f()` was a silent no-op (clicking Player Setup did
+   nothing). Verified by parsing base.pak's directory (players/ present,
+   loose dir absent).
+   - Reason: FS enumeration had no pack support; menus used raw Sys_FindFirst.
+2. Added `FS_ListFiles()` / `FS_FreeFileList()` in `files.c` (+ decls in
+   `qcommon.h`): lists a directory across ALL search paths - loose dirs via a
+   two-phase recursive walk (`Sys_FindFirst` isn't reentrant, so entries are
+   gathered before recursing; attribute filters avoided because
+   `Sys_FindFirst()` bails on the first non-match; `Sys_IsFile()` distinguishes
+   files from dirs) plus pack entries by `directory/` prefix match.
+   Case-insensitive extension filter, dedup (loose+pack can both have a name),
+   sorted, NULL-terminated.
+   - Reason: one API so loose and packed installs behave identically.
+3. Rewrote `PlayerConfig_ScanDirectories()` on top of it; dropped the model-dir
+   scan helpers (`playermodelinfo_s`, `ScanPlayerModels`, `ScanPlayerSkins`).
+   Kept skin names relative to `playerdir` ("male/Corvus") for
+   `PlayerSkin_Draw()`/userinfo compatibility. Relaxed validity check from
+   hard `256x256` to non-zero size (HD replacements can change dimensions).
+   Fixed `skin_names[]` off-by-one (NULL terminator) and save-on-K_JOY2 +
+   NULL-guard in `PlayerConfig_MenuKey()`.
+   - Reason: menu must not crash or silently drop skins.
+4. Fixed a loose-file naming inconsistency found in testing (loose entries
+   returned `players/male/X.m8` vs pack's `male/X.m8` -> `players/players/...`
+   lookups): `FS_ListDirectory()` now strips the `directory/` prefix.
+   - Reason: loose and pack entries must be reported identically.
+5. Verified by running the build under Wine (isolated test install with
+   symlinked paks, `LIBGL_ALWAYS_SOFTWARE=1` because the GL context fails
+   under the host nvidia path):
+   - `+menu_playerconfig` -> menu opens, skins listed from base.pak, selected
+     skin matches `skin` cvar from config ("male/Brigand"), portrait renders.
+   - Loose `players/male/TestSkin.m8` + `_i.m8` extracted from the pak ->
+     listed and pre-selected (`+set skin male/TestSkin` -> "Skin : male/TestSkin").
+   - Console log shows the scan loading `players/.../*.m8` textures via
+     `R_LoadM8` (pack) and the loose path (no more `players/players/` errors).
+   - Reason: prove the fix end-to-end rather than only compile it.
+6. Deployed: `quake2.dll` md5 `254bb89c6c7f12e78b9e538fccd6f5c9` refreshed into
+   the R88Beta staging dir, README note added, re-zipped (6708055 bytes),
+   `R8_8_Beta` moved to `82a15043`, asset re-uploaded and download verified.
+   - Reason: keep the Win10 test channel current.
+
+Result: Player Setup opens and works for both packed and loose skins. Next: `git add PROGRESS.md`, commit, `git push origin Beta`.
