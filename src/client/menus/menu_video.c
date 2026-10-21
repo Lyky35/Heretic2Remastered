@@ -170,9 +170,38 @@ static void UpdateShadowsFunc(void* self)
 	Cvar_SetValue("r_shadows", (float)(s_shadows_list.curvalue == 0));
 }
 
+//mxd. Volumetric cloud defaults applied when the Dynamic Sky option is switched on.
+static void ApplyDynamicSkyDefaults(void)
+{
+	static const char* const defaults[][2] = {
+		{ "r_volclouds",	"1" },
+		{ "r_cloud_res",	"1" },
+		{ "r_cloud_coverage", "0.45" },
+		{ "r_cloud_speed",	"350" },
+		{ "r_cloud_density", "0.02" },
+		{ "r_cloud_crisp",	"10" },
+		{ "r_cloud_curl",	"0.1" },
+		{ "r_cloud_absorb", "0.35" },
+		{ "r_cloud_seed",	"1" },
+		{ "r_cloud_blur",	"1" },
+		{ "r_cloud_godrays", "1" },
+		{ "r_cloud_base",	"3500" },
+		{ "r_cloud_thick",	"2500" },
+	};
+
+	for (int i = 0; i < (int)(sizeof(defaults) / sizeof(defaults[0])); i++)
+		Cvar_Set(defaults[i][0], defaults[i][1]);
+}
+
 static void UpdateDynamicSkyFunc(void* self)
 {
-	Cvar_SetValue("r_dynsky", (float)(s_dynsky_list.curvalue == 0));
+	const qboolean enable = (s_dynsky_list.curvalue == 0); // on_off_names: 0 = "On".
+
+	//mxd. Only on the off -> on transition, so user tweaks aren't overwritten on every visit.
+	if (enable && Cvar_VariableValue("r_dynsky") == 0.0f)
+		ApplyDynamicSkyDefaults();
+
+	Cvar_SetValue("r_dynsky", enable ? 1.0f : 0.0f);
 }
 
 static void UpdatePbrFunc(void* self)
