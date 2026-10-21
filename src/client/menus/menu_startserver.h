@@ -13,6 +13,7 @@ extern cvar_t* m_banner_startserver;
 extern cvar_t* m_item_begin;
 extern cvar_t* m_item_startmap;
 extern cvar_t* m_item_rules;
+extern cvar_t* m_item_skill;
 extern cvar_t* m_item_timelimit;
 extern cvar_t* m_item_fraglimit;
 extern cvar_t* m_item_maxplayers;
