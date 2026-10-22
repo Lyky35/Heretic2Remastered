@@ -1498,3 +1498,55 @@ Steps:
 Result: Multiplayer > Start Server now offers a Difficulty choice (coop),
 grayed in deathmatch; turning on New Dynamic Sky applies the tuned volumetric
 cloud preset.
+
+## 2026-10-22 — Player stats layout rework + Deaths + R8.9 Beta asset refresh
+
+Request: stats should render as labelled lines in a single column from the left
+side of the screen (so 4 coop players fit), with full unshortened names, plus a
+new Deaths counter (how many times a player has died, for coop).
+Steps:
+1. Deaths counter (`101b412f`):
+   - `G_Stats_Death()` in g_stats.c increments both mission and totals; hooked at
+     the top of `PlayerDie()` (p_client.c:925) — the single choke point for every
+     player death (Killed(), fall, self-kill all funnel through it).
+   - Transport block A grows 4 -> 5 fields (`seq,mode,dmg_dealt,dmg_taken,deaths`);
+     worst case 56 bytes vs the 64-byte configstring cap (MAX_QPATH), so still safe;
+     client sscanf updated to match on all three blocks (mission/totals/last).
+   - stats.json: `deaths` written after `damage_taken`, but READ via `strstr` +
+     separate sscanf instead of extending the positional sscanf — so sidecars from
+     the earlier R8.9 build (no deaths key) still load.
+   - Client `playerstats_block_t` gains `deaths`.
+2. Layout rework (same commit): replaced the wide table row
+   ("Player Weapon Dealt Taken H T AL AR LL LR", %-16.16s names, %-13.13s weapon)
+   with `SCR_StatLine()` ("Label: value") + one block per player stacked down the
+   left edge (`x = ui_screen_offset_x + 16*ui_scale, y = 48*ui_scale`):
+   PlayerName / Fav Weapons / Damage Dealt / Damage Taken / Deaths — 5 lines ×
+   4 players ≈ 240px at 480p (ui_char_size = CONCHAR_SIZE=8 × ui_scale), fits.
+   Full names everywhere — no width truncation. Loading screen keeps the full
+   breakdown (all six chop counters × mission/totals/previous) since it has room.
+   - Reason: the table truncated names and was centered; user spec = left column
+     with full labels.
+3. Build: full mingw-w64 rebuild (touched sources to force, exit 0); verified in
+   binaries: `deaths` key in gamex86.dll (JSON writer), all new labels
+   ("Fav Weapons","Deaths","Heads Chopped","Torso Cut In Half","Player Stats")
+   in quake2.dll, old truncated header absent. `gamex86.dll` 4845481 -> 4845604.
+4. Deploy: restaged `HereticIIRemastered_R8_9_Beta/` (same 15-file layout as the
+   published asset; OpenAL32.dll carried over — it is not built, only shipped),
+   README.txt rewritten for the new layout + Deaths + updated test steps (death
+   tick, left-side blocks), re-zipped 6716736 bytes.
+   - First upload attempt with `--clobber` added a stray `r89_new.zip` asset
+     (different local filename != remote name, so clobber did not replace);
+     re-uploaded under the correct name and deleted the stray — asset list now
+     shows exactly one zip.
+   - Branch pushed (7e982da9..101b412f) and `R8_9_Beta` force-moved
+     d64bf5d8 -> 101b412f so the tag matches the shipped binaries; release notes
+     rewritten; downloaded asset md5 `1ae7177a9910f36befe682eb5c4b07ce` matches
+     the locally built zip.
+5. Not verified at runtime: Wine harness still has no display, so the new
+   layout/Deaths tick were checked by binary string inspection + geometry math
+   only. Win10 test: hold TAB (blocks down the left), die (Deaths increments),
+   save/load round trip.
+
+Result: TAB shows per-player labelled blocks on the left with full names + Deaths;
+loading screen shows the full breakdown; R8_9_Beta pre-release updated (single
+6716736-byte zip, no HDTexturePack per instruction).
