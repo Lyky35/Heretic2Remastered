@@ -51,6 +51,8 @@ There are some bugs, and missing lights from all weapons (or too small lights WI
 
 * Different color profiles (Adobe RGB, rec2020, DCI-P3, SRGB)
 
+* Multiplayer Co-op + Deathmath
+
 ## Installation
 
 **Game data:**  
