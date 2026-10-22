@@ -1147,6 +1147,12 @@ void Key_Event(int key, const qboolean down, const uint time)
 
 	// Track if any key is down for BUTTON_ANY.
 	keydown[key] = down;
+
+	// mxd. H2R: request fresh player stats when TAB is pressed in-game (see g_stats.c).
+	// The overlay itself is drawn while keydown[K_TAB] (SCR_DrawPlayerStats).
+	if (key == K_TAB && down && cls.key_dest == key_game && cls.state == ca_active)
+		Cbuf_AddText("stats\n");
+
 	if (down)
 	{
 		if (key_repeats[key] == 1)

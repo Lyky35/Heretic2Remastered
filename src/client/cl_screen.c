@@ -699,9 +699,17 @@ static void SCR_DrawPause(void)
 	}
 }
 
+static void SCR_DrawLoading(void);
+
+// mxd. H2R: stats shown on the loading screen (totals + previous mission for the local player).
+static void SCR_DrawLoadingStats(void);
+
+static void SCR_StatsLine(char* buffer, int buffer_size, const playerstats_block_t* b);
+
 static void SCR_DrawLoading(void)
 {
-	if (!scr_draw_loading || strcmp(cls.servername, "localhost") != 0 || Cvar_IsSet("coop") || Cvar_IsSet("deathmatch"))
+	// mxd. H2R: also draw in coop (stats are shown there too); still skip deathmatch.
+	if (!scr_draw_loading || strcmp(cls.servername, "localhost") != 0 || Cvar_IsSet("deathmatch"))
 		return;
 
 	// Draw twinkling starfield background (fills widescreen letterbox areas).
@@ -741,6 +749,40 @@ static void SCR_DrawLoading(void)
 	// Draw progressbar.
 	re.DrawStretchPic(49, 432, 70, 16, "icons/breath2.m8", 1.0f, DSP_SCALE_4x3);
 	re.DrawStretchPic(52, 432, scr_progressbar_width, 16, "icons/breath.m8", 1.0f, DSP_SCALE_4x3);
+
+	// mxd. H2R: show the player's stats while the mission loads.
+	SCR_DrawLoadingStats();
+}
+
+// mxd. H2R: stats block for the loading screen (local player totals + previous mission).
+static void SCR_DrawLoadingStats(void)
+{
+	if (cl.playernum < 0 || cl.playernum >= MAX_CLIENTS)
+		return;
+
+	const playerstats_t* stats = &cl.playerstats[cl.playernum];
+
+	// Nothing received yet (e.g. loading before the server sent stats).
+	if (stats->seq == 0 && stats->totals.damage_dealt == 0 && stats->mission.damage_dealt == 0)
+		return;
+
+	const int x = (DEF_WIDTH - (260 * ui_scale)) >> 1;
+	int y = 120;
+	char line[160];
+
+	DrawString(x, y, "Mission", TextPalette[P_WHITE], -1);
+	SCR_StatsLine(line, sizeof(line), &stats->mission);
+	DrawString(x, y + ui_char_size, line, TextPalette[P_FRAGS], -1);
+	y += ui_char_size * 2;
+
+	DrawString(x, y, "Total", TextPalette[P_WHITE], -1);
+	SCR_StatsLine(line, sizeof(line), &stats->totals);
+	DrawString(x, y + ui_char_size, line, TextPalette[P_FRAGS], -1);
+	y += ui_char_size * 2;
+
+	DrawString(x, y, "Previous mission", TextPalette[P_WHITE], -1);
+	SCR_StatsLine(line, sizeof(line), &stats->last);
+	DrawString(x, y + ui_char_size, line, TextPalette[P_FRAGS], -1);
 }
 
 // Q2 counterpart
@@ -1276,6 +1318,88 @@ static void SCR_DrawNames(void) // H2
 #define CINE_BORDER_TOP_HEIGHT		((viddef.height * 48) / DEF_HEIGHT) //mxd
 #define CINE_BORDER_BOTTOM_HEIGHT	((viddef.height * 64) / DEF_HEIGHT) //mxd
 
+// mxd. H2R: most used weapon id -> name (see player_weapon_id_e in q_shared.h).
+static const char* SCR_WeaponName(const int weapon)
+{
+	switch (weapon)
+	{
+		case PWID_SWORDSTAFF:	return "Sword Staff";
+		case PWID_HELLSTAFF:	return "Hell Staff";
+		case PWID_BOW_REDRAIN:	return "Red Rain";
+		case PWID_BOW_PHOENIX:	return "Phoenix";
+		case PWID_FLYINGFIST:	return "Flying Fist";
+		case PWID_BLAST:		return "Blast";
+		case PWID_MAGICMISSILE:	return "Magic Missile";
+		case PWID_SPHERE:		return "Sphere";
+		case PWID_MACEBALL:		return "Maceball";
+		case PWID_FIREWALL:		return "Firewall";
+		case PWID_SHIELD:		return "Shield";
+		default:				return "-";
+	}
+}
+
+// mxd. H2R: one stats block as a single line of text.
+static void SCR_StatsLine(char* buffer, const int buffer_size, const playerstats_block_t* b)
+{
+	Com_sprintf(buffer, buffer_size, "%-9.9s %6i %6i  %2i %2i %2i %2i %2i %2i",
+				SCR_WeaponName(b->weapon), b->damage_dealt, b->damage_taken,
+				b->chops_head, b->chops_torso,
+				b->chops_arm_left, b->chops_arm_right,
+				b->chops_leg_left, b->chops_leg_right);
+}
+
+// mxd. H2R: TAB overlay + loading screen block. Shows totals for every player
+// (name-keyed server side, so it works in coop), plus the local mission line.
+static void SCR_DrawPlayerStatsBlock(const int x, int y, const qboolean with_header)
+{
+	char line[160];
+	int row = 0;
+
+	if (with_header)
+	{
+		DrawString(x, y, "Player            Weapon      Dealt  Taken   H  T AL AR LL LR", TextPalette[P_WHITE], -1);
+		row++;
+	}
+
+	for (int i = 0; i < MAX_CLIENTS; i++)
+	{
+		const playerstats_t* stats = &cl.playerstats[i];
+
+		// Skip empty slots (never sent any stats).
+		if (stats->seq == 0 && stats->totals.damage_dealt == 0 && stats->mission.damage_dealt == 0)
+			continue;
+
+		const paletteRGBA_t color = (i == cl.playernum) ? TextPalette[P_WHITE] : TextPalette[P_FRAGS];
+
+		SCR_StatsLine(line, sizeof(line), &stats->totals);
+		DrawString(x, y + (row + 1) * ui_char_size, va("%-16.16s%s", cl.clientinfo[i].name, line), color, -1);
+		row++;
+	}
+
+	if (row == 0)
+	{
+		DrawString(x, y + ui_char_size, "No stats yet.", TextPalette[P_FRAGS], -1);
+	}
+}
+
+static void SCR_DrawPlayerStats(void) // mxd. H2R: TAB overlay.
+{
+	if (cls.key_dest != key_game || cl.cinematictime > 0)
+		return;
+
+	if (!keydown[K_TAB])
+		return;
+
+	// Deathmatch has its own server scoreboard; don't double up.
+	if (cl.playerstats[cl.playernum].mode == 2)
+		return;
+
+	const int x = (ui_screen_offset_x + ui_screen_width / 2) - (150 * ui_scale);
+	const int y = (viddef.height / 2) - (60 * ui_scale);
+
+	SCR_DrawPlayerStatsBlock(x, y, true);
+}
+
 static void SCR_DrawCinematicBorders(void) // H2
 {
 	if (cls.key_dest != key_console && cl.frame.playerstate.cinematicfreeze)
@@ -1570,6 +1694,7 @@ void SCR_UpdateScreen(void)
 			SCR_DrawLayout();
 			SCR_DrawNet();
 			SCR_DrawNames(); // H2
+			SCR_DrawPlayerStats(); // mxd. H2R: TAB stats overlay.
 			SCR_DrawInteractIndicator(); //mxd
 			SCR_DrawCinematicBorders(); // H2
 			SCR_DrawGameMessage(); // H2

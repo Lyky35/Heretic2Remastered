@@ -252,6 +252,16 @@ static void CL_ForwardToServer_f(void)
 	}
 }
 
+// mxd. H2R: ask the server to push fresh player stats (see g_stats.c).
+static void CL_Stats_f(void)
+{
+	if (cls.state != ca_active)
+		return;
+
+	MSG_WriteByte(&cls.netchan.message, clc_stringcmd);
+	SZ_Print(&cls.netchan.message, "statrefresh\n");
+}
+
 // Q2 counterpart
 static void CL_Pause_f(void)
 {
@@ -1351,6 +1361,7 @@ static void CL_InitLocal(void)
 	Cmd_AddCommand("say_team", NULL);
 	Cmd_AddCommand("info", NULL);
 	Cmd_AddCommand("score", NULL); //mxd
+	Cmd_AddCommand("stats", CL_Stats_f); //mxd. H2R: request player stats.
 	Cmd_AddCommand("players", NULL); //mxd
 	Cmd_AddCommand("weapnext", NULL);
 	Cmd_AddCommand("weapprev", NULL);
