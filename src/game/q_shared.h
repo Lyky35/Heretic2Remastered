@@ -707,8 +707,27 @@ typedef struct
 #define CS_LIGHTS			(CS_IMAGES + MAX_IMAGES)
 #define CS_ITEMS			(CS_LIGHTS + MAX_LIGHTSTYLES)
 #define CS_PLAYERSKINS		(CS_ITEMS + MAX_ITEMS)
-#define CS_WELCOME			(CS_PLAYERSKINS + MAX_CLIENTS)  // Give us 4 welcome string messages so we can have a total of 256 characters per message.
-#define MAX_CONFIGSTRINGS	(CS_WELCOME + 4)
+#define CS_WELCOME			(CS_PLAYERSKINS + MAX_CLIENTS)  // Give us 4 welcome strings so we can have a total of 256 characters per message.
+#define CS_PLAYERSTATS		(CS_WELCOME + 4)				// H2R: 6 slots per client (mission/totals/last mission, split A/B).
+#define MAX_CONFIGSTRINGS	(CS_PLAYERSTATS + MAX_CLIENTS * 6)
+
+// H2R: compact weapon ids used by the player stats counters (client + game DLL).
+typedef enum
+{
+	PWID_NONE = 0,
+	PWID_SWORDSTAFF,
+	PWID_HELLSTAFF,
+	PWID_BOW_REDRAIN,
+	PWID_BOW_PHOENIX,
+	PWID_FLYINGFIST,
+	PWID_BLAST,
+	PWID_MAGICMISSILE,
+	PWID_SPHERE,
+	PWID_MACEBALL,
+	PWID_FIREWALL,
+	PWID_SHIELD,
+	PWID_MAX
+} player_weapon_id_e;
 
 #pragma endregion
 

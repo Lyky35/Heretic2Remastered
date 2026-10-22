@@ -5,6 +5,7 @@
 //
 
 #include "g_save.h" //mxd
+#include "g_stats.h" //mxd
 #include "g_save_defs.h" //mxd
 #include "g_save_x86.h" //mxd. x86 save compatibility
 #include "g_main.h" //mxd
@@ -634,6 +635,8 @@ void WriteGame(const char* filename, const qboolean autosave)
 	SaveScripts(f, true);
 
 	fclose(f);
+
+	G_Stats_WriteJSON(filename); //mxd. Save stats sidecar next to game.ssv.
 }
 
 void ReadGame(const char* filename)
@@ -707,6 +710,8 @@ void ReadGame(const char* filename)
 	LoadScripts(f, true);
 
 	fclose(f);
+
+	G_Stats_ReadJSON(filename); //mxd. Restore stats sidecar (zeroed if missing).
 }
 
 #pragma endregion

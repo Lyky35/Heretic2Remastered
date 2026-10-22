@@ -9,6 +9,7 @@
 #include "p_client.h" //mxd
 #include "p_main.h"
 #include "p_morph.h" //mxd
+#include "g_stats.h" //mxd
 #include "p_teleport.h" //mxd
 #include "g_ai.h" //mxd
 #include "g_combat.h" //mxd
@@ -973,51 +974,61 @@ void G_PlayerSpellStopShieldAttack(const playerinfo_t* info)
 
 void G_PlayerActionSwordAttack(const playerinfo_t* info, const int value)
 {
+	G_Stats_Shot(info, PWID_SWORDSTAFF); //mxd. Player stats.
 	WeaponThink_SwordStaff((edict_t*)info->self, "i", value);
 }
 
 void G_PlayerActionSpellFireball(const playerinfo_t* info)
 {
+	G_Stats_Shot(info, PWID_FLYINGFIST); //mxd. Player stats.
 	WeaponThink_FlyingFist((edict_t*)info->self, "");
 }
 
 void G_PlayerActionSpellBlast(const playerinfo_t* info)
 {
+	G_Stats_Shot(info, PWID_BLAST); //mxd. Player stats.
 	WeaponThink_Blast((edict_t*)info->self, "");
 }
 
 void G_PlayerActionSpellArray(const playerinfo_t* info, const int value)
 {
+	G_Stats_Shot(info, PWID_MAGICMISSILE); //mxd. Player stats.
 	WeaponThink_MagicMissileSpread((edict_t*)info->self, "i", value);
 }
 
 void G_PlayerActionSpellSphereCreate(const playerinfo_t* info)
 {
+	G_Stats_Shot(info, PWID_SPHERE); //mxd. Player stats.
 	WeaponThink_SphereOfAnnihilation(info->self, "");
 }
 
 void G_PlayerActionSpellBigBall(const playerinfo_t* info)
 {
+	G_Stats_Shot(info, PWID_MACEBALL); //mxd. Player stats.
 	WeaponThink_Maceballs((edict_t*)info->self, "");
 }
 
 void G_PlayerActionSpellFirewall(const playerinfo_t* info)
 {
+	G_Stats_Shot(info, PWID_FIREWALL); //mxd. Player stats.
 	WeaponThink_Firewall((edict_t*)info->self, "");
 }
 
 void G_PlayerActionRedRainBowAttack(const playerinfo_t* info)
 {
+	G_Stats_Shot(info, PWID_BOW_REDRAIN); //mxd. Player stats.
 	WeaponThink_RedRainBow((edict_t*)info->self, "");
 }
 
 void G_PlayerActionPhoenixBowAttack(const playerinfo_t* info)
 {
+	G_Stats_Shot(info, PWID_BOW_PHOENIX); //mxd. Player stats.
 	WeaponThink_PhoenixBow((edict_t*)info->self, "");
 }
 
 void G_PlayerActionHellstaffAttack(const playerinfo_t* info)
 {
+	G_Stats_Shot(info, PWID_HELLSTAFF); //mxd. Player stats.
 	WeaponThink_HellStaff((edict_t*)info->self, "");
 }
 
@@ -1026,6 +1037,7 @@ void G_PlayerActionSpellDefensive(playerinfo_t* info)
 	if (info->leveltime <= info->defensive_debounce)
 		return;
 
+	G_Stats_Shot(info, PWID_SHIELD); //mxd. Player stats.
 	info->pers.defence->weaponthink((edict_t*)info->self, "");
 	info->defensive_debounce = info->leveltime + DEFENSE_DEBOUNCE;
 

@@ -31,6 +31,9 @@ void SV_WipeSavegame(const char* savename)
 	Com_sprintf(name, sizeof(name), "%s/save/%s/game.ssv", FS_Userdir(), savename);
 	remove(name);
 
+	Com_sprintf(name, sizeof(name), "%s/save/%s/stats.json", FS_Userdir(), savename); //mxd. Player stats sidecar.
+	remove(name);
+
 	Com_sprintf(name, sizeof(name), "%s/save/%s/*.sav", FS_Userdir(), savename);
 	const char* s = Sys_FindFirst(name, 0, 0);
 	while (s != NULL)
@@ -65,6 +68,11 @@ static void SV_CopySaveGame(const char* src, const char* dst)
 
 	Com_sprintf(name, sizeof(name), "%s/save/%s/game.ssv", FS_Userdir(), src); // H2: FS_Gamedir() -> FS_Userdir()
 	Com_sprintf(name2, sizeof(name2), "%s/save/%s/game.ssv", FS_Userdir(), dst); // H2: FS_Gamedir() -> FS_Userdir()
+	FS_CopyFile(name, name2);
+
+	Com_sprintf(name, sizeof(name), "%s/save/%s/stats.json", FS_Userdir(), src); //mxd. Player stats sidecar (skipped if missing).
+	Com_sprintf(name2, sizeof(name2), "%s/save/%s/stats.json", FS_Userdir(), dst);
+	FS_CreatePath(name2);
 	FS_CopyFile(name, name2);
 
 	// Get savedir length.

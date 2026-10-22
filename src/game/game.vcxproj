@@ -100,6 +100,7 @@
     <ClCompile Include="g_Skeletons.c" />
     <ClCompile Include="g_spawn.c" />
     <ClCompile Include="g_spawnf.c" />
+    <ClCompile Include="g_stats.c" />
     <ClCompile Include="g_svcmds.c" />
     <ClCompile Include="g_target.c" />
     <ClCompile Include="g_trigger.c" />

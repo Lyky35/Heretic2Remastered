@@ -14,6 +14,7 @@
 #include "g_save.h" //mxd
 #include "g_Skeletons.h"
 #include "g_spawnf.h" //mxd
+#include "g_stats.h" //mxd
 #include "p_anims.h"
 #include "p_client.h" //mxd
 #include "p_hud.h" //mxd
@@ -256,6 +257,7 @@ void InitGame(void)
 	globals.num_edicts = game.maxclients + 1;
 
 	LoadStrings();
+	G_Stats_LevelInit(); //mxd. Zero stats on a new game, roll them on level change.
 }
 
 static void ShutdownGame(void)
@@ -640,6 +642,8 @@ static void G_RunFrame(void)
 	// Update server ticks.
 	level.framenum++;
 	level.time = (float)level.framenum * FRAMETIME;
+
+	G_Stats_RunFrame(); //mxd. Throttled configstring pushes of the player stats.
 
 	// Choose a client for monsters to target this frame. Only targets one client for all monsters.
 	AI_SetSightClient();

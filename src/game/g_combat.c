@@ -10,6 +10,7 @@
 #include "g_debris.h" //mxd
 #include "g_HitLocation.h"
 #include "g_items.h" //mxd
+#include "g_stats.h" //mxd
 #include "g_itemstats.h"
 #include "g_monster.h" //mxd
 #include "g_playstats.h"
@@ -827,6 +828,10 @@ void T_Damage(edict_t* target, edict_t* inflictor, edict_t* attacker, const vec3
 		// Apply damage.
 		target->health -= dmg_take;
 
+		G_Stats_DamageTaken(target, dmg_take); //mxd. Player stats.
+		if (target != attacker)
+			G_Stats_DamageDealt(attacker, dmg_take); //mxd. Player stats (skip self-damage).
+
 		if (target != attacker && BLOOD_LEVEL > VIOLENCE_BLOOD) // Can't dismember yourself.
 		{
 			vec3_t hit_spot;
@@ -857,7 +862,10 @@ void T_Damage(edict_t* target, edict_t* inflictor, edict_t* attacker, const vec3
 				if (target->client != NULL)
 					PlayerDismember(target, attacker, dismemeber_dmg, hl);
 				else
+				{
 					G_PostMessage(target, MSG_DISMEMBER, PRI_DIRECTIVE, "ii", dismemeber_dmg, hl);
+					G_Stats_Chop(attacker, target, hl); //mxd. Player stats (monster limbs only).
+				}
 			}
 		}
 

@@ -11,6 +11,7 @@
 #include "g_items.h"
 #include "g_itemstats.h"
 #include "g_playstats.h"
+#include "g_stats.h" //mxd
 #include "p_anims.h"
 #include "p_dll.h" //mxd
 #include "p_client.h" //mxd
@@ -995,6 +996,12 @@ void ClientCommand(edict_t* ent)
 	if (Q_stricmp(cmd, "score") == 0)
 	{
 		Cmd_Score_f(ent);
+		return;
+	}
+
+	if (Q_stricmp(cmd, "statrefresh") == 0) //mxd. Player stats (TAB overlay).
+	{
+		G_Stats_Statrefresh(ent);
 		return;
 	}
 
