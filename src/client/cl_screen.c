@@ -757,6 +757,7 @@ static void SCR_DrawLoading(void)
 // mxd. H2R: stats block for the loading screen (local player totals + previous mission).
 static void SCR_DrawLoadingStats(void)
 {
+	// cl.playernum is -1 during cinematics/spectators; there is no "own" stats to show.
 	if (cl.playernum < 0 || cl.playernum >= MAX_CLIENTS)
 		return;
 
@@ -1341,7 +1342,9 @@ static const char* SCR_WeaponName(const int weapon)
 // mxd. H2R: one stats block as a single line of text.
 static void SCR_StatsLine(char* buffer, const int buffer_size, const playerstats_block_t* b)
 {
-	Com_sprintf(buffer, buffer_size, "%-9.9s %6i %6i  %2i %2i %2i %2i %2i %2i",
+	// 13-wide weapon field: SCR_WeaponName()'s longest is "Magic Missile", so anything
+	// narrower truncates it and shifts the numeric columns out of alignment.
+	Com_sprintf(buffer, buffer_size, "%-13.13s %6i %6i  %2i %2i %2i %2i %2i %2i",
 				SCR_WeaponName(b->weapon), b->damage_dealt, b->damage_taken,
 				b->chops_head, b->chops_torso,
 				b->chops_arm_left, b->chops_arm_right,
@@ -1357,7 +1360,7 @@ static void SCR_DrawPlayerStatsBlock(const int x, int y, const qboolean with_hea
 
 	if (with_header)
 	{
-		DrawString(x, y, "Player            Weapon      Dealt  Taken   H  T AL AR LL LR", TextPalette[P_WHITE], -1);
+		DrawString(x, y, "Player            Weapon         Dealt  Taken   H  T AL AR LL LR", TextPalette[P_WHITE], -1);
 		row++;
 	}
 
@@ -1388,6 +1391,10 @@ static void SCR_DrawPlayerStats(void) // mxd. H2R: TAB overlay.
 		return;
 
 	if (!keydown[K_TAB])
+		return;
+
+	// cl.playernum is -1 for spectators; mode would be an out-of-bounds read.
+	if (cl.playernum < 0 || cl.playernum >= MAX_CLIENTS)
 		return;
 
 	// Deathmatch has its own server scoreboard; don't double up.
