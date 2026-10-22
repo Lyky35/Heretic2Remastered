@@ -112,6 +112,33 @@ typedef struct
 	vec3_t origin;
 } clientinfo_t;
 
+// mxd. One block of H2R player stats (damage, dismemberment, most used weapon).
+// The server ships three of these per client: mission, totals and previous mission.
+typedef struct
+{
+	int damage_dealt;
+	int damage_taken;
+	int chops_head;
+	int chops_torso;
+	int chops_arm_left;
+	int chops_arm_right;
+	int chops_leg_left;
+	int chops_leg_right;
+	int weapon;			// player_weapon_id_e of the most used weapon...
+	int weapon_shots;	// ...and how many shots it got.
+} playerstats_block_t;
+
+// mxd. H2R player stats, parsed out of the CS_PLAYERSTATS configstrings (see g_stats.c).
+// Indexed by server-side client number; only [cl.playernum] is the local player's own.
+typedef struct
+{
+	playerstats_block_t mission;
+	playerstats_block_t totals;
+	playerstats_block_t last;
+	int mode;			// 0 = single player, 1 = coop, 2 = deathmatch.
+	uint seq;			// Bumped by the server on every level change.
+} playerstats_t;
+
 // client_state_t
 // Wiped completely at every server map change.
 typedef struct
@@ -198,6 +225,10 @@ typedef struct
 
 	clientinfo_t clientinfo[MAX_CLIENTS];
 	clientinfo_t baseclientinfo;
+
+	//mxd. H2R player stats, parsed out of the CS_PLAYERSTATS configstrings
+	// (6 per client, see g_stats.c). Index by server-side client number.
+	playerstats_t playerstats[MAX_CLIENTS];
 
 	int lastanimtime; //TODO: set, but never used.
 	int PIV;

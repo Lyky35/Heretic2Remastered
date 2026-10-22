@@ -573,6 +573,62 @@ void CL_ParseClientinfo(const int player)
 	SCR_UpdateProgressbar(6); // H2
 }
 
+// mxd. H2R player stats. The server sends 6 configstrings per client (see g_stats.c):
+// two per block (A = seq,mode,dmg_dealt,dmg_taken  B = head,torso,arm_l,arm_r,leg_l,leg_r,
+// weapon,weapon_shots) for each of current mission, totals and previous mission.
+static void CL_ParsePlayerStats(const int index, const char* s)
+{
+	const int client = (index - CS_PLAYERSTATS) / 6;
+
+	if (client < 0 || client >= MAX_CLIENTS)
+		return;
+
+	playerstats_t* stats = &cl.playerstats[client];
+
+	switch ((index - CS_PLAYERSTATS) % 6)
+	{
+		case 0: // Mission, block A.
+		{
+			int mode;
+
+			if (sscanf(s, "%u,%d,%d,%d", &stats->seq, &mode,
+					   &stats->mission.damage_dealt, &stats->mission.damage_taken) == 4)
+				stats->mode = mode;
+
+			break;
+		}
+
+		case 1: // Mission, block B.
+			sscanf(s, "%d,%d,%d,%d,%d,%d,%d,%d", &stats->mission.chops_head, &stats->mission.chops_torso,
+				   &stats->mission.chops_arm_left, &stats->mission.chops_arm_right,
+				   &stats->mission.chops_leg_left, &stats->mission.chops_leg_right,
+				   &stats->mission.weapon, &stats->mission.weapon_shots);
+			break;
+
+		case 2: // Totals, block A.
+			sscanf(s, "%*u,%*d,%d,%d", &stats->totals.damage_dealt, &stats->totals.damage_taken);
+			break;
+
+		case 3: // Totals, block B.
+			sscanf(s, "%d,%d,%d,%d,%d,%d,%d,%d", &stats->totals.chops_head, &stats->totals.chops_torso,
+				   &stats->totals.chops_arm_left, &stats->totals.chops_arm_right,
+				   &stats->totals.chops_leg_left, &stats->totals.chops_leg_right,
+				   &stats->totals.weapon, &stats->totals.weapon_shots);
+			break;
+
+		case 4: // Previous mission, block A.
+			sscanf(s, "%*u,%*d,%d,%d", &stats->last.damage_dealt, &stats->last.damage_taken);
+			break;
+
+		case 5: // Previous mission, block B.
+			sscanf(s, "%d,%d,%d,%d,%d,%d,%d,%d", &stats->last.chops_head, &stats->last.chops_torso,
+				   &stats->last.chops_arm_left, &stats->last.chops_arm_right,
+				   &stats->last.chops_leg_left, &stats->last.chops_leg_right,
+				   &stats->last.weapon, &stats->last.weapon_shots);
+			break;
+	}
+}
+
 static void CL_ParseConfigString(void)
 {
 	char buffer1[200];
@@ -597,6 +653,13 @@ static void CL_ParseConfigString(void)
 	else
 	{
 		strcpy_s(cl.configstrings[i], sizeof(cl.configstrings[i]), s); //mxd. strcpy -> strcpy_s
+	}
+
+	//mxd. H2R player stats: 6 configstrings per client (see g_stats.c).
+	if (i >= CS_PLAYERSTATS && i < CS_PLAYERSTATS + MAX_CLIENTS * 6)
+	{
+		CL_ParsePlayerStats(i, s);
+		return;
 	}
 
 	// Set lightstyle?
