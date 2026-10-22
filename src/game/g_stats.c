@@ -20,6 +20,7 @@ typedef struct
 {
 	int damage_dealt;
 	int damage_taken;
+	int deaths;
 	int weapon_shots[PWID_MAX];
 	int chops_head;
 	int chops_torso;
@@ -111,6 +112,17 @@ void G_Stats_DamageTaken(edict_t* victim, const int damage)
 
 	s_totals[num].damage_taken += damage;
 	s_mission[num].damage_taken += damage;
+	s_dirty[num] = true;
+}
+
+void G_Stats_Death(edict_t* victim)
+{
+	const int num = G_Stats_ClientIndex(victim);
+	if (num < 0)
+		return;
+
+	s_totals[num].deaths++;
+	s_mission[num].deaths++;
 	s_dirty[num] = true;
 }
 
@@ -210,13 +222,13 @@ void G_Stats_Shot(const playerinfo_t* info, const player_weapon_id_e weapon)
 // 6 slots per client: for each of the 3 blocks (current mission / totals / previous
 // mission) we use two configstrings, because a single one (MAX_QPATH = 64 bytes)
 // can't hold all twelve fields once the damage counters get large.
-// Block A: seq,mode,dmg_dealt,dmg_taken
+// Block A: seq,mode,dmg_dealt,dmg_taken,deaths
 // Block B: head,torso,arm_l,arm_r,leg_l,leg_r,weapon,weapon_shots
 static void BuildStatsStringA(const player_stats_t* stats, const int seq, char* buffer, const int buffer_size)
 {
-	Com_sprintf(buffer, buffer_size, "%u,%d,%d,%d",
+	Com_sprintf(buffer, buffer_size, "%u,%d,%d,%d,%d",
 				seq, GameMode(),
-				stats->damage_dealt, stats->damage_taken);
+				stats->damage_dealt, stats->damage_taken, stats->deaths);
 }
 
 static void BuildStatsStringB(const player_stats_t* stats, char* buffer, const int buffer_size)
@@ -347,7 +359,8 @@ static void Stats_JsonPath(const char* save_filename, char* buffer, const int bu
 
 static void WriteStatsBlock(FILE* f, const player_stats_t* stats)
 {
-	fprintf(f, "\"damage_dealt\":%d,\"damage_taken\":%d,", stats->damage_dealt, stats->damage_taken);
+	fprintf(f, "\"damage_dealt\":%d,\"damage_taken\":%d,\"deaths\":%d,",
+			stats->damage_dealt, stats->damage_taken, stats->deaths);
 	fprintf(f, "\"chops_head\":%d,\"chops_torso\":%d,", stats->chops_head, stats->chops_torso);
 	fprintf(f, "\"chops_arm_left\":%d,\"chops_arm_right\":%d,", stats->chops_arm_left, stats->chops_arm_right);
 	fprintf(f, "\"chops_leg_left\":%d,\"chops_leg_right\":%d,", stats->chops_leg_left, stats->chops_leg_right);
@@ -427,6 +440,11 @@ static qboolean Stats_JsonReadBlock(const char* p, player_stats_t* stats)
 	{
 		return false;
 	}
+
+	// Written since R8.9; older stats.json sidecars simply have no deaths field.
+	const char* d = strstr(p, "\"deaths\":");
+	if (d != NULL)
+		sscanf(d, "\"deaths\":%d", &stats->deaths);
 
 	const char* w = strstr(p, "\"weapon_shots\":[");
 	if (w == NULL)

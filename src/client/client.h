@@ -118,6 +118,7 @@ typedef struct
 {
 	int damage_dealt;
 	int damage_taken;
+	int deaths;
 	int chops_head;
 	int chops_torso;
 	int chops_arm_left;

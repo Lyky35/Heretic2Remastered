@@ -21,6 +21,7 @@ void G_Stats_RunFrame(void);
 // Hooks (all safe to call with non-player/world entities).
 void G_Stats_DamageDealt(struct edict_s* attacker, const int damage);
 void G_Stats_DamageTaken(struct edict_s* victim, const int damage);
+void G_Stats_Death(struct edict_s* victim);
 void G_Stats_Chop(struct edict_s* attacker, struct edict_s* victim, const int hitloc);
 void G_Stats_Shot(const struct playerinfo_s* info, const player_weapon_id_e weapon);
 

@@ -17,6 +17,7 @@
 #include "g_playstats.h"
 #include "g_Shrine.h" //mxd
 #include "g_Skeletons.h"
+#include "g_stats.h" //mxd
 #include "m_player.h"
 #include "p_anims.h" //mxd
 #include "p_funcs.h"
@@ -920,6 +921,8 @@ void PlayerDie(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 {
 	//FIXME: Make sure you can still dismember and gib player while dying.
 	assert(self->client != NULL);
+
+	G_Stats_Death(self); //mxd. Player stats.
 
 	VectorClear(self->avelocity);
 

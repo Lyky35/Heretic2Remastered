@@ -574,8 +574,8 @@ void CL_ParseClientinfo(const int player)
 }
 
 // mxd. H2R player stats. The server sends 6 configstrings per client (see g_stats.c):
-// two per block (A = seq,mode,dmg_dealt,dmg_taken  B = head,torso,arm_l,arm_r,leg_l,leg_r,
-// weapon,weapon_shots) for each of current mission, totals and previous mission.
+// two per block (A = seq,mode,dmg_dealt,dmg_taken,deaths  B = head,torso,arm_l,arm_r,
+// leg_l,leg_r,weapon,weapon_shots) for each of current mission, totals and previous mission.
 static void CL_ParsePlayerStats(const int index, const char* s)
 {
 	const int client = (index - CS_PLAYERSTATS) / 6;
@@ -591,8 +591,9 @@ static void CL_ParsePlayerStats(const int index, const char* s)
 		{
 			int mode;
 
-			if (sscanf(s, "%u,%d,%d,%d", &stats->seq, &mode,
-					   &stats->mission.damage_dealt, &stats->mission.damage_taken) == 4)
+			if (sscanf(s, "%u,%d,%d,%d,%d", &stats->seq, &mode,
+					   &stats->mission.damage_dealt, &stats->mission.damage_taken,
+					   &stats->mission.deaths) == 5)
 				stats->mode = mode;
 
 			break;
@@ -606,7 +607,8 @@ static void CL_ParsePlayerStats(const int index, const char* s)
 			break;
 
 		case 2: // Totals, block A.
-			sscanf(s, "%*u,%*d,%d,%d", &stats->totals.damage_dealt, &stats->totals.damage_taken);
+			sscanf(s, "%*u,%*d,%d,%d,%d", &stats->totals.damage_dealt, &stats->totals.damage_taken,
+				   &stats->totals.deaths);
 			break;
 
 		case 3: // Totals, block B.
@@ -617,7 +619,8 @@ static void CL_ParsePlayerStats(const int index, const char* s)
 			break;
 
 		case 4: // Previous mission, block A.
-			sscanf(s, "%*u,%*d,%d,%d", &stats->last.damage_dealt, &stats->last.damage_taken);
+			sscanf(s, "%*u,%*d,%d,%d,%d", &stats->last.damage_dealt, &stats->last.damage_taken,
+				   &stats->last.deaths);
 			break;
 
 		case 5: // Previous mission, block B.

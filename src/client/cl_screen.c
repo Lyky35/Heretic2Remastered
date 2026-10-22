@@ -704,7 +704,16 @@ static void SCR_DrawLoading(void);
 // mxd. H2R: stats shown on the loading screen (totals + previous mission for the local player).
 static void SCR_DrawLoadingStats(void);
 
-static void SCR_StatsLine(char* buffer, int buffer_size, const playerstats_block_t* b);
+static int SCR_DrawPlayerStatsLine(int x, int y, const char* title, const playerstats_block_t* b);
+static const char* SCR_WeaponName(const int weapon);
+
+// mxd. H2R: one stat line as "Label: value", drawn as a left-aligned column.
+// Returns the y of the next line.
+static int SCR_StatLine(const int x, int y, const char* label, const char* value, const paletteRGBA_t color)
+{
+	DrawString(x, y, va("%s: %s", label, value), color, -1);
+	return y + ui_char_size;
+}
 
 static void SCR_DrawLoading(void)
 {
@@ -769,21 +778,44 @@ static void SCR_DrawLoadingStats(void)
 
 	const int x = (DEF_WIDTH - (260 * ui_scale)) >> 1;
 	int y = 120;
-	char line[160];
 
 	DrawString(x, y, "Mission", TextPalette[P_WHITE], -1);
-	SCR_StatsLine(line, sizeof(line), &stats->mission);
-	DrawString(x, y + ui_char_size, line, TextPalette[P_FRAGS], -1);
-	y += ui_char_size * 2;
+	y = SCR_StatLine(x, y + ui_char_size, "Fav Weapons", SCR_WeaponName(stats->mission.weapon), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Damage Dealt", va("%i", stats->mission.damage_dealt), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Damage Taken", va("%i", stats->mission.damage_taken), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Deaths", va("%i", stats->mission.deaths), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Heads Chopped", va("%i", stats->mission.chops_head), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Torso Cut In Half", va("%i", stats->mission.chops_torso), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Left Arm Chopped", va("%i", stats->mission.chops_arm_left), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Right Arm Chopped", va("%i", stats->mission.chops_arm_right), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Left Leg Chopped", va("%i", stats->mission.chops_leg_left), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Right Leg Chopped", va("%i", stats->mission.chops_leg_right), TextPalette[P_FRAGS]);
+	y += ui_char_size;
 
 	DrawString(x, y, "Total", TextPalette[P_WHITE], -1);
-	SCR_StatsLine(line, sizeof(line), &stats->totals);
-	DrawString(x, y + ui_char_size, line, TextPalette[P_FRAGS], -1);
-	y += ui_char_size * 2;
+	y = SCR_StatLine(x, y + ui_char_size, "Fav Weapons", SCR_WeaponName(stats->totals.weapon), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Damage Dealt", va("%i", stats->totals.damage_dealt), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Damage Taken", va("%i", stats->totals.damage_taken), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Deaths", va("%i", stats->totals.deaths), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Heads Chopped", va("%i", stats->totals.chops_head), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Torso Cut In Half", va("%i", stats->totals.chops_torso), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Left Arm Chopped", va("%i", stats->totals.chops_arm_left), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Right Arm Chopped", va("%i", stats->totals.chops_arm_right), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Left Leg Chopped", va("%i", stats->totals.chops_leg_left), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Right Leg Chopped", va("%i", stats->totals.chops_leg_right), TextPalette[P_FRAGS]);
+	y += ui_char_size;
 
 	DrawString(x, y, "Previous mission", TextPalette[P_WHITE], -1);
-	SCR_StatsLine(line, sizeof(line), &stats->last);
-	DrawString(x, y + ui_char_size, line, TextPalette[P_FRAGS], -1);
+	y = SCR_StatLine(x, y + ui_char_size, "Fav Weapons", SCR_WeaponName(stats->last.weapon), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Damage Dealt", va("%i", stats->last.damage_dealt), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Damage Taken", va("%i", stats->last.damage_taken), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Deaths", va("%i", stats->last.deaths), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Heads Chopped", va("%i", stats->last.chops_head), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Torso Cut In Half", va("%i", stats->last.chops_torso), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Left Arm Chopped", va("%i", stats->last.chops_arm_left), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Right Arm Chopped", va("%i", stats->last.chops_arm_right), TextPalette[P_FRAGS]);
+	y = SCR_StatLine(x, y, "Left Leg Chopped", va("%i", stats->last.chops_leg_left), TextPalette[P_FRAGS]);
+	SCR_StatLine(x, y, "Right Leg Chopped", va("%i", stats->last.chops_leg_right), TextPalette[P_FRAGS]);
 }
 
 // Q2 counterpart
@@ -1339,29 +1371,34 @@ static const char* SCR_WeaponName(const int weapon)
 	}
 }
 
-// mxd. H2R: one stats block as a single line of text.
-static void SCR_StatsLine(char* buffer, const int buffer_size, const playerstats_block_t* b)
+// mxd. H2R: one player as a single labelled line, so four coop players fit on
+// screen at once. Full labels and full weapon names - nothing is truncated.
+static int SCR_DrawPlayerStatsLine(int x, int y, const char* title, const playerstats_block_t* b)
 {
-	// 13-wide weapon field: SCR_WeaponName()'s longest is "Magic Missile", so anything
-	// narrower truncates it and shifts the numeric columns out of alignment.
-	Com_sprintf(buffer, buffer_size, "%-13.13s %6i %6i  %2i %2i %2i %2i %2i %2i",
-				SCR_WeaponName(b->weapon), b->damage_dealt, b->damage_taken,
-				b->chops_head, b->chops_torso,
-				b->chops_arm_left, b->chops_arm_right,
-				b->chops_leg_left, b->chops_leg_right);
+	const paletteRGBA_t color = TextPalette[P_FRAGS];
+
+	DrawString(x, y, title, TextPalette[P_WHITE], -1);
+	y += ui_char_size;
+
+	y = SCR_StatLine(x, y, "Fav Weapons", SCR_WeaponName(b->weapon), color);
+	y = SCR_StatLine(x, y, "Damage Dealt", va("%i", b->damage_dealt), color);
+	y = SCR_StatLine(x, y, "Damage Taken", va("%i", b->damage_taken), color);
+	SCR_StatLine(x, y, "Deaths", va("%i", b->deaths), color);
+
+	return y + ui_char_size;
 }
 
-// mxd. H2R: TAB overlay + loading screen block. Shows totals for every player
-// (name-keyed server side, so it works in coop), plus the local mission line.
-static void SCR_DrawPlayerStatsBlock(const int x, int y, const qboolean with_header)
+// mxd. H2R: TAB overlay. One block per player, stacked down the left side of
+// the screen so four coop players all stay visible. Shows totals for every
+// player; the full dismemberment breakdown lives on the loading screen.
+static void SCR_DrawPlayerStatsBlock(const int x, const int y, const qboolean with_header)
 {
-	char line[160];
-	int row = 0;
+	int cur_y = y;
 
 	if (with_header)
 	{
-		DrawString(x, y, "Player            Weapon         Dealt  Taken   H  T AL AR LL LR", TextPalette[P_WHITE], -1);
-		row++;
+		DrawString(x, cur_y, "Player Stats", TextPalette[P_WHITE], -1);
+		cur_y += ui_char_size * 2;
 	}
 
 	for (int i = 0; i < MAX_CLIENTS; i++)
@@ -1372,14 +1409,10 @@ static void SCR_DrawPlayerStatsBlock(const int x, int y, const qboolean with_hea
 		if (stats->seq == 0 && stats->totals.damage_dealt == 0 && stats->mission.damage_dealt == 0)
 			continue;
 
-		const paletteRGBA_t color = (i == cl.playernum) ? TextPalette[P_WHITE] : TextPalette[P_FRAGS];
-
-		SCR_StatsLine(line, sizeof(line), &stats->totals);
-		DrawString(x, y + (row + 1) * ui_char_size, va("%-16.16s%s", cl.clientinfo[i].name, line), color, -1);
-		row++;
+		cur_y = SCR_DrawPlayerStatsLine(x, cur_y, cl.clientinfo[i].name, &stats->totals);
 	}
 
-	if (row == 0)
+	if (cur_y == y)
 	{
 		DrawString(x, y + ui_char_size, "No stats yet.", TextPalette[P_FRAGS], -1);
 	}
@@ -1401,8 +1434,9 @@ static void SCR_DrawPlayerStats(void) // mxd. H2R: TAB overlay.
 	if (cl.playerstats[cl.playernum].mode == 2)
 		return;
 
-	const int x = (ui_screen_offset_x + ui_screen_width / 2) - (150 * ui_scale);
-	const int y = (viddef.height / 2) - (60 * ui_scale);
+	// Left side of the screen, just inside the letterbox edge.
+	const int x = ui_screen_offset_x + (16 * ui_scale);
+	const int y = 48 * ui_scale;
 
 	SCR_DrawPlayerStatsBlock(x, y, true);
 }
